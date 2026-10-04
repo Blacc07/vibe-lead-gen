@@ -4,97 +4,118 @@ import requests
 import re
 
 # --- CONFIGURATION ---
-DUNE_API_KEY = os.environ.get("DUNE_API_KEY")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
-DUNE_SOLANA_QUERY_ID = os.environ.get("DUNE_SOLANA_QUERY_ID") # Kept for backup, but primary is now DefiLlama
-DUNE_EVM_QUERY_ID = os.environ.get("DUNE_EVM_QUERY_ID")
-
 STATE_FILE = "processed_leads.json"
 
-# Blocklist of established giants, CEXs, and infrastructure that don't need this pitch
-BLOCKLIST = [
-    "pinksale", "pancakeswap", "uniswap", "sushiswap", "raydium", 
-    "jupiter", "curve", "aave", "compound", "maker", "lido", 
-    "gmx", "dydx", "synthetix", "binance", "coinbase", "okx"
-]
+# ICP PARAMETERS
+TARGET_CHAINS = ["Solana", "Base", "Binance"]
+ALLOWED_CATEGORIES = ["Dexes", "Yield", "Launchpad", "Services", "Infrastructure", "Gaming"]
+BLOCKLIST_KEYWORDS = ["doge", "shib", "pepe", "safe", "elon", "inu", "floki", "moon", "pump", "rocket", "kishu", "baby"]
 
 def fetch_defillama():
     print("Fetching DefiLlama protocols...")
     url = "https://api.llama.fi/protocols"
-    response = requests.get(url)
+    response = requests.get(url, timeout=30)
     response.raise_for_status()
     return response.json()
 
-def scrape_website_for_contacts(url):
-    """Attempts to find Telegram or Twitter links in the website HTML."""
-    if not url or url == "N/A" or not str(url).startswith("http"):
-        return "Not Found", "Not Found"
+def is_blocked(name, symbol):
+    """Checks if project name or symbol contains blocklist keywords."""
+    name_lower = (name or "").lower()
+    symbol_lower = (symbol or "").lower()
+    for keyword in BLOCKLIST_KEYWORDS:
+        if keyword in name_lower or keyword in symbol_lower:
+            return True
+    return False
+
+def get_contacts(lead):
+    """Extracts contacts from website HTML, falling back to DefiLlama API fields."""
+    telegram = "Not Found"
+    twitter = "Not Found"
     
-    try:
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"}
-        response = requests.get(url, headers=headers, timeout=10)
-        html = response.text
-        
-        # Regex for Telegram
-        tg_match = re.search(r'(?:https?://)?(?:www\.)?(?:t\.me|telegram\.me)/([a-zA-Z0-9_]{5,32})', html)
-        if not tg_match:
-            tg_match = re.search(r'@([a-zA-Z0-9_]{5,32})', html)
+    # 1. Try scraping the website
+    url = lead.get('website')
+    if url and url.startswith("http"):
+        try:
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
+            response = requests.get(url, headers=headers, timeout=8)
+            html = response.text
             
-        # Regex for Twitter/X
-        tw_match = re.search(r'(?:https?://)?(?:www\.)?(?:twitter\.com|x\.com)/([a-zA-Z0-9_]{1,15})', html)
+            tg_match = re.search(r'(?:https?://)?(?:www\.)?(?:t\.me|telegram\.me)/([a-zA-Z0-9_]{5,32})', html)
+            if not tg_match: tg_match = re.search(r'@([a-zA-Z0-9_]{5,32})', html)
+            
+            tw_match = re.search(r'(?:https?://)?(?:www\.)?(?:twitter\.com|x\.com)/([a-zA-Z0-9_]{1,15})', html)
+            
+            if tg_match: telegram = f"@{tg_match.group(1)}"
+            if tw_match: twitter = f"@{tw_match.group(1)}"
+        except Exception:
+            pass # Fallback to API fields below
+
+    # 2. Fallback to DefiLlama API fields if website scrape failed
+    if telegram == "Not Found" and lead.get('api_telegram'):
+        telegram = f"@{lead['api_telegram']}"
+    if twitter == "Not Found" and lead.get('api_twitter'):
+        twitter = f"@{lead['api_twitter']}"
         
-        telegram = f"@{tg_match.group(1)}" if tg_match else "Not Found"
-        twitter = f"@{tw_match.group(1)}" if tw_match else "Not Found"
-        
-        return telegram, twitter
-    except Exception:
-        return "Error/Timeout", "Error/Timeout"
+    return telegram, twitter
 
 def normalize_leads(llama_data):
-    print("Filtering for REAL projects: TVL > $250k AND Market Cap < $10M...")
+    print("Filtering based on ICP parameters...")
     leads = []
-    target_chains = ["Solana", "Base", "Binance", "Ethereum", "Arbitrum", "Optimism"]
     
     for proto in llama_data:
+        name = proto.get("name")
+        symbol = proto.get("symbol")
+        category = proto.get("category", "")
         chains = proto.get("chains", [])
-        has_chain = any(c in target_chains for c in chains)
-        
-        mcap = proto.get("mcap")
         tvl = proto.get("tvl", 0)
-        name_lower = proto.get("name", "").lower()
+        mcap = proto.get("mcap")
         url = proto.get("url")
         
-        # THE SWEET SPOT FILTER:
-        # 1. Must be on a target chain
-        # 2. MUST have a valid website URL
-        # 3. TVL > $250,000 (Proves real users/liquidity exist)
-        # 4. Market Cap < $10,000,000 (Still small enough to be hungry for perp listings)
-        # 5. NOT in the blocklist
-        
-        if (has_chain and url and 
-            tvl >= 250000 and 
-            mcap and 100000 <= mcap <= 10000000 and 
-            not any(blocked in name_lower for blocked in BLOCKLIST)):
+        # 1. Category Filter
+        if not any(allowed in category for allowed in ALLOWED_CATEGORIES):
+            continue
             
-            leads.append({
-                "source": "DefiLlama_SweetSpot",
-                "slug": proto.get("slug"),
-                "name": proto.get("name"),
-                "symbol": proto.get("symbol", "N/A"),
-                "chain": next((c for c in chains if c in target_chains), "Multi-Chain"),
-                "website": url,
-                "mcap": mcap,
-                "tvl": tvl
-            })
+        # 2. Chain Filter
+        if not any(chain in TARGET_CHAINS for chain in chains):
+            continue
+            
+        # 3. Metric Filter (TVL >= 250k, MCAP 1M - 10M)
+        if tvl < 250000 or not mcap or not (1000000 <= mcap <= 10000000):
+            continue
+            
+        # 4. Blocklist Filter
+        if is_blocked(name, symbol):
+            continue
+            
+        # 5. Social Presence Filter (Must have Twitter AND Telegram/Discord in API data)
+        api_twitter = proto.get("twitter")
+        api_telegram = proto.get("telegram")
+        api_discord = proto.get("discord")
+        
+        if not api_twitter or not (api_telegram or api_discord):
+            continue # Enforces "active, verifiable social presence"
+
+        leads.append({
+            "source": "DefiLlama_ICP",
+            "slug": proto.get("slug"),
+            "name": name,
+            "symbol": symbol,
+            "category": category,
+            "chain": next((c for c in chains if c in TARGET_CHAINS), "Multi-Chain"),
+            "website": url,
+            "mcap": mcap,
+            "tvl": tvl,
+            "api_twitter": api_twitter,
+            "api_telegram": api_telegram
+        })
     
-    # Sort by TVL descending (prioritize projects with the most actual locked value)
+    # Sort by TVL descending (highest traction first)
     leads.sort(key=lambda x: x.get("tvl", 0), reverse=True)
     
-    # Take the top 15 highest TVL projects that still meet the micro/small cap criteria
-    quality_leads = leads[:15]
-    print(f"Found {len(quality_leads)} high-quality, undervalued protocols.")
-    return quality_leads
+    print(f"Found {len(leads)} high-quality ICP matches.")
+    return leads[:15] # Top 15 per run
 
 def load_processed_slugs():
     if os.path.exists(STATE_FILE):
@@ -109,46 +130,38 @@ def save_processed_slugs(slugs):
 def send_telegram_message(lead):
     mcap_str = f"${int(lead['mcap']):,}"
     tvl_str = f"${int(lead['tvl']):,}"
-    website_str = lead.get('website', 'N/A')
     
-    print(f"Scraping contacts for: {lead['name']} ({website_str})")
-    telegram, twitter = scrape_website_for_contacts(website_str)
+    print(f"Processing: {lead['name']}")
+    telegram, twitter = get_contacts(lead)
     
     text = (
-        f"🚨 *High-Potential Vibe Trading Lead*\n\n"
+        f" *High-Potential Vibe Trading Lead*\n\n"
         f"📛 *Project*: {lead['name']} ({lead.get('symbol', 'N/A')})\n"
+        f" *Category*: {lead['category']}\n"
         f"⛓️ *Chain*: {lead['chain']}\n"
         f"💰 *Market Cap*: {mcap_str}\n"
-        f"🏦 *Total Value Locked (TVL)*: {tvl_str}\n"
-        f"🔗 *Website*: {website_str}\n\n"
-        f"📞 *Auto-Extracted Contacts*:\n"
+        f"🏦 *TVL*: {tvl_str}\n"
+        f" *Website*: {lead.get('website', 'N/A')}\n\n"
+        f" *Extracted Contacts*:\n"
         f"• Telegram: {telegram}\n"
         f"• Twitter: {twitter}\n\n"
         f"💬 *Vibe Pitch*: \"Instead of dumping treasury, deposit tokens to Vibe's vault to list a perp for free, back OI, and earn trading fees forever.\""
     )
     
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
-        "text": text,
-        "parse_mode": "Markdown"
-    }
+    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": text, "parse_mode": "Markdown"}
     requests.post(url, json=payload)
-    print(f"✅ Sent Telegram message for {lead['name']}")
+    print(f"✅ Sent message for {lead['name']}")
 
 def main():
-    print("=== STARTING VIBE TRADING LEAD GEN PIPELINE (SWEET SPOT MODE) ===")
-    
+    print("=== STARTING ICP-TARGETED LEAD GEN PIPELINE ===")
     try:
-        # We are now relying primarily on DefiLlama for quality over raw Dune noise
         llama_data = fetch_defillama()
-        
         all_leads = normalize_leads(llama_data)
-        print(f"Total quality leads to process: {len(all_leads)}")
         
         processed_slugs = load_processed_slugs()
         new_leads = [lead for lead in all_leads if lead["slug"] not in processed_slugs]
-        print(f"New leads after deduplication: {len(new_leads)}")
+        print(f"New leads to process: {len(new_leads)}")
         
         for lead in new_leads:
             send_telegram_message(lead)
@@ -156,7 +169,6 @@ def main():
             
         save_processed_slugs(processed_slugs)
         print("=== PIPELINE FINISHED SUCCESSFULLY ===")
-        
     except Exception as e:
         print(f"❌ CRITICAL ERROR: {e}")
         raise
