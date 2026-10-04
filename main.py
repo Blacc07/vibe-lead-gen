@@ -9,7 +9,7 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 STATE_FILE = "processed_leads.json"
 
 # ICP PARAMETERS
-TARGET_CHAINS = ["Solana", "Base", "Binance"]
+TARGET_CHAINS = ["Solana", "Base", "Binance", "BSC"] # Added BSC just in case DefiLlama uses it
 ALLOWED_CATEGORIES = ["Dexes", "Yield", "Launchpad", "Services", "Infrastructure", "Gaming"]
 BLOCKLIST_KEYWORDS = ["doge", "shib", "pepe", "safe", "elon", "inu", "floki", "moon", "pump", "rocket", "kishu", "baby"]
 
@@ -21,7 +21,6 @@ def fetch_defillama():
     return response.json()
 
 def is_blocked(name, symbol):
-    """Checks if project name or symbol contains blocklist keywords."""
     name_lower = (name or "").lower()
     symbol_lower = (symbol or "").lower()
     for keyword in BLOCKLIST_KEYWORDS:
@@ -36,15 +35,18 @@ def get_contacts(lead):
     
     # 1. Try scraping the website
     url = lead.get('website')
-    if url and url.startswith("http"):
+    if url and str(url).startswith("http"):
         try:
             headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
             response = requests.get(url, headers=headers, timeout=8)
             html = response.text
             
+            # Telegram Regex
             tg_match = re.search(r'(?:https?://)?(?:www\.)?(?:t\.me|telegram\.me)/([a-zA-Z0-9_]{5,32})', html)
-            if not tg_match: tg_match = re.search(r'@([a-zA-Z0-9_]{5,32})', html)
+            if not tg_match: 
+                tg_match = re.search(r'@([a-zA-Z0-9_]{5,32})', html)
             
+            # Twitter/X Regex
             tw_match = re.search(r'(?:https?://)?(?:www\.)?(?:twitter\.com|x\.com)/([a-zA-Z0-9_]{1,15})', html)
             
             if tg_match: telegram = f"@{tg_match.group(1)}"
@@ -54,14 +56,17 @@ def get_contacts(lead):
 
     # 2. Fallback to DefiLlama API fields if website scrape failed
     if telegram == "Not Found" and lead.get('api_telegram'):
-        telegram = f"@{lead['api_telegram']}"
+        tg_val = str(lead['api_telegram']).replace("https://t.me/", "").replace("@", "")
+        telegram = f"@{tg_val}"
+        
     if twitter == "Not Found" and lead.get('api_twitter'):
-        twitter = f"@{lead['api_twitter']}"
+        tw_val = str(lead['api_twitter']).replace("https://twitter.com/", "").replace("https://x.com/", "").replace("@", "")
+        twitter = f"@{tw_val}"
         
     return telegram, twitter
 
 def normalize_leads(llama_data):
-    print("Filtering based on ICP parameters...")
+    print("Filtering based on ICP parameters (Pre-Scrape)...")
     leads = []
     
     for proto in llama_data:
@@ -74,7 +79,7 @@ def normalize_leads(llama_data):
         url = proto.get("url")
         
         # 1. Category Filter
-        if not any(allowed in category for allowed in ALLOWED_CATEGORIES):
+        if not any(allowed.lower() in category.lower() for allowed in ALLOWED_CATEGORIES):
             continue
             
         # 2. Chain Filter
@@ -89,13 +94,9 @@ def normalize_leads(llama_data):
         if is_blocked(name, symbol):
             continue
             
-        # 5. Social Presence Filter (Must have Twitter AND Telegram/Discord in API data)
-        api_twitter = proto.get("twitter")
-        api_telegram = proto.get("telegram")
-        api_discord = proto.get("discord")
-        
-        if not api_twitter or not (api_telegram or api_discord):
-            continue # Enforces "active, verifiable social presence"
+        # 5. Basic Presence Filter (Must have a Website OR Twitter to even attempt scraping)
+        if not url and not proto.get("twitter"):
+            continue 
 
         leads.append({
             "source": "DefiLlama_ICP",
@@ -107,15 +108,15 @@ def normalize_leads(llama_data):
             "website": url,
             "mcap": mcap,
             "tvl": tvl,
-            "api_twitter": api_twitter,
-            "api_telegram": api_telegram
+            "api_twitter": proto.get("twitter"),
+            "api_telegram": proto.get("telegram")
         })
     
     # Sort by TVL descending (highest traction first)
     leads.sort(key=lambda x: x.get("tvl", 0), reverse=True)
     
-    print(f"Found {len(leads)} high-quality ICP matches.")
-    return leads[:15] # Top 15 per run
+    print(f"Found {len(leads)} projects passing initial ICP metrics. Sending to scraper...")
+    return leads
 
 def load_processed_slugs():
     if os.path.exists(STATE_FILE):
@@ -131,9 +132,14 @@ def send_telegram_message(lead):
     mcap_str = f"${int(lead['mcap']):,}"
     tvl_str = f"${int(lead['tvl']):,}"
     
-    print(f"Processing: {lead['name']}")
+    print(f"Scraping contacts for: {lead['name']}")
     telegram, twitter = get_contacts(lead)
     
+    # FINAL QUALITY GATE: If we still can't find a way to contact them after scraping + fallback, drop the lead.
+    if telegram == "Not Found" and twitter == "Not Found":
+        print(f"️ Dropped {lead['name']}: No contact methods found after scraping.")
+        return
+
     text = (
         f" *High-Potential Vibe Trading Lead*\n\n"
         f"📛 *Project*: {lead['name']} ({lead.get('symbol', 'N/A')})\n"
@@ -141,8 +147,8 @@ def send_telegram_message(lead):
         f"⛓️ *Chain*: {lead['chain']}\n"
         f"💰 *Market Cap*: {mcap_str}\n"
         f"🏦 *TVL*: {tvl_str}\n"
-        f" *Website*: {lead.get('website', 'N/A')}\n\n"
-        f" *Extracted Contacts*:\n"
+        f"🔗 *Website*: {lead.get('website', 'N/A')}\n\n"
+        f"📞 *Extracted Contacts*:\n"
         f"• Telegram: {telegram}\n"
         f"• Twitter: {twitter}\n\n"
         f"💬 *Vibe Pitch*: \"Instead of dumping treasury, deposit tokens to Vibe's vault to list a perp for free, back OI, and earn trading fees forever.\""
