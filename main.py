@@ -12,6 +12,13 @@ DUNE_EVM_QUERY_ID = os.environ.get("DUNE_EVM_QUERY_ID")
 
 STATE_FILE = "processed_leads.json"
 
+# Blocklist of established infrastructure/launchpads that don't need perp listings
+BLOCKLIST = [
+    "pinksale", "pinkswap", "pancakeswap", "uniswap", "sushiswap", 
+    "raydium", "jupiter", "curve", "aave", "compound", "maker", 
+    "lido", "rocket pool", "gmx", "dydx", "synthetix", "perp"
+]
+
 def fetch_dune_results(query_id):
     print(f"Fetching Dune query: {query_id}")
     url = f"https://api.dune.com/api/v1/query/{query_id}/results"
@@ -53,13 +60,14 @@ def scrape_website_for_contacts(url):
         return "Error/Timeout", "Error/Timeout"
 
 def normalize_leads(solana_data, evm_data, llama_data):
-    print("Normalizing and filtering leads...")
+    print("Normalizing and filtering for MICRO/SMALL CAP leads...")
     leads = []
     
-    # 1. Solana (Pump.fun)
-    for row in solana_data[:10]:
+    # 1. Solana (Pump.fun) - THESE ARE YOUR BEST MICRO-CAP TARGETS
+    # Prioritize these as they are brand new and actively need liquidity/listings
+    for row in solana_data[:12]:
         name = row.get("token_name", "Unknown")
-        if name and name != "Unknown":
+        if name and name != "Unknown" and name.lower() not in BLOCKLIST:
             leads.append({
                 "source": "Dune_Solana",
                 "slug": row.get("tx_hash"),
@@ -67,18 +75,25 @@ def normalize_leads(solana_data, evm_data, llama_data):
                 "symbol": row.get("token_symbol", "???"),
                 "chain": "Solana",
                 "website": f"https://pump.fun/{row.get('token_address')}",
-                "mcap": None
+                "mcap": None # New launches don't have established MCAP yet
             })
 
-    # 2. DefiLlama (Established Projects)
+    # 2. DefiLlama (Strict Micro/Small Cap Filter)
     target_chains = ["Solana", "Base", "Binance"]
     for proto in llama_data:
         chains = proto.get("chains", [])
         has_chain = any(c in target_chains for c in chains)
         mcap = proto.get("mcap")
+        name_lower = proto.get("name", "").lower()
         
-        # Strict filter: Must have target chain, valid MCAP ($100k - $20M), AND a real URL
-        if has_chain and mcap and 100000 <= mcap <= 20000000 and proto.get("url"):
+        # STRICT FILTER: 
+        # 1. Must be on target chain
+        # 2. MCAP between $50,000 and $3,000,000 (True micro/small cap)
+        # 3. Must have a URL
+        # 4. MUST NOT be in the blocklist (No PinkSale, Uniswap, etc.)
+        if (has_chain and mcap and 50000 <= mcap <= 3000000 and 
+            proto.get("url") and not any(blocked in name_lower for blocked in BLOCKLIST)):
+            
             leads.append({
                 "source": "DefiLlama",
                 "slug": proto.get("slug"),
@@ -92,12 +107,12 @@ def normalize_leads(solana_data, evm_data, llama_data):
     # Final cleanup: Ensure no "Unknown" names slipped through
     quality_leads = [lead for lead in leads if lead.get("name") and lead.get("name") != "Unknown"]
     
-    # Balance: Max 8 DefiLlama, Max 7 Solana (Total 15 high-quality leads)
-    defi_leads = [l for l in quality_leads if l["source"] == "DefiLlama"][:8]
-    solana_leads = [l for l in quality_leads if l["source"] == "Dune_Solana"][:7]
+    # Balance: Max 10 Solana (highest priority for new listings), Max 5 DefiLlama micro-caps
+    solana_leads = [l for l in quality_leads if l["source"] == "Dune_Solana"][:10]
+    defi_leads = [l for l in quality_leads if l["source"] == "DefiLlama"][:5]
     
-    print(f"Selected {len(defi_leads)} DefiLlama leads and {len(solana_leads)} Solana leads.")
-    return defi_leads + solana_leads
+    print(f"Selected {len(solana_leads)} Solana micro-cap leads and {len(defi_leads)} DefiLlama micro-cap leads.")
+    return solana_leads + defi_leads
 
 def load_processed_slugs():
     if os.path.exists(STATE_FILE):
@@ -110,14 +125,14 @@ def save_processed_slugs(slugs):
         json.dump(slugs, f)
 
 def send_telegram_message(lead):
-    mcap_str = f"${int(lead['mcap']):,}" if lead.get('mcap') else "New/Unknown"
+    mcap_str = f"${int(lead['mcap']):,}" if lead.get('mcap') else "New Launch (TBD)"
     website_str = lead.get('website', 'N/A')
     
     print(f"Scraping contacts for: {lead['name']} ({website_str})")
     telegram, twitter = scrape_website_for_contacts(website_str)
     
     text = (
-        f"🚨 *New Vibe Trading Lead*\n\n"
+        f"🚨 *New Vibe Trading Lead (Micro/Small Cap)*\n\n"
         f"📛 *Project*: {lead['name']} ({lead.get('symbol', 'N/A')})\n"
         f"⛓️ *Chain*: {lead['chain']}\n"
         f"💰 *Market Cap*: {mcap_str}\n"
@@ -146,7 +161,7 @@ def main():
         llama_data = fetch_defillama()
         
         all_leads = normalize_leads(solana_data, evm_data, llama_data)
-        print(f"Total quality leads to process: {len(all_leads)}")
+        print(f"Total quality micro-cap leads to process: {len(all_leads)}")
         
         processed_slugs = load_processed_slugs()
         new_leads = [lead for lead in all_leads if lead["slug"] not in processed_slugs]
