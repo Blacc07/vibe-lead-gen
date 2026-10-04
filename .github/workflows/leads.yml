@@ -5,6 +5,10 @@ on:
     - cron: '0 9 * * 1,3,5'
   workflow_dispatch:
 
+# Grant write permissions to the GITHUB_TOKEN so it can commit the state file
+permissions:
+  contents: write
+
 jobs:
   run-lead-gen:
     runs-on: ubuntu-latest
