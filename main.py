@@ -7,25 +7,17 @@ import re
 DUNE_API_KEY = os.environ.get("DUNE_API_KEY")
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
-DUNE_SOLANA_QUERY_ID = os.environ.get("DUNE_SOLANA_QUERY_ID")
+DUNE_SOLANA_QUERY_ID = os.environ.get("DUNE_SOLANA_QUERY_ID") # Kept for backup, but primary is now DefiLlama
 DUNE_EVM_QUERY_ID = os.environ.get("DUNE_EVM_QUERY_ID")
 
 STATE_FILE = "processed_leads.json"
 
-# Blocklist of established infrastructure/launchpads that don't need perp listings
+# Blocklist of established giants, CEXs, and infrastructure that don't need this pitch
 BLOCKLIST = [
-    "pinksale", "pinkswap", "pancakeswap", "uniswap", "sushiswap", 
-    "raydium", "jupiter", "curve", "aave", "compound", "maker", 
-    "lido", "rocket pool", "gmx", "dydx", "synthetix", "perp"
+    "pinksale", "pancakeswap", "uniswap", "sushiswap", "raydium", 
+    "jupiter", "curve", "aave", "compound", "maker", "lido", 
+    "gmx", "dydx", "synthetix", "binance", "coinbase", "okx"
 ]
-
-def fetch_dune_results(query_id):
-    print(f"Fetching Dune query: {query_id}")
-    url = f"https://api.dune.com/api/v1/query/{query_id}/results"
-    headers = {"x-dune-api-key": DUNE_API_KEY}
-    response = requests.get(url, headers=headers)
-    response.raise_for_status()
-    return response.json().get("result", {}).get("rows", [])
 
 def fetch_defillama():
     print("Fetching DefiLlama protocols...")
@@ -40,7 +32,7 @@ def scrape_website_for_contacts(url):
         return "Not Found", "Not Found"
     
     try:
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"}
         response = requests.get(url, headers=headers, timeout=10)
         html = response.text
         
@@ -59,60 +51,50 @@ def scrape_website_for_contacts(url):
     except Exception:
         return "Error/Timeout", "Error/Timeout"
 
-def normalize_leads(solana_data, evm_data, llama_data):
-    print("Normalizing and filtering for MICRO/SMALL CAP leads...")
+def normalize_leads(llama_data):
+    print("Filtering for REAL projects: TVL > $250k AND Market Cap < $10M...")
     leads = []
+    target_chains = ["Solana", "Base", "Binance", "Ethereum", "Arbitrum", "Optimism"]
     
-    # 1. Solana (Pump.fun) - THESE ARE YOUR BEST MICRO-CAP TARGETS
-    # Prioritize these as they are brand new and actively need liquidity/listings
-    for row in solana_data[:12]:
-        name = row.get("token_name", "Unknown")
-        if name and name != "Unknown" and name.lower() not in BLOCKLIST:
-            leads.append({
-                "source": "Dune_Solana",
-                "slug": row.get("tx_hash"),
-                "name": name,
-                "symbol": row.get("token_symbol", "???"),
-                "chain": "Solana",
-                "website": f"https://pump.fun/{row.get('token_address')}",
-                "mcap": None # New launches don't have established MCAP yet
-            })
-
-    # 2. DefiLlama (Strict Micro/Small Cap Filter)
-    target_chains = ["Solana", "Base", "Binance"]
     for proto in llama_data:
         chains = proto.get("chains", [])
         has_chain = any(c in target_chains for c in chains)
-        mcap = proto.get("mcap")
-        name_lower = proto.get("name", "").lower()
         
-        # STRICT FILTER: 
-        # 1. Must be on target chain
-        # 2. MCAP between $50,000 and $3,000,000 (True micro/small cap)
-        # 3. Must have a URL
-        # 4. MUST NOT be in the blocklist (No PinkSale, Uniswap, etc.)
-        if (has_chain and mcap and 50000 <= mcap <= 3000000 and 
-            proto.get("url") and not any(blocked in name_lower for blocked in BLOCKLIST)):
+        mcap = proto.get("mcap")
+        tvl = proto.get("tvl", 0)
+        name_lower = proto.get("name", "").lower()
+        url = proto.get("url")
+        
+        # THE SWEET SPOT FILTER:
+        # 1. Must be on a target chain
+        # 2. MUST have a valid website URL
+        # 3. TVL > $250,000 (Proves real users/liquidity exist)
+        # 4. Market Cap < $10,000,000 (Still small enough to be hungry for perp listings)
+        # 5. NOT in the blocklist
+        
+        if (has_chain and url and 
+            tvl >= 250000 and 
+            mcap and 100000 <= mcap <= 10000000 and 
+            not any(blocked in name_lower for blocked in BLOCKLIST)):
             
             leads.append({
-                "source": "DefiLlama",
+                "source": "DefiLlama_SweetSpot",
                 "slug": proto.get("slug"),
                 "name": proto.get("name"),
                 "symbol": proto.get("symbol", "N/A"),
-                "chain": next((c for c in chains if c in target_chains), "Unknown"),
-                "website": proto.get("url"),
-                "mcap": mcap
+                "chain": next((c for c in chains if c in target_chains), "Multi-Chain"),
+                "website": url,
+                "mcap": mcap,
+                "tvl": tvl
             })
     
-    # Final cleanup: Ensure no "Unknown" names slipped through
-    quality_leads = [lead for lead in leads if lead.get("name") and lead.get("name") != "Unknown"]
+    # Sort by TVL descending (prioritize projects with the most actual locked value)
+    leads.sort(key=lambda x: x.get("tvl", 0), reverse=True)
     
-    # Balance: Max 10 Solana (highest priority for new listings), Max 5 DefiLlama micro-caps
-    solana_leads = [l for l in quality_leads if l["source"] == "Dune_Solana"][:10]
-    defi_leads = [l for l in quality_leads if l["source"] == "DefiLlama"][:5]
-    
-    print(f"Selected {len(solana_leads)} Solana micro-cap leads and {len(defi_leads)} DefiLlama micro-cap leads.")
-    return solana_leads + defi_leads
+    # Take the top 15 highest TVL projects that still meet the micro/small cap criteria
+    quality_leads = leads[:15]
+    print(f"Found {len(quality_leads)} high-quality, undervalued protocols.")
+    return quality_leads
 
 def load_processed_slugs():
     if os.path.exists(STATE_FILE):
@@ -125,17 +107,19 @@ def save_processed_slugs(slugs):
         json.dump(slugs, f)
 
 def send_telegram_message(lead):
-    mcap_str = f"${int(lead['mcap']):,}" if lead.get('mcap') else "New Launch (TBD)"
+    mcap_str = f"${int(lead['mcap']):,}"
+    tvl_str = f"${int(lead['tvl']):,}"
     website_str = lead.get('website', 'N/A')
     
     print(f"Scraping contacts for: {lead['name']} ({website_str})")
     telegram, twitter = scrape_website_for_contacts(website_str)
     
     text = (
-        f"🚨 *New Vibe Trading Lead (Micro/Small Cap)*\n\n"
+        f"🚨 *High-Potential Vibe Trading Lead*\n\n"
         f"📛 *Project*: {lead['name']} ({lead.get('symbol', 'N/A')})\n"
         f"⛓️ *Chain*: {lead['chain']}\n"
         f"💰 *Market Cap*: {mcap_str}\n"
+        f"🏦 *Total Value Locked (TVL)*: {tvl_str}\n"
         f"🔗 *Website*: {website_str}\n\n"
         f"📞 *Auto-Extracted Contacts*:\n"
         f"• Telegram: {telegram}\n"
@@ -153,15 +137,14 @@ def send_telegram_message(lead):
     print(f"✅ Sent Telegram message for {lead['name']}")
 
 def main():
-    print("=== STARTING VIBE TRADING LEAD GEN PIPELINE ===")
+    print("=== STARTING VIBE TRADING LEAD GEN PIPELINE (SWEET SPOT MODE) ===")
     
     try:
-        solana_data = fetch_dune_results(DUNE_SOLANA_QUERY_ID)
-        evm_data = fetch_dune_results(DUNE_EVM_QUERY_ID) 
+        # We are now relying primarily on DefiLlama for quality over raw Dune noise
         llama_data = fetch_defillama()
         
-        all_leads = normalize_leads(solana_data, evm_data, llama_data)
-        print(f"Total quality micro-cap leads to process: {len(all_leads)}")
+        all_leads = normalize_leads(llama_data)
+        print(f"Total quality leads to process: {len(all_leads)}")
         
         processed_slugs = load_processed_slugs()
         new_leads = [lead for lead in all_leads if lead["slug"] not in processed_slugs]
