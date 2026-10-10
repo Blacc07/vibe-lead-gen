@@ -3,13 +3,13 @@ import json
 import requests
 import re
 import time
+import sys
 
 # --- CONFIGURATION ---
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 STATE_FILE = "processed_leads.json"
 
-# Phase 13: Native CoinGecko Approach Parameters
 CATEGORIES = [
     'decentralized-exchange', 
     'yield-farming', 
@@ -23,21 +23,17 @@ GIANT_BLOCKLIST = [
     "mavia", "re", "saffron", "balancer", "quickswap", "harvest"
 ]
 
-# Regex patterns for memecoin blocklist (case-insensitive, word boundaries)
 MEME_BLOCKLIST_PATTERNS = [
     re.compile(r'\b(pepe|doge|shib|inu|floki|bonk|wojak|pump|moon|safe)\b', re.IGNORECASE)
 ]
 
 def is_blocked(name, symbol):
-    """Checks if project name or symbol matches giant or memecoin blocklists."""
     name_lower = (name or "").lower()
     symbol_lower = (symbol or "").lower()
     
-    # 1. Giant Blocklist Check (substring match)
     if any(giant in name_lower or giant in symbol_lower for giant in GIANT_BLOCKLIST):
         return True
         
-    # 2. Memecoin Regex Blocklist Check
     for pattern in MEME_BLOCKLIST_PATTERNS:
         if pattern.search(name_lower) or pattern.search(symbol_lower):
             return True
@@ -45,23 +41,34 @@ def is_blocked(name, symbol):
     return False
 
 def fetch_and_filter_coingecko():
-    """Queries CoinGecko categories and applies all filters in a single pass."""
-    print("=== MODULE 1: DISCOVERY & ENRICHMENT (Native CoinGecko) ===")
+    print("=== MODULE 1: DISCOVERY & ENRICHMENT (Native CoinGecko) ===", flush=True)
     validated_leads = []
     
     for category in CATEGORIES:
-        print(f"  Fetching category: {category}...")
+        print(f"  Fetching category: {category}...", flush=True)
         url = f"https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&category={category}&order=market_cap_desc&per_page=100&page=1&sparkline=false"
         
         try:
-            time.sleep(2.5)  # Respect CoinGecko free tier rate limits (10-30 calls/min)
-            response = requests.get(url, timeout=15)
+            time.sleep(3.5)  # Increased delay to respect rate limits
+            
+            # Use a standard browser User-Agent to reduce the chance of immediate WAF blocking
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+                "Accept": "application/json"
+            }
+            
+            response = requests.get(url, headers=headers, timeout=15)
+            
+            # BULLETPROOF LOGGING: Print exactly what the API returns
+            print(f"    [API RESPONSE] Status: {response.status_code} {response.reason}", flush=True)
             
             if response.status_code != 200:
-                print(f"    [ERROR] {response.status_code} {response.reason} for {category}")
+                # Print the first 300 characters of the error body to see if it's a Cloudflare block, rate limit, etc.
+                print(f"    [API RESPONSE BODY] {response.text[:300]}", flush=True)
                 continue
                 
             coins = response.json()
+            print(f"    [SUCCESS] Received {len(coins)} coins for {category}", flush=True)
             
             for coin in coins:
                 name = str(coin.get('name', ''))
@@ -70,29 +77,23 @@ def fetch_and_filter_coingecko():
                 volume = coin.get('total_volume') or 0
                 links = coin.get('links', {})
                 
-                # 1. Blocklist Checks
                 if is_blocked(name, symbol):
                     continue
                     
-                # 2. Strict Market Cap Filter ($500k - $3M)
                 if not (500_000 <= mcap <= 3_000_000):
                     continue
                     
-                # 3. Minimum Volume Filter ($50k+)
                 if volume < 50_000:
                     continue
                     
-                # 4. Utility Proxy: Must have a valid homepage URL
                 homepages = links.get('homepage', [])
                 valid_homepage = next((url for url in homepages if url and str(url).strip()), None)
                 if not valid_homepage:
                     continue
                     
-                # 5. Extract Contacts
                 twitter_handle = links.get('twitter_screen_name', '')
                 telegram_handle = links.get('telegram_channel_identifier', '')
                 
-                # If it passes all filters, it's a high-quality lead
                 validated_leads.append({
                     'name': name,
                     'symbol': symbol.upper(),
@@ -102,14 +103,14 @@ def fetch_and_filter_coingecko():
                     'twitter': f"@{twitter_handle}" if twitter_handle else "Not Found",
                     'telegram': f"@{telegram_handle}" if telegram_handle else "Not Found"
                 })
-                print(f"    [PASS] {name} (MCAP: ${mcap:,.0f}, Vol: ${volume:,.0f})")
+                print(f"    [PASS] {name} (MCAP: ${mcap:,.0f}, Vol: ${volume:,.0f})", flush=True)
                 
         except requests.exceptions.RequestException as e:
-            print(f"    [ERROR] Request exception for {category}: {e}")
+            print(f"    [CRITICAL NETWORK ERROR] {e}", flush=True)
         except Exception as e:
-            print(f"    [ERROR] Unexpected exception for {category}: {e}")
+            print(f"    [CRITICAL UNEXPECTED ERROR] {e}", flush=True)
 
-    print(f"Module Complete: {len(validated_leads)} high-quality leads discovered.")
+    print(f"Module Complete: {len(validated_leads)} high-quality leads discovered.", flush=True)
     return validated_leads
 
 def load_processed_names():
@@ -143,41 +144,37 @@ def send_telegram_message(lead):
     
     try:
         requests.post(url, json=payload, timeout=10)
-        print(f"  [TELEGRAM] ✅ Sent message for {lead['name']}")
+        print(f"  [TELEGRAM] ✅ Sent message for {lead['name']}", flush=True)
     except Exception as e:
-        print(f"  [TELEGRAM] ❌ Failed to send message for {lead['name']}: {e}")
+        print(f"  [TELEGRAM] ❌ Failed to send message for {lead['name']}: {e}", flush=True)
 
 def main():
-    print("=== STARTING MULTI-STAGE QUALIFICATION FUNNEL (PHASE 13: NATIVE COINGECKO) ===")
+    print("=== STARTING MULTI-STAGE QUALIFICATION FUNNEL (PHASE 14: BULLETPROOF LOGGING) ===", flush=True)
     try:
-        # 1. Discovery & Enrichment
         validated_leads = fetch_and_filter_coingecko()
         if not validated_leads:
-            print("Exiting: No leads passed the filtering criteria.")
+            print("Exiting: No leads passed the filtering criteria or API failed.", flush=True)
             return
             
-        # 2. Deduplication
         processed_names = load_processed_names()
-        print(f"\n=== MODULE 2: DEDUPLICATION & OUTPUT ===")
-        print(f"Current processed names in memory: {len(processed_names)}")
+        print(f"\n=== MODULE 2: DEDUPLICATION & OUTPUT ===", flush=True)
+        print(f"Current processed names in memory: {len(processed_names)}", flush=True)
         
-        # Deduplicate by project name to prevent sending the same project twice
         new_leads = [lead for lead in validated_leads if lead['name'] not in processed_names]
-        print(f"New leads to process after deduplication: {len(new_leads)}")
+        print(f"New leads to process after deduplication: {len(new_leads)}", flush=True)
         
         if len(new_leads) == 0 and len(validated_leads) > 0:
-            print("⚠️ WARNING: All enriched leads were already processed. No new messages sent.")
+            print("⚠️ WARNING: All enriched leads were already processed. No new messages sent.", flush=True)
         
-        # 3. Delivery
         for lead in new_leads:
             send_telegram_message(lead)
             processed_names.append(lead['name'])
             
         save_processed_names(processed_names)
-        print("\n=== PIPELINE FINISHED SUCCESSFULLY ===")
+        print("\n=== PIPELINE FINISHED SUCCESSFULLY ===", flush=True)
         
     except Exception as e:
-        print(f"❌ CRITICAL ERROR: {e}")
+        print(f"❌ CRITICAL ERROR: {e}", flush=True)
         raise
 
 if __name__ == "__main__":
