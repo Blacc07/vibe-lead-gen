@@ -15,14 +15,21 @@ CATEGORY_WHITELIST = [
     "Dexs", "Yield", "Yield Aggregator", "Lending", "Liquid Staking", 
     "Infrastructure", "Services", "RWA", "Gaming", "Derivatives", "CDP"
 ]
+
+# Phase 9: Giant Protocol Blocklist
+GIANT_PROTOCOLS_BLOCKLIST = [
+    "balancer", "quickswap", "harvest", "uniswap", "pancakeswap", 
+    "aave", "curve", "compound", "sushiswap", "maker", "lido"
+]
+
 # Refined blocklist: Only obvious memecoin patterns
 BLOCKLIST_PATTERNS = [re.compile(r'\b(pepe|doge|shib|inu|floki|kishu|bonk|wojak)\b', re.IGNORECASE)]
 
-# Phase 8: Category Tail-End Strategy (Corrected CoinGecko Category Slugs)
+# Phase 9: Corrected CoinGecko Category Slugs
 TARGET_CATEGORIES = [
     "decentralized-exchange",
     "yield-farming",
-    "real-world-asset",
+    "real-world-assets-rwa",
     "gaming"
 ]
 
@@ -70,7 +77,7 @@ def check_github_activity(url):
     if not url:
         return True, "No GitHub URL"
     
-    # FIX: Handle if url is a list (DefiLlama sometimes returns a list of GitHub repos)
+    # Handle if url is a list (DefiLlama sometimes returns a list of GitHub repos)
     if isinstance(url, list):
         if not url:
             return True, "No GitHub URL"
@@ -128,16 +135,26 @@ def module1_discovery():
             data = response.json()
             
             for coin in data:
-                name = coin.get('name', '')
-                symbol = coin.get('symbol', '')
-                market_cap = coin.get('market_cap', 0) or 0
+                name = str(coin.get('name', ''))
+                symbol = str(coin.get('symbol', ''))
+                name_lower = name.lower()
+                symbol_lower = symbol.lower()
+                mcap = coin.get('market_cap')
                 total_volume = coin.get('total_volume', 0) or 0
                 
-                # Hard Filters
-                if is_blocked(name, symbol):
+                # Phase 9: Giant Protocol Blocklist
+                if any(giant in name_lower or giant in symbol_lower for giant in GIANT_PROTOCOLS_BLOCKLIST):
+                    continue
+                
+                # Phase 9: Strict Market Cap Rejection (No Nulls/Zeros)
+                if not mcap or mcap == 0:
                     continue
                     
-                if not (100_000 <= market_cap <= 15_000_000):
+                if not (100_000 <= float(mcap) <= 15_000_000):
+                    continue
+                    
+                # Memecoin Blocklist
+                if is_blocked(name, symbol):
                     continue
                     
                 if total_volume < 50_000:
@@ -147,8 +164,8 @@ def module1_discovery():
                     'id': coin.get('id'),
                     'name': name,
                     'symbol': symbol.upper(),
-                    'market_cap': market_cap,
-                    'total_volume': total_volume
+                    'market_cap': float(mcap),
+                    'total_volume': float(total_volume)
                 })
                 
             print(f"    Found {len(discovered_coins)} coins passing filters so far.")
@@ -302,7 +319,7 @@ def send_telegram_message(lead):
     print(f"  [TELEGRAM] ✅ Sent message for {lead['name']}")
 
 def main():
-    print("=== STARTING MULTI-STAGE QUALIFICATION FUNNEL (PHASE 8) ===")
+    print("=== STARTING MULTI-STAGE QUALIFICATION FUNNEL (PHASE 9) ===")
     try:
         # Execute Funnel
         stage1 = module1_discovery()
@@ -311,16 +328,30 @@ def main():
             return
             
         stage2 = module2_validation(stage1)
-        stage3 = module3_enrichment(stage2)
         
-        # Deduplication
+        # Phase 9: Pre-Enrichment Deduplication
+        print("\n=== PHASE 2.5: DEDUPLICATION ===")
+        unique_validated_projects = []
+        seen_names = set()
+        for proj in stage2:
+            name = proj.get('name')
+            if name and name not in seen_names:
+                seen_names.add(name)
+                unique_validated_projects.append(proj)
+            else:
+                print(f"  [DEDUPE] Skipped duplicate: {name}")
+                
+        print(f"Unique projects to enrich: {len(unique_validated_projects)}")
+        
+        stage3 = module3_enrichment(unique_validated_projects)
+        
+        # Final Deduplication against historical memory
         processed_slugs = load_processed_slugs()
-        print(f"\n=== DEDUPLICATION ===")
+        print(f"\n=== FINAL DEDUPLICATION ===")
         print(f"Current processed slugs in memory: {len(processed_slugs)}")
         
-        # Use name as slug for deduplication
         new_leads = [lead for lead in stage3 if lead['name'] not in processed_slugs]
-        print(f"New leads to process after deduplication: {len(new_leads)}")
+        print(f"New leads to process after historical deduplication: {len(new_leads)}")
         
         if len(new_leads) == 0 and len(stage3) > 0:
             print("⚠️ WARNING: All enriched leads were already processed. No new messages sent.")
