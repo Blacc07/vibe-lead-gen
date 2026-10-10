@@ -10,61 +10,34 @@ TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 STATE_FILE = "processed_leads.json"
 
-CHAIN_WHITELIST = ["Solana", "Base", "Binance", "BSC", "Binance Smart Chain"]
-CATEGORY_WHITELIST = [
-    "Dexs", "Yield", "Yield Aggregator", "Lending", "Liquid Staking", 
-    "Infrastructure", "Services", "RWA", "Gaming", "Derivatives", "CDP"
-]
-
-# Phase 10: Secondary Token Blocklist (Prevents vaults, LPs, and staked derivatives)
-SECONDARY_TOKEN_PATTERNS = [
-    re.compile(r'\b(vault|lp|staking|staked|reward|farm)\b', re.IGNORECASE)
-]
-
-# Phase 10: Giant Protocol Blocklist (Using word boundaries to prevent false positives like blocking "re" inside "free")
-GIANT_PROTOCOL_BLOCKLIST = [
-    "mavia", "re", "saffron", "balancer", "quickswap", "harvest", 
-    "uniswap", "pancakeswap", "aave", "curve", "compound", "maker", 
-    "lido", "pendle", "gmx", "jupiter", "raydium", "aerodrome"
-]
-GIANT_PROTOCOL_PATTERNS = [re.compile(rf'\b{giant}\b', re.IGNORECASE) for giant in GIANT_PROTOCOL_BLOCKLIST]
-
-# Refined memecoin blocklist
-BLOCKLIST_PATTERNS = [re.compile(r'\b(pepe|doge|shib|inu|floki|kishu|bonk|wojak)\b', re.IGNORECASE)]
-
-# CoinGecko Category Slugs
-TARGET_CATEGORIES = [
-    "decentralized-exchange",
-    "yield-farming",
-    "real-world-assets-rwa",
-    "gaming"
-]
+TARGET_NETWORKS = ["solana", "base", "bsc"]
+BLOCKLIST_PATTERNS = [re.compile(r'\b(pepe|doge|shib|inu|floki|bonk|wojak|pump|moon|safe)\b', re.IGNORECASE)]
 
 # --- HELPER FUNCTIONS ---
 def is_blocked(name, symbol):
     name_lower = (name or "").lower()
     symbol_lower = (symbol or "").lower()
-    
-    # Check secondary tokens
-    for pattern in SECONDARY_TOKEN_PATTERNS:
-        if pattern.search(name_lower) or pattern.search(symbol_lower):
-            return True
-            
-    # Check giants
-    for pattern in GIANT_PROTOCOL_PATTERNS:
-        if pattern.search(name_lower) or pattern.search(symbol_lower):
-            return True
-            
-    # Check memecoins
     for pattern in BLOCKLIST_PATTERNS:
         if pattern.search(name_lower) or pattern.search(symbol_lower):
             return True
-            
     return False
 
-def get_contacts(website_url, dl_twitter, dl_telegram):
+def format_handle(handle):
+    """Safely formats a social handle or URL into a clean @username."""
+    if not handle:
+        return "Not Found"
+    handle = str(handle).strip()
+    if handle.startswith('http'):
+        match = re.search(r'(?:twitter\.com|x\.com|t\.me|telegram\.me)/([a-zA-Z0-9_]{1,32})', handle)
+        if match:
+            return f"@{match.group(1)}"
+        return handle
+    return f"@{handle}" if not handle.startswith('@') else handle
+
+def get_contacts_from_website(website_url):
     telegram = "Not Found"
     twitter = "Not Found"
+    github = "Not Found"
     
     if website_url and str(website_url).startswith("http"):
         try:
@@ -77,29 +50,21 @@ def get_contacts(website_url, dl_twitter, dl_telegram):
                 tg_match = re.search(r'@([a-zA-Z0-9_]{5,32})', html)
             
             tw_match = re.search(r'(?:https?://)?(?:www\.)?(?:twitter\.com|x\.com)/([a-zA-Z0-9_]{1,15})', html)
+            gh_match = re.search(r'(https?://github\.com/[a-zA-Z0-9_-]+/[a-zA-Z0-9_.-]+)', html)
             
             if tg_match: telegram = f"@{tg_match.group(1)}"
             if tw_match: twitter = f"@{tw_match.group(1)}"
+            if gh_match: github = gh_match.group(1)
         except Exception:
             pass
+            
+    return telegram, twitter, github
 
-    if telegram == "Not Found" and dl_telegram:
-        telegram = f"@{str(dl_telegram).replace('https://t.me/', '').replace('@', '')}"
-    if twitter == "Not Found" and dl_twitter:
-        twitter = f"@{str(dl_twitter).replace('https://twitter.com/', '').replace('https://x.com/', '').replace('@', '')}"
-        
-    return telegram, twitter
-
-def check_github_activity(url):
-    if not url:
+def check_github_activity(github_url):
+    if not github_url or github_url == "Not Found":
         return True, "No GitHub URL"
-    if isinstance(url, list):
-        if not url: return True, "No GitHub URL"
-        url = url[0]
-    if not isinstance(url, str):
-        return True, "Invalid GitHub URL type"
         
-    match = re.search(r'github\.com/([a-zA-Z0-9_-]+/[a-zA-Z0-9_.-]+)', url)
+    match = re.search(r'github\.com/([a-zA-Z0-9_-]+/[a-zA-Z0-9_.-]+)', github_url)
     if not match:
         return True, "Invalid GitHub URL format"
         
@@ -107,7 +72,7 @@ def check_github_activity(url):
     api_url = f"https://api.github.com/repos/{repo_path}"
     
     try:
-        time.sleep(1.5)
+        time.sleep(1.5) # Rate limiting for GitHub API
         headers = {"Accept": "application/vnd.github.v3+json", "User-Agent": "Vibe-Lead-Gen"}
         response = requests.get(api_url, headers=headers, timeout=10)
         
@@ -122,196 +87,141 @@ def check_github_activity(url):
     except Exception as e:
         return True, f"Check Failed ({str(e)})"
 
-# --- MODULE 1: DISCOVERY (CoinGecko Categories) ---
+# --- MODULE 1: DISCOVERY (GeckoTerminal High-Volume Pools) ---
 def module1_discovery():
-    print("=== MODULE 1: DISCOVERY (CoinGecko Categories) ===")
-    discovered_coins = []
+    print("=== MODULE 1: DISCOVERY (GeckoTerminal High-Volume Pools) ===")
+    discovered_pools = []
+    now = datetime.now(timezone.utc)
     
-    for category in TARGET_CATEGORIES:
-        print(f"  Fetching category: {category}...")
-        url = f"https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&category={category}&order=market_cap_desc&per_page=100&page=1&sparkline=false"
-        
+    for network in TARGET_NETWORKS:
+        print(f"  Fetching top pools for {network}...")
+        url = f"https://api.geckoterminal.com/api/v2/networks/{network}/pools?sort=volume_usd_h24_desc&page=1"
         try:
-            time.sleep(2.5)
+            time.sleep(1.5) # Rate limiting between network requests
             response = requests.get(url, timeout=15)
-            
-            if response.status_code == 429:
-                print(f"    [RATE LIMIT] 429 Too Many Requests. Waiting 10s and retrying...")
-                time.sleep(10)
-                response = requests.get(url, timeout=15)
-                if response.status_code == 429:
-                    print(f"    [SKIP] Still rate limited. Skipping category {category}.")
-                    continue
-                    
             response.raise_for_status()
             data = response.json()
             
-            for coin in data:
-                name = str(coin.get('name', ''))
-                symbol = str(coin.get('symbol', ''))
-                mcap = coin.get('market_cap')
-                total_volume = coin.get('total_volume', 0) or 0
+            for pool in data.get('data', []):
+                attrs = pool.get('attributes', {})
+                name = attrs.get('name', '')
+                symbol = attrs.get('base_token', {}).get('symbol', '')
+                website = attrs.get('website_url')
+                twitter_handle = attrs.get('twitter_handle')
                 
-                # Phase 10: Strict Blocklists
+                # Utility Proxy Filter: Must have a website
+                if not website or str(website).strip() == "":
+                    continue
+                
+                # Regex Blocklist
                 if is_blocked(name, symbol):
-                    print(f"    [FILTER] Skipped '{name}': Matched blocklist.")
                     continue
                 
-                # Phase 10: Strict Market Cap Rejection
-                if not mcap or mcap == 0:
-                    continue
-                    
-                mcap_float = float(mcap)
+                # Hard Filters: Age >= 14 days
+                created_at_str = attrs.get('pool_created_at')
+                if created_at_str:
+                    try:
+                        created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+                        age_days = (now - created_at).days
+                        if age_days < 14:
+                            continue
+                    except ValueError:
+                        continue # Skip if date parsing fails
                 
-                # SNIPER RANGE: $500k to $3M
-                if not (500_000 <= mcap_float <= 3_000_000):
-                    print(f"    [FILTER] Skipped '{name}': MCAP ${mcap_float:,.0f} outside $500k-$3M sniper range.")
+                # Hard Filters: Reserve >= $50k
+                reserve_usd = float(attrs.get('reserve_in_usd', 0) or 0)
+                if reserve_usd < 50_000:
                     continue
-                    
-                if total_volume < 50_000:
+                
+                # Hard Filters: 24h Volume >= $50k
+                vol_h24 = float(attrs.get('volume_usd', {}).get('h24', 0) or 0)
+                if vol_h24 < 50_000:
                     continue
-                    
-                discovered_coins.append({
-                    'id': coin.get('id'),
-                    'name': name,
-                    'symbol': symbol.upper(),
-                    'market_cap': mcap_float,
-                    'total_volume': float(total_volume)
+                
+                discovered_pools.append({
+                    'pool_name': name,
+                    'token_symbol': symbol,
+                    'website': website,
+                    'twitter_handle': twitter_handle,
+                    'volume_usd_h24': vol_h24,
+                    'network': network.capitalize()
                 })
                 
-            print(f"    Found {len(discovered_coins)} coins passing filters so far.")
-            
+            print(f"    Found {len(discovered_pools)} pools passing filters so far.")
         except Exception as e:
-            print(f"    [ERROR] Failed to fetch {category}: {e}")
+            print(f"    [ERROR] Failed to fetch {network}: {e}")
             continue
             
-    print(f"Module 1 Complete: {len(discovered_coins)} total coins discovered passing initial filters.")
-    return discovered_coins
+    print(f"Module 1 Complete: {len(discovered_pools)} total pools discovered.")
+    return discovered_pools
 
-# --- MODULE 2: VALIDATION (DefiLlama) ---
-def module2_validation(discovered_coins):
-    print("\n=== MODULE 2: VALIDATION (DefiLlama) ===")
-    validated_projects = []
-    
-    print("  Fetching DefiLlama protocols cache...")
-    try:
-        dl_response = requests.get("https://api.llama.fi/protocols", timeout=30)
-        dl_response.raise_for_status()
-        dl_protocols = dl_response.json()
-    except Exception as e:
-        print(f"  [CRITICAL ERROR] Failed to fetch DefiLlama: {e}")
-        return []
-
-    for coin in discovered_coins:
-        coin_name_lower = coin['name'].lower()
-        coin_symbol_lower = coin['symbol'].lower()
-        
-        matched_proto = None
-        for proto in dl_protocols:
-            proto_name_lower = proto.get('name', '').lower()
-            proto_symbol_lower = proto.get('symbol', '').lower()
-            
-            if proto_name_lower in coin_name_lower or coin_name_lower in proto_name_lower or proto_symbol_lower == coin_symbol_lower:
-                matched_proto = proto
-                break
-                
-        if not matched_proto:
-            continue
-            
-        chains = matched_proto.get('chains', [])
-        category = matched_proto.get('category', '')
-        tvl = float(matched_proto.get('tvl', 0) or 0)
-        
-        if not any(chain in CHAIN_WHITELIST for chain in chains):
-            continue
-            
-        if not any(allowed.lower() in category.lower() for allowed in CATEGORY_WHITELIST):
-            continue
-            
-        validated_projects.append({
-            'name': matched_proto.get('name'),
-            'symbol': matched_proto.get('symbol'),
-            'category': category,
-            'chains': chains,
-            'website': matched_proto.get('url'),
-            'tvl': tvl,
-            'market_cap': coin['market_cap'],
-            'volume_24h': coin['total_volume'],
-            'dl_twitter': matched_proto.get('twitter'),
-            'dl_telegram': matched_proto.get('telegram'),
-            'dl_github': matched_proto.get('github')
-        })
-        
-    print(f"Module 2 Complete: {len(validated_projects)} projects validated.")
-    return validated_projects
-
-# --- MODULE 3: ENRICHMENT (Scraper & GitHub) ---
-def module3_enrichment(validated_projects):
-    print("\n=== MODULE 3: ENRICHMENT (Scraper & GitHub) ===")
+# --- MODULE 2: ENRICHMENT (Website Scraper & GitHub) ---
+def module2_enrichment(discovered_pools):
+    print("\n=== MODULE 2: ENRICHMENT (Scraper & GitHub) ===")
     enriched_leads = []
+    seen_websites = set()
+    seen_symbols = set()
     
-    for project in validated_projects:
-        print(f"  Enriching: {project['name']}...")
+    for pool in discovered_pools:
+        website = pool['website']
+        symbol = pool['token_symbol']
         
-        telegram, twitter = get_contacts(project['website'], project['dl_twitter'], project['dl_telegram'])
+        # In-run Deduplication
+        if website in seen_websites or symbol in seen_symbols:
+            print(f"  [DEDUPE] Skipped duplicate: {pool['pool_name']}")
+            continue
+            
+        print(f"  Enriching: {pool['pool_name']}...")
+        
+        tg_web, tw_web, gh_web = get_contacts_from_website(website)
+        
+        # Fallback to GeckoTerminal data if scraper found nothing
+        telegram = tg_web if tg_web != "Not Found" else format_handle(pool.get('twitter_handle'))
+        twitter = tw_web if tw_web != "Not Found" else format_handle(pool.get('twitter_handle'))
         
         if telegram == "Not Found" and twitter == "Not Found":
             print(f"    [DROP] No contact methods found.")
             continue
             
-        github_url = project.get('dl_github')
-        if not github_url and project['website']:
-            try:
-                web_resp = requests.get(project['website'], timeout=8)
-                gh_match = re.search(r'(https?://github\.com/[a-zA-Z0-9_-]+/[a-zA-Z0-9_.-]+)', web_resp.text)
-                if gh_match:
-                    github_url = gh_match.group(1)
-            except Exception:
-                pass
-
-        is_active, gh_status = check_github_activity(github_url)
+        is_active, gh_status = check_github_activity(gh_web)
         if not is_active:
             print(f"    [FLAG] {gh_status}, but proceeding due to strong on-chain metrics.")
         else:
             print(f"    [PASS] GitHub: {gh_status}")
             
-        project['telegram'] = telegram
-        project['twitter'] = twitter
-        enriched_leads.append(project)
+        pool['telegram'] = telegram
+        pool['twitter'] = twitter
+        enriched_leads.append(pool)
+        
+        seen_websites.add(website)
+        seen_symbols.add(symbol)
         print(f"    [PASS] Contacts: TG={telegram}, TW={twitter}")
         
-    print(f"Module 3 Complete: {len(enriched_leads)} leads fully enriched.")
+    print(f"Module 2 Complete: {len(enriched_leads)} leads fully enriched.")
     return enriched_leads
 
-# --- STATE & DELIVERY ---
-def load_processed_slugs():
+# --- MODULE 3: DEDUPLICATION & OUTPUT ---
+def load_processed_websites():
     if os.path.exists(STATE_FILE):
         with open(STATE_FILE, "r") as f:
             return json.load(f)
     return []
 
-def save_processed_slugs(slugs):
+def save_processed_websites(websites):
     with open(STATE_FILE, "w") as f:
-        json.dump(slugs, f)
+        json.dump(websites, f)
 
 def send_telegram_message(lead):
-    mcap_str = f"${int(lead['market_cap']):,}" if lead.get('market_cap') else "N/A"
-    vol_str = f"${int(lead['volume_24h']):,}" if lead.get('volume_24h') else "N/A"
-    tvl_str = f"${int(lead['tvl']):,}" if lead.get('tvl') and lead['tvl'] > 0 else "N/A"
-    
-    valid_chains = [c for c in lead['chains'] if c in CHAIN_WHITELIST]
-    chain_str = ", ".join(valid_chains) if valid_chains else "Multi-Chain"
+    vol_str = f"${int(lead['volume_usd_h24']):,}"
+    website = lead.get('website', 'N/A')
     
     text = (
         f"🚨 *High-Potential Vibe Trading Lead*\n\n"
-        f"📛 *Project*: {lead['name']} ({lead.get('symbol', 'N/A')})\n"
-        f"📂 *Category*: {lead['category']}\n"
-        f"⛓️ *Chain*: {chain_str}\n"
-        f"💰 *Market Cap*: {mcap_str}\n"
-        f" *24h Volume*: {vol_str}\n"
-        f"🏦 *TVL*: {tvl_str}\n"
-        f" *Website*: {lead.get('website', 'N/A')}\n\n"
-        f" *Extracted Contacts*:\n"
+        f"📛 *Project*: {lead['pool_name']} ({lead.get('token_symbol', 'N/A')})\n"
+        f"⛓️ *Chain*: {lead['network']}\n"
+        f"📊 *24h Volume*: {vol_str}\n"
+        f"🔗 *Website*: {website}\n\n"
+        f"📞 *Extracted Contacts*:\n"
         f"• Telegram: {lead['telegram']}\n"
         f"• Twitter: {lead['twitter']}\n\n"
         f"💬 *Vibe Pitch*: \"Instead of dumping treasury, deposit tokens to Vibe's vault to list a perp for free, back OI, and earn trading fees forever.\""
@@ -320,48 +230,34 @@ def send_telegram_message(lead):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {"chat_id": TELEGRAM_CHAT_ID, "text": text, "parse_mode": "Markdown"}
     requests.post(url, json=payload)
-    print(f"  [TELEGRAM] ✅ Sent message for {lead['name']}")
+    print(f"  [TELEGRAM] ✅ Sent message for {lead['pool_name']}")
 
 def main():
-    print("=== STARTING MULTI-STAGE QUALIFICATION FUNNEL (PHASE 10: SNIPER MODE) ===")
+    print("=== STARTING MULTI-STAGE QUALIFICATION FUNNEL (PHASE 11: ON-CHAIN ACTIVITY PIVOT) ===")
     try:
         stage1 = module1_discovery()
         if not stage1:
             print("Exiting: Module 1 returned no results or failed.")
             return
             
-        stage2 = module2_validation(stage1)
+        stage2 = module2_enrichment(stage1)
         
-        print("\n=== PHASE 2.5: DEDUPLICATION ===")
-        unique_validated_projects = []
-        seen_names = set()
-        for proj in stage2:
-            name = proj.get('name')
-            if name and name not in seen_names:
-                seen_names.add(name)
-                unique_validated_projects.append(proj)
-            else:
-                print(f"  [DEDUPE] Skipped duplicate: {name}")
-                
-        print(f"Unique projects to enrich: {len(unique_validated_projects)}")
+        processed_websites = load_processed_websites()
+        print(f"\n=== MODULE 3: DEDUPLICATION & OUTPUT ===")
+        print(f"Current processed websites in memory: {len(processed_websites)}")
         
-        stage3 = module3_enrichment(unique_validated_projects)
-        
-        processed_slugs = load_processed_slugs()
-        print(f"\n=== FINAL DEDUPLICATION ===")
-        print(f"Current processed slugs in memory: {len(processed_slugs)}")
-        
-        new_leads = [lead for lead in stage3 if lead['name'] not in processed_slugs]
+        # Historical Deduplication
+        new_leads = [lead for lead in stage2 if lead['website'] not in processed_websites]
         print(f"New leads to process after historical deduplication: {len(new_leads)}")
         
-        if len(new_leads) == 0 and len(stage3) > 0:
+        if len(new_leads) == 0 and len(stage2) > 0:
             print("⚠️ WARNING: All enriched leads were already processed. No new messages sent.")
         
         for lead in new_leads:
             send_telegram_message(lead)
-            processed_slugs.append(lead['name'])
+            processed_websites.append(lead['website'])
             
-        save_processed_slugs(processed_slugs)
+        save_processed_websites(processed_websites)
         print("\n=== PIPELINE FINISHED SUCCESSFULLY ===")
     except Exception as e:
         print(f"❌ CRITICAL ERROR: {e}")
