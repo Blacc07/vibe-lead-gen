@@ -18,11 +18,11 @@ CATEGORY_WHITELIST = [
 # Refined blocklist: Only obvious memecoin patterns
 BLOCKLIST_PATTERNS = [re.compile(r'\b(pepe|doge|shib|inu|floki|kishu|bonk|wojak)\b', re.IGNORECASE)]
 
-# Phase 8: Category Tail-End Strategy
+# Phase 8: Category Tail-End Strategy (Corrected CoinGecko Category Slugs)
 TARGET_CATEGORIES = [
-    "decentralized-exchange-dex",
+    "decentralized-exchange",
     "yield-farming",
-    "real-world-assets-rwa",
+    "real-world-asset",
     "gaming"
 ]
 
@@ -69,6 +69,15 @@ def check_github_activity(url):
     """Returns (is_active, status_message). Flags if > 60 days but does NOT hard-drop."""
     if not url:
         return True, "No GitHub URL"
+    
+    # FIX: Handle if url is a list (DefiLlama sometimes returns a list of GitHub repos)
+    if isinstance(url, list):
+        if not url:
+            return True, "No GitHub URL"
+        url = url[0] # Check the first one
+        
+    if not isinstance(url, str):
+        return True, "Invalid GitHub URL type"
         
     match = re.search(r'github\.com/([a-zA-Z0-9_-]+/[a-zA-Z0-9_.-]+)', url)
     if not match:
@@ -142,7 +151,7 @@ def module1_discovery():
                     'total_volume': total_volume
                 })
                 
-            print(f"    Found {len([c for c in discovered_coins])} coins passing filters so far.")
+            print(f"    Found {len(discovered_coins)} coins passing filters so far.")
             
         except Exception as e:
             print(f"    [ERROR] Failed to fetch {category}: {e}")
