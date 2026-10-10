@@ -134,7 +134,10 @@ def normalize_leads(llama_data):
     
     # Sort by TVL descending (highest traction first)
     leads.sort(key=lambda x: x.get("tvl", 0), reverse=True)
-    
+
+    # Add this inside the loop where leads are evaluated/filtered
+    print(f"DEBUG: Evaluating project: {project_name}")
+    print(f"DEBUG: Reason for skip/rejection: {rejection_reason}") # e.g., "Already in processed_leads.json", "No Twitter link", "Twitter inactive"
     print(f"Found {len(leads)} projects passing initial ICP metrics. Sending top 5 to scraper...")
     return leads[:5]  # Strictly limit to top 5 highest TVL leads per run
 
