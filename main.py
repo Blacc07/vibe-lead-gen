@@ -10,7 +10,7 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 STATE_FILE = "processed_leads.json"
 
 # ICP PARAMETERS (Updated to match DefiLlama API exact spellings)
-TARGET_CHAINS = ["Solana", "Base", "Binance", "BSC", "Ethereum", "Arbitrum", "Optimism"]
+TARGET_CHAINS = ["Solana", "Base", "Binance", "BSC" "Sol"]
 ALLOWED_CATEGORIES = [
     "Dexes",              # Standard DefiLlama spelling
     "Dexs",               # Alternative spelling seen in some forks/API responses
@@ -25,8 +25,8 @@ ALLOWED_CATEGORIES = [
     "RWA",                # Real World Assets
     "Prediction Market",
     "Options",
-    "Lending",            # Added as it's a major DeFi category
-    "Bridge"              # Added as it's a major DeFi category
+    "Lending",            
+    "Bridge"              
 ]
 BLOCKLIST_KEYWORDS = ["doge", "shib", "pepe", "safe", "elon", "inu", "floki", "moon", "pump", "rocket", "kishu", "baby"]
 
@@ -98,7 +98,7 @@ def normalize_leads(llama_data):
     print("=== PHASE 1: PRE-SCRAPER FILTERING ===")
     leads = []
     debug_count = 0
-    max_debug = 20  # Cap debug logs
+    max_debug = 20  # Cap debug logs to prevent spam
     
     for proto in llama_data:
         name = proto.get("name")
@@ -132,7 +132,9 @@ def normalize_leads(llama_data):
             
         if not mcap or not (1000000 <= mcap <= 10000000):
             if debug_count < max_debug:
-                print(f"  [PRE-SCRAPER] Skipped '{name}': MCAP out of range (${mcap:,}).")
+                # SAFE FORMATTING: Handles NoneType gracefully
+                mcap_display = f"${mcap:,}" if mcap is not None else "N/A"
+                print(f"  [PRE-SCRAPER] Skipped '{name}': MCAP is {mcap_display} (Target: $1M - $10M).")
                 debug_count += 1
             continue
             
@@ -180,15 +182,17 @@ def save_processed_slugs(slugs):
 
 def send_telegram_message(lead):
     print(f"\n=== PHASE 2: POST-SCRAPER EVALUATION FOR '{lead['name']}' ===")
-    mcap_str = f"${int(lead['mcap']):,}"
-    tvl_str = f"${int(lead['tvl']):,}"
+    
+    # Safe formatting for Telegram message
+    mcap_str = f"${int(lead['mcap']):,}" if lead.get('mcap') else "N/A"
+    tvl_str = f"${int(lead['tvl']):,}" if lead.get('tvl') else "N/A"
     
     print(f"  [SCRAPER] Attempting to extract contacts from {lead.get('website', 'API Fallback')}...")
     telegram, twitter = get_contacts(lead)
     
     # POST-SCRAPER REJECTION LOGIC
     if telegram == "Not Found" and twitter == "Not Found":
-        print(f"  [POST-SCRAPER REJECTION]  Dropped '{lead['name']}' -> No Twitter or Telegram link found after scraping.")
+        print(f"  [POST-SCRAPER REJECTION] ❌ Dropped '{lead['name']}' -> No Twitter or Telegram link found after scraping.")
         return
 
     print(f"  [POST-SCRAPER SUCCESS] ✅ Contacts found: TG={telegram}, TW={twitter}")
@@ -235,7 +239,7 @@ def main():
         save_processed_slugs(processed_slugs)
         print("\n=== PIPELINE FINISHED SUCCESSFULLY ===")
     except Exception as e:
-        print(f" CRITICAL ERROR: {e}")
+        print(f"❌ CRITICAL ERROR: {e}")
         raise
 
 if __name__ == "__main__":
