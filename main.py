@@ -9,9 +9,25 @@ TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 STATE_FILE = "processed_leads.json"
 
-# ICP PARAMETERS
-TARGET_CHAINS = ["Solana", "Base", "Binance"]
-ALLOWED_CATEGORIES = ["Dexes", "Yield", "Launchpad", "Services", "Infrastructure", "Gaming"]
+# ICP PARAMETERS (Updated to match DefiLlama API exact spellings)
+TARGET_CHAINS = ["Solana", "Base", "Binance", "BSC", "Ethereum", "Arbitrum", "Optimism"]
+ALLOWED_CATEGORIES = [
+    "Dexes",              # Standard DefiLlama spelling
+    "Dexs",               # Alternative spelling seen in some forks/API responses
+    "Yield",
+    "Yield Aggregator",
+    "Launchpad",
+    "Services",
+    "Infrastructure",
+    "Gaming",
+    "Derivatives",
+    "Indexes",
+    "RWA",                # Real World Assets
+    "Prediction Market",
+    "Options",
+    "Lending",            # Added as it's a major DeFi category
+    "Bridge"              # Added as it's a major DeFi category
+]
 BLOCKLIST_KEYWORDS = ["doge", "shib", "pepe", "safe", "elon", "inu", "floki", "moon", "pump", "rocket", "kishu", "baby"]
 
 def fetch_defillama(max_retries=3):
@@ -79,10 +95,10 @@ def get_contacts(lead):
     return telegram, twitter
 
 def normalize_leads(llama_data):
-    print("Filtering based on ICP parameters (Pre-Scrape)...")
+    print("=== PHASE 1: PRE-SCRAPER FILTERING ===")
     leads = []
     debug_count = 0
-    max_debug = 50  # Cap debug logs to prevent GitHub Actions log truncation
+    max_debug = 20  # Cap debug logs
     
     for proto in llama_data:
         name = proto.get("name")
@@ -96,45 +112,44 @@ def normalize_leads(llama_data):
         # 1. Category Filter
         if not any(allowed.lower() in category.lower() for allowed in ALLOWED_CATEGORIES):
             if debug_count < max_debug:
-                print(f"  [DEBUG] Skipped '{name}': Category '{category}' not in allowed list.")
+                print(f"  [PRE-SCRAPER] Skipped '{name}': Category '{category}' not allowed.")
                 debug_count += 1
             continue
             
         # 2. Chain Filter
         if not any(chain in TARGET_CHAINS for chain in chains):
             if debug_count < max_debug:
-                print(f"  [DEBUG] Skipped '{name}': Chains {chains} not in {TARGET_CHAINS}.")
+                print(f"  [PRE-SCRAPER] Skipped '{name}': Chain not in target list.")
                 debug_count += 1
             continue
             
-        # 3. Metric Filter (TVL >= 250k, MCAP 1M - 10M)
+        # 3. Metric Filter
         if tvl < 250000:
             if debug_count < max_debug:
-                print(f"  [DEBUG] Skipped '{name}': TVL too low (${tvl:,}).")
+                print(f"  [PRE-SCRAPER] Skipped '{name}': TVL too low (${tvl:,}).")
                 debug_count += 1
             continue
             
         if not mcap or not (1000000 <= mcap <= 10000000):
             if debug_count < max_debug:
-                print(f"  [DEBUG] Skipped '{name}': MCAP out of range (${mcap:,}).")
+                print(f"  [PRE-SCRAPER] Skipped '{name}': MCAP out of range (${mcap:,}).")
                 debug_count += 1
             continue
             
         # 4. Blocklist Filter
         if is_blocked(name, symbol):
             if debug_count < max_debug:
-                print(f"  [DEBUG] Skipped '{name}': Matched blocklist keyword.")
+                print(f"  [PRE-SCRAPER] Skipped '{name}': Blocklist match.")
                 debug_count += 1
             continue
             
         # 5. Basic Presence Filter
         if not url and not proto.get("twitter"):
             if debug_count < max_debug:
-                print(f"  [DEBUG] Skipped '{name}': No website or Twitter link.")
+                print(f"  [PRE-SCRAPER] Skipped '{name}': No website or Twitter.")
                 debug_count += 1
             continue 
 
-        # If it passes all filters, add it
         leads.append({
             "source": "DefiLlama_ICP",
             "slug": proto.get("slug"),
@@ -149,12 +164,8 @@ def normalize_leads(llama_data):
             "api_telegram": proto.get("telegram")
         })
     
-    if debug_count == max_debug:
-        print("  [DEBUG] ... (suppressing further debug logs to prevent spam)")
-        
     leads.sort(key=lambda x: x.get("tvl", 0), reverse=True)
-    
-    print(f"Found {len(leads)} projects passing initial ICP metrics. Sending top 5 to scraper...")
+    print(f"Found {len(leads)} projects passing Phase 1. Sending top 5 to Phase 2 (Scraper)...")
     return leads[:5]
 
 def load_processed_slugs():
@@ -168,15 +179,19 @@ def save_processed_slugs(slugs):
         json.dump(slugs, f)
 
 def send_telegram_message(lead):
+    print(f"\n=== PHASE 2: POST-SCRAPER EVALUATION FOR '{lead['name']}' ===")
     mcap_str = f"${int(lead['mcap']):,}"
     tvl_str = f"${int(lead['tvl']):,}"
     
-    print(f"Scraping contacts for: {lead['name']}")
+    print(f"  [SCRAPER] Attempting to extract contacts from {lead.get('website', 'API Fallback')}...")
     telegram, twitter = get_contacts(lead)
     
+    # POST-SCRAPER REJECTION LOGIC
     if telegram == "Not Found" and twitter == "Not Found":
-        print(f"⚠️ Dropped {lead['name']}: No contact methods found after scraping.")
+        print(f"  [POST-SCRAPER REJECTION]  Dropped '{lead['name']}' -> No Twitter or Telegram link found after scraping.")
         return
+
+    print(f"  [POST-SCRAPER SUCCESS] ✅ Contacts found: TG={telegram}, TW={twitter}")
 
     text = (
         f"🚨 *High-Potential Vibe Trading Lead*\n\n"
@@ -195,7 +210,7 @@ def send_telegram_message(lead):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {"chat_id": TELEGRAM_CHAT_ID, "text": text, "parse_mode": "Markdown"}
     requests.post(url, json=payload)
-    print(f"✅ Sent message for {lead['name']}")
+    print(f"  [TELEGRAM] ✅ Message sent to channel for {lead['name']}")
 
 def main():
     print("=== STARTING ICP-TARGETED LEAD GEN PIPELINE ===")
@@ -204,17 +219,23 @@ def main():
         all_leads = normalize_leads(llama_data)
         
         processed_slugs = load_processed_slugs()
+        print(f"\n=== PHASE 3: DEDUPLICATION ===")
+        print(f"Current processed slugs in memory: {len(processed_slugs)}")
+        
         new_leads = [lead for lead in all_leads if lead["slug"] not in processed_slugs]
-        print(f"New leads to process: {len(new_leads)}")
+        print(f"New leads to process after deduplication: {len(new_leads)}")
+        
+        if len(new_leads) == 0 and len(all_leads) > 0:
+            print("⚠️ WARNING: All top 5 leads were already in processed_leads.json. No new messages sent.")
         
         for lead in new_leads:
             send_telegram_message(lead)
             processed_slugs.append(lead["slug"])
             
         save_processed_slugs(processed_slugs)
-        print("=== PIPELINE FINISHED SUCCESSFULLY ===")
+        print("\n=== PIPELINE FINISHED SUCCESSFULLY ===")
     except Exception as e:
-        print(f"❌ CRITICAL ERROR: {e}")
+        print(f" CRITICAL ERROR: {e}")
         raise
 
 if __name__ == "__main__":
