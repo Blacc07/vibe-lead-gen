@@ -9,15 +9,11 @@ TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 STATE_FILE = "processed_leads.json"
 
-# ICP PARAMETERS (Phase 3: Quality Control - Niche Utility Focus)
+# ICP PARAMETERS (Phase 4: Sweet Spot Balance)
 TARGET_CHAINS = ["Solana", "Base", "Binance", "BSC", "Sol"]
 ALLOWED_CATEGORIES = [
-    "Infrastructure",
-    "Services",
-    "RWA",                # Real World Assets
-    "Gaming",             # Strictly utility/gaming, not pure P2E
-    "Indexes",
-    "Derivatives"         # Small perp DEXs
+    "Infrastructure", "Services", "RWA", "Gaming", "Indexes", "Derivatives",
+    "Yield", "Dexs", "Lending", "Liquid Staking"
 ]
 BLOCKLIST_KEYWORDS = ["doge", "shib", "pepe", "safe", "elon", "inu", "floki", "moon", "pump", "rocket", "kishu", "baby"]
 
@@ -89,7 +85,7 @@ def normalize_leads(llama_data):
     print("=== PHASE 1: PRE-SCRAPER FILTERING ===")
     leads = []
     debug_count = 0
-    max_debug = 20  # Cap debug logs to prevent spam
+    max_debug = 30  # Increased cap slightly to see more volume rejections
     
     for proto in llama_data:
         name = proto.get("name")
@@ -113,8 +109,8 @@ def normalize_leads(llama_data):
                 debug_count += 1
             continue
             
-        # 3. TVL Filter
-        if tvl < 250000:
+        # 3. TVL Filter (Kept as a baseline sanity check)
+        if tvl < 100000: # Lowered slightly to allow early-stage projects
             if debug_count < max_debug:
                 print(f"  [PRE-SCRAPER] Skipped '{name}': TVL too low (${tvl:,}).")
                 debug_count += 1
@@ -134,10 +130,12 @@ def normalize_leads(llama_data):
                 debug_count += 1
             continue 
 
-        # 6. STRICT LOW-CAP MCAP FILTER (Phase 3 Quality Control)
+        # 6. PHASE 4: STRICT SWEET SPOT FILTERS (MCAP & Volume)
         mcap = proto.get("mcap")
+        # Fallback to volume1d if volume_24h is missing in API response
+        volume_24h = proto.get("volume_24h", proto.get("volume1d", 0)) 
         
-        # Handle cases where mcap is None or string 'N/A'
+        # Handle missing/invalid MCAP
         if mcap is None or str(mcap).upper() == 'N/A':
             if debug_count < max_debug:
                 print(f"  [PRE-SCRAPER] Skipped '{name}': MCAP is N/A or missing.")
@@ -146,21 +144,31 @@ def normalize_leads(llama_data):
 
         try:
             mcap_value = float(mcap)
+            vol_value = float(volume_24h) if volume_24h else 0.0
         except (ValueError, TypeError):
             if debug_count < max_debug:
-                print(f"  [PRE-SCRAPER] Skipped '{name}': Could not parse MCAP value ({mcap}).")
+                print(f"  [PRE-SCRAPER] Skipped '{name}': Could not parse MCAP/Volume values.")
                 debug_count += 1
             continue
 
-        # STRICT LOW-CAP FILTER: Max $5,000,000
-        if not (1_000_000 <= mcap_value <= 5_000_000):
+        # MCAP: $500k to $15M
+        if not (500_000 <= mcap_value <= 15_000_000):
             if debug_count < max_debug:
-                print(f"  [PRE-SCRAPER] Skipped '{name}': MCAP ${mcap_value:,.0f} is outside $1M-$5M target range.")
+                print(f"  [PRE-SCRAPER] Skipped '{name}': MCAP ${mcap_value:,.0f} outside $500k-$15M range.")
+                debug_count += 1
+            continue
+
+        # VOLUME: Minimum $100,000 in 24h
+        if vol_value < 100_000:
+            if debug_count < max_debug:
+                # Special log to see if volume data is just missing (0) or actually low
+                vol_status = "Missing/0" if vol_value == 0 else f"${vol_value:,.0f}"
+                print(f"  [PRE-SCRAPER] Skipped '{name}': 24h Vol {vol_status} is below $100k minimum.")
                 debug_count += 1
             continue
 
         # If it passes all filters, log it and append
-        print(f"  [PRE-SCRAPER] ✅ PASSED: '{name}' | MCAP: ${mcap_value:,.0f} | Category: {category}")
+        print(f"  [PRE-SCRAPER] ✅ PASSED: '{name}' | MCAP: ${mcap_value:,.0f} | 24h Vol: ${vol_value:,.0f}")
         
         leads.append({
             "source": "DefiLlama_ICP",
@@ -170,13 +178,14 @@ def normalize_leads(llama_data):
             "category": category,
             "chain": next((c for c in chains if c in TARGET_CHAINS), "Multi-Chain"),
             "website": url,
-            "mcap": mcap_value, # Store the parsed float
+            "mcap": mcap_value,
             "tvl": tvl,
+            "volume_24h": vol_value,
             "api_twitter": proto.get("twitter"),
             "api_telegram": proto.get("telegram")
         })
     
-    leads.sort(key=lambda x: x.get("tvl", 0), reverse=True)
+    leads.sort(key=lambda x: x.get("volume_24h", 0), reverse=True) # Sort by Volume now, not TVL
     print(f"\nFound {len(leads)} projects passing Phase 1. Sending top 5 to Phase 2 (Scraper)...")
     return leads[:5]
 
@@ -193,14 +202,13 @@ def save_processed_slugs(slugs):
 def send_telegram_message(lead):
     print(f"\n=== PHASE 2: POST-SCRAPER EVALUATION FOR '{lead['name']}' ===")
     
-    # Safe formatting for Telegram message
     mcap_str = f"${int(lead['mcap']):,}" if lead.get('mcap') else "N/A"
+    vol_str = f"${int(lead.get('volume_24h', 0)):,}"
     tvl_str = f"${int(lead['tvl']):,}" if lead.get('tvl') else "N/A"
     
     print(f"  [SCRAPER] Attempting to extract contacts from {lead.get('website', 'API Fallback')}...")
     telegram, twitter = get_contacts(lead)
     
-    # POST-SCRAPER REJECTION LOGIC
     if telegram == "Not Found" and twitter == "Not Found":
         print(f"  [POST-SCRAPER REJECTION] ❌ Dropped '{lead['name']}' -> No Twitter or Telegram link found after scraping.")
         return
@@ -209,11 +217,12 @@ def send_telegram_message(lead):
 
     text = (
         f"🚨 *High-Potential Vibe Trading Lead*\n\n"
-        f" *Project*: {lead['name']} ({lead.get('symbol', 'N/A')})\n"
-        f"📂 *Category*: {lead['category']}\n"
+        f"📛 *Project*: {lead['name']} ({lead.get('symbol', 'N/A')})\n"
+        f" *Category*: {lead['category']}\n"
         f"⛓️ *Chain*: {lead['chain']}\n"
-        f"💰 *Market Cap*: {mcap_str}\n"
-        f"🏦 *TVL*: {tvl_str}\n"
+        f" *Market Cap*: {mcap_str}\n"
+        f"📊 *24h Volume*: {vol_str}\n"
+        f" *TVL*: {tvl_str}\n"
         f"🔗 *Website*: {lead.get('website', 'N/A')}\n\n"
         f"📞 *Extracted Contacts*:\n"
         f"• Telegram: {telegram}\n"
@@ -249,7 +258,7 @@ def main():
         save_processed_slugs(processed_slugs)
         print("\n=== PIPELINE FINISHED SUCCESSFULLY ===")
     except Exception as e:
-        print(f" CRITICAL ERROR: {e}")
+        print(f"❌ CRITICAL ERROR: {e}")
         raise
 
 if __name__ == "__main__":
