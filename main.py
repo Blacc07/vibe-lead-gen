@@ -95,33 +95,53 @@ def module1_discovery():
     
     for network in TARGET_NETWORKS:
         print(f"  Fetching top pools for {network}...")
-        url = f"https://api.geckoterminal.com/api/v2/networks/{network}/pools?sort=volume_usd_h24_desc&page=1"
+        
+        # PHASE 12 FIX: Corrected sort parameter to '-h24_volume_usd'
+        url = f"https://api.geckoterminal.com/api/v2/networks/{network}/pools?page=1&sort=-h24_volume_usd"
+        
+        headers = {
+            "accept": "application/json",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
+        
         try:
             time.sleep(1.5) # Rate limiting between network requests
-            response = requests.get(url, timeout=15)
-            response.raise_for_status()
-            data = response.json()
+            response = requests.get(url, headers=headers, timeout=15)
             
-            for pool in data.get('data', []):
-                attrs = pool.get('attributes', {})
-                name = attrs.get('name', '')
-                symbol = attrs.get('base_token', {}).get('symbol', '')
-                website = attrs.get('website_url')
-                twitter_handle = attrs.get('twitter_handle')
+            # PHASE 12 FIX: Robust error logging
+            if response.status_code != 200:
+                print(f"    [ERROR] Failed to fetch {network}: {response.status_code} {response.reason}")
+                print(f"    [API RESPONSE] {response.text}")
+                continue
                 
-                # Utility Proxy Filter: Must have a website
-                if not website or str(website).strip() == "":
+            data = response.json()
+            pools = data.get('data', [])
+            
+            for pool in pools:
+                attributes = pool.get('attributes', {})
+                
+                # PHASE 12 FIX: Corrected JSON key mappings
+                pool_name = attributes.get('name', '')
+                token_symbol = attributes.get('base_token', {}).get('symbol', '') if 'base_token' in pool else attributes.get('symbol', '')
+                reserve_usd = float(attributes.get('reserve_in_usd', 0) or 0)
+                volume_h24 = float(attributes.get('h24_volume_usd', 0) or 0)
+                pool_created_at = attributes.get('pool_created_at', '')
+                
+                # Utility Proxy Filter: Must have a website or twitter
+                website = attributes.get('website_url', '') or attributes.get('website', '')
+                twitter = attributes.get('twitter_url', '') or attributes.get('twitter', '')
+                
+                if not website and not twitter:
                     continue
                 
                 # Regex Blocklist
-                if is_blocked(name, symbol):
+                if is_blocked(pool_name, token_symbol):
                     continue
                 
                 # Hard Filters: Age >= 14 days
-                created_at_str = attrs.get('pool_created_at')
-                if created_at_str:
+                if pool_created_at:
                     try:
-                        created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+                        created_at = datetime.fromisoformat(pool_created_at.replace('Z', '+00:00'))
                         age_days = (now - created_at).days
                         if age_days < 14:
                             continue
@@ -129,27 +149,26 @@ def module1_discovery():
                         continue # Skip if date parsing fails
                 
                 # Hard Filters: Reserve >= $50k
-                reserve_usd = float(attrs.get('reserve_in_usd', 0) or 0)
                 if reserve_usd < 50_000:
                     continue
                 
                 # Hard Filters: 24h Volume >= $50k
-                vol_h24 = float(attrs.get('volume_usd', {}).get('h24', 0) or 0)
-                if vol_h24 < 50_000:
+                if volume_h24 < 50_000:
                     continue
                 
                 discovered_pools.append({
-                    'pool_name': name,
-                    'token_symbol': symbol,
+                    'pool_name': pool_name,
+                    'token_symbol': token_symbol,
                     'website': website,
-                    'twitter_handle': twitter_handle,
-                    'volume_usd_h24': vol_h24,
+                    'twitter_handle': twitter,
+                    'volume_usd_h24': volume_h24,
                     'network': network.capitalize()
                 })
                 
             print(f"    Found {len(discovered_pools)} pools passing filters so far.")
-        except Exception as e:
-            print(f"    [ERROR] Failed to fetch {network}: {e}")
+            
+        except requests.exceptions.RequestException as e:
+            print(f"    [ERROR] Request exception for {network}: {e}")
             continue
             
     print(f"Module 1 Complete: {len(discovered_pools)} total pools discovered.")
@@ -233,7 +252,7 @@ def send_telegram_message(lead):
     print(f"  [TELEGRAM] ✅ Sent message for {lead['pool_name']}")
 
 def main():
-    print("=== STARTING MULTI-STAGE QUALIFICATION FUNNEL (PHASE 11: ON-CHAIN ACTIVITY PIVOT) ===")
+    print("=== STARTING MULTI-STAGE QUALIFICATION FUNNEL (PHASE 12: API SYNTAX CORRECTION) ===")
     try:
         stage1 = module1_discovery()
         if not stage1:
