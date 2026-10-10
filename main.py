@@ -10,7 +10,7 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 STATE_FILE = "processed_leads.json"
 
 # ICP PARAMETERS (Phase 3: Quality Control - Niche Utility Focus)
-TARGET_CHAINS = ["Solana", "Base", "Binance", "BSC", "Ethereum", "Arbitrum", "Optimism"]
+TARGET_CHAINS = ["Solana", "Base", "Binance", "BSC", "Sol"]
 ALLOWED_CATEGORIES = [
     "Infrastructure",
     "Services",
