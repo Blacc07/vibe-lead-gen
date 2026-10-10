@@ -10,18 +10,17 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 STATE_FILE = "processed_leads.json"
 
 # ICP PARAMETERS
-TARGET_CHAINS = ["Solana", "Base", "Binance"] # DefiLlama uses "Binance" for BSC
+TARGET_CHAINS = ["Solana", "Base", "Binance"]
 ALLOWED_CATEGORIES = ["Dexes", "Yield", "Launchpad", "Services", "Infrastructure", "Gaming"]
 BLOCKLIST_KEYWORDS = ["doge", "shib", "pepe", "safe", "elon", "inu", "floki", "moon", "pump", "rocket", "kishu", "baby"]
 
 def fetch_defillama(max_retries=3):
-    """Fetches protocols with built-in retry and rate-limit protection."""
     print("Fetching DefiLlama protocols...")
     url = "https://api.llama.fi/protocols"
     
     for attempt in range(max_retries):
         try:
-            time.sleep(2)  # Polite delay to avoid triggering WAF
+            time.sleep(2)
             response = requests.get(url, timeout=30)
             
             if response.status_code == 429:
@@ -40,7 +39,6 @@ def fetch_defillama(max_retries=3):
     return []
 
 def is_blocked(name, symbol):
-    """Checks if project name or symbol contains blocklist keywords."""
     name_lower = (name or "").lower()
     symbol_lower = (symbol or "").lower()
     for keyword in BLOCKLIST_KEYWORDS:
@@ -49,11 +47,9 @@ def is_blocked(name, symbol):
     return False
 
 def get_contacts(lead):
-    """Extracts contacts from website HTML, falling back to DefiLlama API fields."""
     telegram = "Not Found"
     twitter = "Not Found"
     
-    # 1. Try scraping the website first
     url = lead.get('website')
     if url and str(url).startswith("http"):
         try:
@@ -61,20 +57,17 @@ def get_contacts(lead):
             response = requests.get(url, headers=headers, timeout=8)
             html = response.text
             
-            # Telegram Regex
             tg_match = re.search(r'(?:https?://)?(?:www\.)?(?:t\.me|telegram\.me)/([a-zA-Z0-9_]{5,32})', html)
             if not tg_match: 
                 tg_match = re.search(r'@([a-zA-Z0-9_]{5,32})', html)
             
-            # Twitter/X Regex
             tw_match = re.search(r'(?:https?://)?(?:www\.)?(?:twitter\.com|x\.com)/([a-zA-Z0-9_]{1,15})', html)
             
             if tg_match: telegram = f"@{tg_match.group(1)}"
             if tw_match: twitter = f"@{tw_match.group(1)}"
         except Exception:
-            pass  # Fallback to API fields below
+            pass
 
-    # 2. Fallback to DefiLlama API fields if website scrape failed
     if telegram == "Not Found" and lead.get('api_telegram'):
         tg_val = str(lead['api_telegram']).replace("https://t.me/", "").replace("@", "")
         telegram = f"@{tg_val}"
@@ -88,6 +81,8 @@ def get_contacts(lead):
 def normalize_leads(llama_data):
     print("Filtering based on ICP parameters (Pre-Scrape)...")
     leads = []
+    debug_count = 0
+    max_debug = 50  # Cap debug logs to prevent GitHub Actions log truncation
     
     for proto in llama_data:
         name = proto.get("name")
@@ -100,24 +95,46 @@ def normalize_leads(llama_data):
         
         # 1. Category Filter
         if not any(allowed.lower() in category.lower() for allowed in ALLOWED_CATEGORIES):
+            if debug_count < max_debug:
+                print(f"  [DEBUG] Skipped '{name}': Category '{category}' not in allowed list.")
+                debug_count += 1
             continue
             
         # 2. Chain Filter
         if not any(chain in TARGET_CHAINS for chain in chains):
+            if debug_count < max_debug:
+                print(f"  [DEBUG] Skipped '{name}': Chains {chains} not in {TARGET_CHAINS}.")
+                debug_count += 1
             continue
             
         # 3. Metric Filter (TVL >= 250k, MCAP 1M - 10M)
-        if tvl < 250000 or not mcap or not (1000000 <= mcap <= 10000000):
+        if tvl < 250000:
+            if debug_count < max_debug:
+                print(f"  [DEBUG] Skipped '{name}': TVL too low (${tvl:,}).")
+                debug_count += 1
+            continue
+            
+        if not mcap or not (1000000 <= mcap <= 10000000):
+            if debug_count < max_debug:
+                print(f"  [DEBUG] Skipped '{name}': MCAP out of range (${mcap:,}).")
+                debug_count += 1
             continue
             
         # 4. Blocklist Filter
         if is_blocked(name, symbol):
+            if debug_count < max_debug:
+                print(f"  [DEBUG] Skipped '{name}': Matched blocklist keyword.")
+                debug_count += 1
             continue
             
-        # 5. Basic Presence Filter (Must have a Website OR Twitter to even attempt scraping)
+        # 5. Basic Presence Filter
         if not url and not proto.get("twitter"):
+            if debug_count < max_debug:
+                print(f"  [DEBUG] Skipped '{name}': No website or Twitter link.")
+                debug_count += 1
             continue 
 
+        # If it passes all filters, add it
         leads.append({
             "source": "DefiLlama_ICP",
             "slug": proto.get("slug"),
@@ -132,14 +149,13 @@ def normalize_leads(llama_data):
             "api_telegram": proto.get("telegram")
         })
     
-    # Sort by TVL descending (highest traction first)
+    if debug_count == max_debug:
+        print("  [DEBUG] ... (suppressing further debug logs to prevent spam)")
+        
     leads.sort(key=lambda x: x.get("tvl", 0), reverse=True)
-
-    # Add this inside the loop where leads are evaluated/filtered
-    print(f"DEBUG: Evaluating project: {project_name}")
-    print(f"DEBUG: Reason for skip/rejection: {rejection_reason}") # e.g., "Already in processed_leads.json", "No Twitter link", "Twitter inactive"
+    
     print(f"Found {len(leads)} projects passing initial ICP metrics. Sending top 5 to scraper...")
-    return leads[:5]  # Strictly limit to top 5 highest TVL leads per run
+    return leads[:5]
 
 def load_processed_slugs():
     if os.path.exists(STATE_FILE):
@@ -158,18 +174,17 @@ def send_telegram_message(lead):
     print(f"Scraping contacts for: {lead['name']}")
     telegram, twitter = get_contacts(lead)
     
-    # FINAL QUALITY GATE: Drop if completely uncontactable after all efforts
     if telegram == "Not Found" and twitter == "Not Found":
         print(f"⚠️ Dropped {lead['name']}: No contact methods found after scraping.")
         return
 
     text = (
         f"🚨 *High-Potential Vibe Trading Lead*\n\n"
-        f" *Project*: {lead['name']} ({lead.get('symbol', 'N/A')})\n"
+        f"📛 *Project*: {lead['name']} ({lead.get('symbol', 'N/A')})\n"
         f"📂 *Category*: {lead['category']}\n"
-        f"️ *Chain*: {lead['chain']}\n"
+        f"⛓️ *Chain*: {lead['chain']}\n"
         f"💰 *Market Cap*: {mcap_str}\n"
-        f" *TVL*: {tvl_str}\n"
+        f"🏦 *TVL*: {tvl_str}\n"
         f"🔗 *Website*: {lead.get('website', 'N/A')}\n\n"
         f"📞 *Extracted Contacts*:\n"
         f"• Telegram: {telegram}\n"
