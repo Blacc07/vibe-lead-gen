@@ -16,16 +16,23 @@ CATEGORY_WHITELIST = [
     "Infrastructure", "Services", "RWA", "Gaming", "Derivatives", "CDP"
 ]
 
-# Phase 9: Giant Protocol Blocklist
-GIANT_PROTOCOLS_BLOCKLIST = [
-    "balancer", "quickswap", "harvest", "uniswap", "pancakeswap", 
-    "aave", "curve", "compound", "sushiswap", "maker", "lido"
+# Phase 10: Secondary Token Blocklist (Prevents vaults, LPs, and staked derivatives)
+SECONDARY_TOKEN_PATTERNS = [
+    re.compile(r'\b(vault|lp|staking|staked|reward|farm)\b', re.IGNORECASE)
 ]
 
-# Refined blocklist: Only obvious memecoin patterns
+# Phase 10: Giant Protocol Blocklist (Using word boundaries to prevent false positives like blocking "re" inside "free")
+GIANT_PROTOCOL_BLOCKLIST = [
+    "mavia", "re", "saffron", "balancer", "quickswap", "harvest", 
+    "uniswap", "pancakeswap", "aave", "curve", "compound", "maker", 
+    "lido", "pendle", "gmx", "jupiter", "raydium", "aerodrome"
+]
+GIANT_PROTOCOL_PATTERNS = [re.compile(rf'\b{giant}\b', re.IGNORECASE) for giant in GIANT_PROTOCOL_BLOCKLIST]
+
+# Refined memecoin blocklist
 BLOCKLIST_PATTERNS = [re.compile(r'\b(pepe|doge|shib|inu|floki|kishu|bonk|wojak)\b', re.IGNORECASE)]
 
-# Phase 9: Corrected CoinGecko Category Slugs
+# CoinGecko Category Slugs
 TARGET_CATEGORIES = [
     "decentralized-exchange",
     "yield-farming",
@@ -37,16 +44,28 @@ TARGET_CATEGORIES = [
 def is_blocked(name, symbol):
     name_lower = (name or "").lower()
     symbol_lower = (symbol or "").lower()
+    
+    # Check secondary tokens
+    for pattern in SECONDARY_TOKEN_PATTERNS:
+        if pattern.search(name_lower) or pattern.search(symbol_lower):
+            return True
+            
+    # Check giants
+    for pattern in GIANT_PROTOCOL_PATTERNS:
+        if pattern.search(name_lower) or pattern.search(symbol_lower):
+            return True
+            
+    # Check memecoins
     for pattern in BLOCKLIST_PATTERNS:
         if pattern.search(name_lower) or pattern.search(symbol_lower):
             return True
+            
     return False
 
 def get_contacts(website_url, dl_twitter, dl_telegram):
     telegram = "Not Found"
     twitter = "Not Found"
     
-    # 1. Web Scraper
     if website_url and str(website_url).startswith("http"):
         try:
             headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
@@ -62,9 +81,8 @@ def get_contacts(website_url, dl_twitter, dl_telegram):
             if tg_match: telegram = f"@{tg_match.group(1)}"
             if tw_match: twitter = f"@{tw_match.group(1)}"
         except Exception:
-            pass # Fallback to API
+            pass
 
-    # 2. DefiLlama Fallback
     if telegram == "Not Found" and dl_telegram:
         telegram = f"@{str(dl_telegram).replace('https://t.me/', '').replace('@', '')}"
     if twitter == "Not Found" and dl_twitter:
@@ -73,16 +91,11 @@ def get_contacts(website_url, dl_twitter, dl_telegram):
     return telegram, twitter
 
 def check_github_activity(url):
-    """Returns (is_active, status_message). Flags if > 60 days but does NOT hard-drop."""
     if not url:
         return True, "No GitHub URL"
-    
-    # Handle if url is a list (DefiLlama sometimes returns a list of GitHub repos)
     if isinstance(url, list):
-        if not url:
-            return True, "No GitHub URL"
-        url = url[0] # Check the first one
-        
+        if not url: return True, "No GitHub URL"
+        url = url[0]
     if not isinstance(url, str):
         return True, "Invalid GitHub URL type"
         
@@ -94,7 +107,7 @@ def check_github_activity(url):
     api_url = f"https://api.github.com/repos/{repo_path}"
     
     try:
-        time.sleep(1.5) # Rate limiting for GitHub API
+        time.sleep(1.5)
         headers = {"Accept": "application/vnd.github.v3+json", "User-Agent": "Vibe-Lead-Gen"}
         response = requests.get(api_url, headers=headers, timeout=10)
         
@@ -119,10 +132,9 @@ def module1_discovery():
         url = f"https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&category={category}&order=market_cap_desc&per_page=100&page=1&sparkline=false"
         
         try:
-            time.sleep(2.5) # Rate limiting between categories
+            time.sleep(2.5)
             response = requests.get(url, timeout=15)
             
-            # Graceful Degradation for 429 Too Many Requests
             if response.status_code == 429:
                 print(f"    [RATE LIMIT] 429 Too Many Requests. Waiting 10s and retrying...")
                 time.sleep(10)
@@ -137,24 +149,23 @@ def module1_discovery():
             for coin in data:
                 name = str(coin.get('name', ''))
                 symbol = str(coin.get('symbol', ''))
-                name_lower = name.lower()
-                symbol_lower = symbol.lower()
                 mcap = coin.get('market_cap')
                 total_volume = coin.get('total_volume', 0) or 0
                 
-                # Phase 9: Giant Protocol Blocklist
-                if any(giant in name_lower or giant in symbol_lower for giant in GIANT_PROTOCOLS_BLOCKLIST):
+                # Phase 10: Strict Blocklists
+                if is_blocked(name, symbol):
+                    print(f"    [FILTER] Skipped '{name}': Matched blocklist.")
                     continue
                 
-                # Phase 9: Strict Market Cap Rejection (No Nulls/Zeros)
+                # Phase 10: Strict Market Cap Rejection
                 if not mcap or mcap == 0:
                     continue
                     
-                if not (100_000 <= float(mcap) <= 15_000_000):
-                    continue
-                    
-                # Memecoin Blocklist
-                if is_blocked(name, symbol):
+                mcap_float = float(mcap)
+                
+                # SNIPER RANGE: $500k to $3M
+                if not (500_000 <= mcap_float <= 3_000_000):
+                    print(f"    [FILTER] Skipped '{name}': MCAP ${mcap_float:,.0f} outside $500k-$3M sniper range.")
                     continue
                     
                 if total_volume < 50_000:
@@ -164,7 +175,7 @@ def module1_discovery():
                     'id': coin.get('id'),
                     'name': name,
                     'symbol': symbol.upper(),
-                    'market_cap': float(mcap),
+                    'market_cap': mcap_float,
                     'total_volume': float(total_volume)
                 })
                 
@@ -195,29 +206,25 @@ def module2_validation(discovered_coins):
         coin_name_lower = coin['name'].lower()
         coin_symbol_lower = coin['symbol'].lower()
         
-        # Search for match in DefiLlama
         matched_proto = None
         for proto in dl_protocols:
             proto_name_lower = proto.get('name', '').lower()
             proto_symbol_lower = proto.get('symbol', '').lower()
             
-            # Fuzzy match: coin name contains protocol name, or exact symbol match
             if proto_name_lower in coin_name_lower or coin_name_lower in proto_name_lower or proto_symbol_lower == coin_symbol_lower:
                 matched_proto = proto
                 break
                 
         if not matched_proto:
-            continue # Not a recognized protocol
+            continue
             
         chains = matched_proto.get('chains', [])
         category = matched_proto.get('category', '')
         tvl = float(matched_proto.get('tvl', 0) or 0)
         
-        # Chain Whitelist
         if not any(chain in CHAIN_WHITELIST for chain in chains):
             continue
             
-        # Category Whitelist
         if not any(allowed.lower() in category.lower() for allowed in CATEGORY_WHITELIST):
             continue
             
@@ -246,14 +253,12 @@ def module3_enrichment(validated_projects):
     for project in validated_projects:
         print(f"  Enriching: {project['name']}...")
         
-        # 1. Contact Extraction
         telegram, twitter = get_contacts(project['website'], project['dl_twitter'], project['dl_telegram'])
         
         if telegram == "Not Found" and twitter == "Not Found":
             print(f"    [DROP] No contact methods found.")
             continue
             
-        # 2. GitHub Activity Check (Soft drop / flag only)
         github_url = project.get('dl_github')
         if not github_url and project['website']:
             try:
@@ -294,7 +299,6 @@ def send_telegram_message(lead):
     vol_str = f"${int(lead['volume_24h']):,}" if lead.get('volume_24h') else "N/A"
     tvl_str = f"${int(lead['tvl']):,}" if lead.get('tvl') and lead['tvl'] > 0 else "N/A"
     
-    # Filter chains to only show whitelisted ones in the message
     valid_chains = [c for c in lead['chains'] if c in CHAIN_WHITELIST]
     chain_str = ", ".join(valid_chains) if valid_chains else "Multi-Chain"
     
@@ -304,10 +308,10 @@ def send_telegram_message(lead):
         f"📂 *Category*: {lead['category']}\n"
         f"⛓️ *Chain*: {chain_str}\n"
         f"💰 *Market Cap*: {mcap_str}\n"
-        f"📊 *24h Volume*: {vol_str}\n"
+        f" *24h Volume*: {vol_str}\n"
         f"🏦 *TVL*: {tvl_str}\n"
-        f"🔗 *Website*: {lead.get('website', 'N/A')}\n\n"
-        f"📞 *Extracted Contacts*:\n"
+        f" *Website*: {lead.get('website', 'N/A')}\n\n"
+        f" *Extracted Contacts*:\n"
         f"• Telegram: {lead['telegram']}\n"
         f"• Twitter: {lead['twitter']}\n\n"
         f"💬 *Vibe Pitch*: \"Instead of dumping treasury, deposit tokens to Vibe's vault to list a perp for free, back OI, and earn trading fees forever.\""
@@ -319,9 +323,8 @@ def send_telegram_message(lead):
     print(f"  [TELEGRAM] ✅ Sent message for {lead['name']}")
 
 def main():
-    print("=== STARTING MULTI-STAGE QUALIFICATION FUNNEL (PHASE 9) ===")
+    print("=== STARTING MULTI-STAGE QUALIFICATION FUNNEL (PHASE 10: SNIPER MODE) ===")
     try:
-        # Execute Funnel
         stage1 = module1_discovery()
         if not stage1:
             print("Exiting: Module 1 returned no results or failed.")
@@ -329,7 +332,6 @@ def main():
             
         stage2 = module2_validation(stage1)
         
-        # Phase 9: Pre-Enrichment Deduplication
         print("\n=== PHASE 2.5: DEDUPLICATION ===")
         unique_validated_projects = []
         seen_names = set()
@@ -345,7 +347,6 @@ def main():
         
         stage3 = module3_enrichment(unique_validated_projects)
         
-        # Final Deduplication against historical memory
         processed_slugs = load_processed_slugs()
         print(f"\n=== FINAL DEDUPLICATION ===")
         print(f"Current processed slugs in memory: {len(processed_slugs)}")
