@@ -2,8 +2,9 @@ name: Vibe Trading Lead Gen
 
 on:
   schedule:
-    - cron: '0 9 * * 1,3,5'
-  workflow_dispatch:
+    # Runs every 2 hours (00:00, 02:00, 04:00, 06:00, 08:00, 10:00, 12:00, 14:00, 16:00, 18:00, 20:00, 22:00 UTC)
+    - cron: '0 */2 * * *'
+  workflow_dispatch: # Allows you to click "Run workflow" manually for testing
 
 # Grant write permissions to the GITHUB_TOKEN so it can commit the state file
 permissions:
@@ -29,11 +30,8 @@ jobs:
 
     - name: Run Lead Generation Script
       env:
-        DUNE_API_KEY: ${{ secrets.DUNE_API_KEY }}
         TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        DUNE_SOLANA_QUERY_ID: ${{ secrets.DUNE_SOLANA_QUERY_ID }}
-        DUNE_EVM_QUERY_ID: ${{ secrets.DUNE_EVM_QUERY_ID }}
       run: python main.py
 
     - name: Commit and push state file
