@@ -40,77 +40,86 @@ def is_blocked(name, symbol):
     return False
 
 def fetch_and_filter_coingecko():
-    print("=== MODULE 1: DISCOVERY & ENRICHMENT (Native CoinGecko) ===", flush=True)
+    print("=== MODULE 1: DISCOVERY & ENRICHMENT (Two-Step CoinGecko) ===", flush=True)
     validated_leads = []
     
     for category in CATEGORIES:
         print(f"  Fetching category: {category}...", flush=True)
+        
+        # STEP 1: Lightweight market data fetch
         url = f"https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&category={category}&order=market_cap_desc&per_page=100&page=1&sparkline=false"
         
         try:
-            time.sleep(3.5)
-            
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
                 "Accept": "application/json"
             }
-            
             response = requests.get(url, headers=headers, timeout=15)
             
-            print(f"    [API RESPONSE] Status: {response.status_code} {response.reason}", flush=True)
-            
             if response.status_code != 200:
-                print(f"    [API RESPONSE BODY] {response.text[:300]}", flush=True)
+                print(f"    [ERROR] {response.status_code} {response.reason} for {category}", flush=True)
                 continue
                 
             coins = response.json()
             print(f"    [SUCCESS] Received {len(coins)} coins for {category}", flush=True)
             
-            # DEBUG: Print first 3 coins to inspect the actual data structure
-            for i, coin in enumerate(coins[:3]):
-                mcap_debug = coin.get('market_cap')
-                fdv_debug = coin.get('fully_diluted_valuation')
-                vol_debug = coin.get('total_volume')
-                hp_debug = coin.get('links', {}).get('homepage', [])
-                print(f"    [DEBUG] Coin {i+1}: {coin.get('name')} | MCAP: {mcap_debug} | FDV: {fdv_debug} | Vol: {vol_debug} | Homepage: {hp_debug}", flush=True)
-            
             for coin in coins:
                 name = str(coin.get('name', ''))
                 symbol = str(coin.get('symbol', ''))
-                
-                # FIX: Fallback to FDV if market_cap is None (very common for low-cap coins)
-                mcap = coin.get('market_cap') or coin.get('fully_diluted_valuation') or 0
+                mcap = coin.get('market_cap') or 0
                 volume = coin.get('total_volume') or 0
-                links = coin.get('links', {})
+                coin_id = coin.get('id')
                 
+                # 1. Giant & Memecoin Blocklist Check
                 if is_blocked(name, symbol):
                     continue
                     
+                # 2. Strict Market Cap Filter ($500k - $3M)
                 if not (500_000 <= mcap <= 3_000_000):
                     continue
                     
+                # 3. Minimum Volume Filter ($50k+)
                 if volume < 50_000:
                     continue
-                    
-                homepages = links.get('homepage', [])
-                valid_homepage = next((url for url in homepages if url and str(url).strip()), None)
-                if not valid_homepage:
-                    continue
-                    
-                twitter_handle = links.get('twitter_screen_name', '')
-                telegram_handle = links.get('telegram_channel_identifier', '')
                 
-                validated_leads.append({
-                    'name': name,
-                    'symbol': symbol.upper(),
-                    'market_cap': float(mcap),
-                    'volume_24h': float(volume),
-                    'website': valid_homepage,
-                    'twitter': f"@{twitter_handle}" if twitter_handle else "Not Found",
-                    'telegram': f"@{telegram_handle}" if telegram_handle else "Not Found"
-                })
-                print(f"    [PASS] {name} (MCAP: ${mcap:,.0f}, Vol: ${volume:,.0f})", flush=True)
+                # STEP 2: If it passes numeric filters, fetch detailed data for links
+                print(f"    [PASS Numeric] {name} (MCAP: ${mcap:,.0f}, Vol: ${volume:,.0f}). Fetching details...", flush=True)
                 
+                detail_url = f"https://api.coingecko.com/api/v3/coins/{coin_id}"
+                time.sleep(3.5) # CRITICAL: Respect CoinGecko rate limits (max 10-30 calls/min)
+                
+                detail_response = requests.get(detail_url, headers=headers, timeout=15)
+                if detail_response.status_code == 200:
+                    detail_data = detail_response.json()
+                    links = detail_data.get('links', {})
+                    
+                    # 4. Utility Proxy: Must have a valid homepage URL
+                    homepages = links.get('homepage', [])
+                    valid_homepage = next((url for url in homepages if url and str(url).strip()), None)
+                    
+                    if not valid_homepage:
+                        print(f"      [DROP] No valid homepage found.", flush=True)
+                        continue
+                        
+                    # 5. Extract Contacts
+                    twitter = links.get('twitter_screen_name', '')
+                    telegram = links.get('telegram_channel_identifier', '')
+                    
+                    validated_leads.append({
+                        'name': name,
+                        'symbol': symbol.upper(),
+                        'market_cap': float(mcap),
+                        'volume_24h': float(volume),
+                        'website': valid_homepage,
+                        'twitter': f"@{twitter}" if twitter else "Not Found",
+                        'telegram': f"@{telegram}" if telegram else "Not Found"
+                    })
+                    print(f"      [SUCCESS] Added {name} with contacts.", flush=True)
+                else:
+                    print(f"      [ERROR] Failed to fetch details for {coin_id}: {detail_response.status_code}", flush=True)
+                
+            time.sleep(2.5) # Pause between categories
+            
         except requests.exceptions.RequestException as e:
             print(f"    [CRITICAL NETWORK ERROR] {e}", flush=True)
         except Exception as e:
@@ -155,7 +164,7 @@ def send_telegram_message(lead):
         print(f"  [TELEGRAM] ❌ Failed to send message for {lead['name']}: {e}", flush=True)
 
 def main():
-    print("=== STARTING MULTI-STAGE QUALIFICATION FUNNEL (PHASE 15: DEBUG & FDV FALLBACK) ===", flush=True)
+    print("=== STARTING MULTI-STAGE QUALIFICATION FUNNEL (PHASE 16: TWO-STEP API FETCH) ===", flush=True)
     try:
         validated_leads = fetch_and_filter_coingecko()
         
