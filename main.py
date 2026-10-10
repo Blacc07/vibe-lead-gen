@@ -3,7 +3,6 @@ import json
 import requests
 import re
 import time
-import sys
 
 # --- CONFIGURATION ---
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
@@ -49,9 +48,8 @@ def fetch_and_filter_coingecko():
         url = f"https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&category={category}&order=market_cap_desc&per_page=100&page=1&sparkline=false"
         
         try:
-            time.sleep(3.5)  # Increased delay to respect rate limits
+            time.sleep(3.5)
             
-            # Use a standard browser User-Agent to reduce the chance of immediate WAF blocking
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
                 "Accept": "application/json"
@@ -59,21 +57,29 @@ def fetch_and_filter_coingecko():
             
             response = requests.get(url, headers=headers, timeout=15)
             
-            # BULLETPROOF LOGGING: Print exactly what the API returns
             print(f"    [API RESPONSE] Status: {response.status_code} {response.reason}", flush=True)
             
             if response.status_code != 200:
-                # Print the first 300 characters of the error body to see if it's a Cloudflare block, rate limit, etc.
                 print(f"    [API RESPONSE BODY] {response.text[:300]}", flush=True)
                 continue
                 
             coins = response.json()
             print(f"    [SUCCESS] Received {len(coins)} coins for {category}", flush=True)
             
+            # DEBUG: Print first 3 coins to inspect the actual data structure
+            for i, coin in enumerate(coins[:3]):
+                mcap_debug = coin.get('market_cap')
+                fdv_debug = coin.get('fully_diluted_valuation')
+                vol_debug = coin.get('total_volume')
+                hp_debug = coin.get('links', {}).get('homepage', [])
+                print(f"    [DEBUG] Coin {i+1}: {coin.get('name')} | MCAP: {mcap_debug} | FDV: {fdv_debug} | Vol: {vol_debug} | Homepage: {hp_debug}", flush=True)
+            
             for coin in coins:
                 name = str(coin.get('name', ''))
                 symbol = str(coin.get('symbol', ''))
-                mcap = coin.get('market_cap') or 0
+                
+                # FIX: Fallback to FDV if market_cap is None (very common for low-cap coins)
+                mcap = coin.get('market_cap') or coin.get('fully_diluted_valuation') or 0
                 volume = coin.get('total_volume') or 0
                 links = coin.get('links', {})
                 
@@ -149,13 +155,10 @@ def send_telegram_message(lead):
         print(f"  [TELEGRAM] ❌ Failed to send message for {lead['name']}: {e}", flush=True)
 
 def main():
-    print("=== STARTING MULTI-STAGE QUALIFICATION FUNNEL (PHASE 14: BULLETPROOF LOGGING) ===", flush=True)
+    print("=== STARTING MULTI-STAGE QUALIFICATION FUNNEL (PHASE 15: DEBUG & FDV FALLBACK) ===", flush=True)
     try:
         validated_leads = fetch_and_filter_coingecko()
-        if not validated_leads:
-            print("Exiting: No leads passed the filtering criteria or API failed.", flush=True)
-            return
-            
+        
         processed_names = load_processed_names()
         print(f"\n=== MODULE 2: DEDUPLICATION & OUTPUT ===", flush=True)
         print(f"Current processed names in memory: {len(processed_names)}", flush=True)
@@ -165,11 +168,14 @@ def main():
         
         if len(new_leads) == 0 and len(validated_leads) > 0:
             print("⚠️ WARNING: All enriched leads were already processed. No new messages sent.", flush=True)
+        elif not validated_leads:
+            print("ℹ️ INFO: No leads passed the filtering criteria.", flush=True)
         
         for lead in new_leads:
             send_telegram_message(lead)
             processed_names.append(lead['name'])
             
+        # GUARANTEED SAVE: Always write the file, even if empty, to prevent git add errors
         save_processed_names(processed_names)
         print("\n=== PIPELINE FINISHED SUCCESSFULLY ===", flush=True)
         
