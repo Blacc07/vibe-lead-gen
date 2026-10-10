@@ -9,24 +9,15 @@ TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 STATE_FILE = "processed_leads.json"
 
-# ICP PARAMETERS (Updated to match DefiLlama API exact spellings)
-TARGET_CHAINS = ["Solana", "Base", "Binance", "BSC" "Sol"]
+# ICP PARAMETERS (Phase 3: Quality Control - Niche Utility Focus)
+TARGET_CHAINS = ["Solana", "Base", "Binance", "BSC", "Ethereum", "Arbitrum", "Optimism"]
 ALLOWED_CATEGORIES = [
-    "Dexes",              # Standard DefiLlama spelling
-    "Dexs",               # Alternative spelling seen in some forks/API responses
-    "Yield",
-    "Yield Aggregator",
-    "Launchpad",
-    "Services",
     "Infrastructure",
-    "Gaming",
-    "Derivatives",
-    "Indexes",
+    "Services",
     "RWA",                # Real World Assets
-    "Prediction Market",
-    "Options",
-    "Lending",            
-    "Bridge"              
+    "Gaming",             # Strictly utility/gaming, not pure P2E
+    "Indexes",
+    "Derivatives"         # Small perp DEXs
 ]
 BLOCKLIST_KEYWORDS = ["doge", "shib", "pepe", "safe", "elon", "inu", "floki", "moon", "pump", "rocket", "kishu", "baby"]
 
@@ -106,7 +97,6 @@ def normalize_leads(llama_data):
         category = proto.get("category", "")
         chains = proto.get("chains", [])
         tvl = proto.get("tvl", 0)
-        mcap = proto.get("mcap")
         url = proto.get("url")
         
         # 1. Category Filter
@@ -123,21 +113,13 @@ def normalize_leads(llama_data):
                 debug_count += 1
             continue
             
-        # 3. Metric Filter
+        # 3. TVL Filter
         if tvl < 250000:
             if debug_count < max_debug:
                 print(f"  [PRE-SCRAPER] Skipped '{name}': TVL too low (${tvl:,}).")
                 debug_count += 1
             continue
-            
-        if not mcap or not (1000000 <= mcap <= 10000000):
-            if debug_count < max_debug:
-                # SAFE FORMATTING: Handles NoneType gracefully
-                mcap_display = f"${mcap:,}" if mcap is not None else "N/A"
-                print(f"  [PRE-SCRAPER] Skipped '{name}': MCAP is {mcap_display} (Target: $1M - $10M).")
-                debug_count += 1
-            continue
-            
+
         # 4. Blocklist Filter
         if is_blocked(name, symbol):
             if debug_count < max_debug:
@@ -152,6 +134,34 @@ def normalize_leads(llama_data):
                 debug_count += 1
             continue 
 
+        # 6. STRICT LOW-CAP MCAP FILTER (Phase 3 Quality Control)
+        mcap = proto.get("mcap")
+        
+        # Handle cases where mcap is None or string 'N/A'
+        if mcap is None or str(mcap).upper() == 'N/A':
+            if debug_count < max_debug:
+                print(f"  [PRE-SCRAPER] Skipped '{name}': MCAP is N/A or missing.")
+                debug_count += 1
+            continue
+
+        try:
+            mcap_value = float(mcap)
+        except (ValueError, TypeError):
+            if debug_count < max_debug:
+                print(f"  [PRE-SCRAPER] Skipped '{name}': Could not parse MCAP value ({mcap}).")
+                debug_count += 1
+            continue
+
+        # STRICT LOW-CAP FILTER: Max $5,000,000
+        if not (1_000_000 <= mcap_value <= 5_000_000):
+            if debug_count < max_debug:
+                print(f"  [PRE-SCRAPER] Skipped '{name}': MCAP ${mcap_value:,.0f} is outside $1M-$5M target range.")
+                debug_count += 1
+            continue
+
+        # If it passes all filters, log it and append
+        print(f"  [PRE-SCRAPER] ✅ PASSED: '{name}' | MCAP: ${mcap_value:,.0f} | Category: {category}")
+        
         leads.append({
             "source": "DefiLlama_ICP",
             "slug": proto.get("slug"),
@@ -160,14 +170,14 @@ def normalize_leads(llama_data):
             "category": category,
             "chain": next((c for c in chains if c in TARGET_CHAINS), "Multi-Chain"),
             "website": url,
-            "mcap": mcap,
+            "mcap": mcap_value, # Store the parsed float
             "tvl": tvl,
             "api_twitter": proto.get("twitter"),
             "api_telegram": proto.get("telegram")
         })
     
     leads.sort(key=lambda x: x.get("tvl", 0), reverse=True)
-    print(f"Found {len(leads)} projects passing Phase 1. Sending top 5 to Phase 2 (Scraper)...")
+    print(f"\nFound {len(leads)} projects passing Phase 1. Sending top 5 to Phase 2 (Scraper)...")
     return leads[:5]
 
 def load_processed_slugs():
@@ -199,7 +209,7 @@ def send_telegram_message(lead):
 
     text = (
         f"🚨 *High-Potential Vibe Trading Lead*\n\n"
-        f"📛 *Project*: {lead['name']} ({lead.get('symbol', 'N/A')})\n"
+        f" *Project*: {lead['name']} ({lead.get('symbol', 'N/A')})\n"
         f"📂 *Category*: {lead['category']}\n"
         f"⛓️ *Chain*: {lead['chain']}\n"
         f"💰 *Market Cap*: {mcap_str}\n"
@@ -239,7 +249,7 @@ def main():
         save_processed_slugs(processed_slugs)
         print("\n=== PIPELINE FINISHED SUCCESSFULLY ===")
     except Exception as e:
-        print(f"❌ CRITICAL ERROR: {e}")
+        print(f" CRITICAL ERROR: {e}")
         raise
 
 if __name__ == "__main__":
