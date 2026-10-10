@@ -14,11 +14,10 @@ TARGET_NETWORKS = ["solana", "base", "bsc"]
 BLOCKLIST_PATTERNS = [re.compile(r'\b(pepe|doge|shib|inu|floki|bonk|wojak|pump|moon|safe)\b', re.IGNORECASE)]
 
 # --- HELPER FUNCTIONS ---
-def is_blocked(name, symbol):
+def is_blocked(name):
     name_lower = (name or "").lower()
-    symbol_lower = (symbol or "").lower()
     for pattern in BLOCKLIST_PATTERNS:
-        if pattern.search(name_lower) or pattern.search(symbol_lower):
+        if pattern.search(name_lower):
             return True
     return False
 
@@ -96,19 +95,18 @@ def module1_discovery():
     for network in TARGET_NETWORKS:
         print(f"  Fetching top pools for {network}...")
         
-        # PHASE 12 FIX: Corrected sort parameter to '-h24_volume_usd'
-        url = f"https://api.geckoterminal.com/api/v2/networks/{network}/pools?page=1&sort=-h24_volume_usd"
+        # VERIFIED FIX: Exact sort parameter demanded by the API
+        url = f"https://api.geckoterminal.com/api/v2/networks/{network}/pools?sort=h24_volume_usd_desc&page=1"
         
         headers = {
             "accept": "application/json",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
         }
         
         try:
             time.sleep(1.5) # Rate limiting between network requests
             response = requests.get(url, headers=headers, timeout=15)
             
-            # PHASE 12 FIX: Robust error logging
             if response.status_code != 200:
                 print(f"    [ERROR] Failed to fetch {network}: {response.status_code} {response.reason}")
                 print(f"    [API RESPONSE] {response.text}")
@@ -119,50 +117,48 @@ def module1_discovery():
             
             for pool in pools:
                 attributes = pool.get('attributes', {})
-                
-                # PHASE 12 FIX: Corrected JSON key mappings
                 pool_name = attributes.get('name', '')
-                token_symbol = attributes.get('base_token', {}).get('symbol', '') if 'base_token' in pool else attributes.get('symbol', '')
+                
+                # 1. Regex Blocklist
+                if is_blocked(pool_name):
+                    continue
+                
+                # 2. Extract Volume (Nested dictionary)
+                volume_dict = attributes.get('volume_usd', {})
+                volume_h24 = float(volume_dict.get('h24', 0) or 0)
+                
+                # 3. Extract Reserve/Liquidity
                 reserve_usd = float(attributes.get('reserve_in_usd', 0) or 0)
-                volume_h24 = float(attributes.get('h24_volume_usd', 0) or 0)
-                pool_created_at = attributes.get('pool_created_at', '')
                 
-                # Utility Proxy Filter: Must have a website or twitter
-                website = attributes.get('website_url', '') or attributes.get('website', '')
-                twitter = attributes.get('twitter_url', '') or attributes.get('twitter', '')
-                
-                if not website and not twitter:
-                    continue
-                
-                # Regex Blocklist
-                if is_blocked(pool_name, token_symbol):
-                    continue
-                
-                # Hard Filters: Age >= 14 days
-                if pool_created_at:
+                # 4. Calculate Age
+                created_at_str = attributes.get('pool_created_at')
+                age_in_days = 0
+                if created_at_str:
                     try:
-                        created_at = datetime.fromisoformat(pool_created_at.replace('Z', '+00:00'))
-                        age_days = (now - created_at).days
-                        if age_days < 14:
-                            continue
+                        created_dt = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+                        age_in_days = (now - created_dt).days
                     except ValueError:
-                        continue # Skip if date parsing fails
-                
-                # Hard Filters: Reserve >= $50k
+                        continue
+
+                # 5. Apply Hard Filters
+                if age_in_days < 14:
+                    continue
                 if reserve_usd < 50_000:
                     continue
-                
-                # Hard Filters: 24h Volume >= $50k
                 if volume_h24 < 50_000:
                     continue
-                
+                    
+                # 6. Extract Token Address for Enrichment
+                relationships = pool.get('relationships', {})
+                base_token_id = relationships.get('base_token', {}).get('data', {}).get('id', '')
+                token_address = base_token_id.split('_')[-1] if '_' in base_token_id else ''
+
                 discovered_pools.append({
-                    'pool_name': pool_name,
-                    'token_symbol': token_symbol,
-                    'website': website,
-                    'twitter_handle': twitter,
-                    'volume_usd_h24': volume_h24,
-                    'network': network.capitalize()
+                    'name': pool_name,
+                    'network': network,
+                    'volume_h24': volume_h24,
+                    'reserve_usd': reserve_usd,
+                    'token_address': token_address
                 })
                 
             print(f"    Found {len(discovered_pools)} pools passing filters so far.")
@@ -174,32 +170,53 @@ def module1_discovery():
     print(f"Module 1 Complete: {len(discovered_pools)} total pools discovered.")
     return discovered_pools
 
-# --- MODULE 2: ENRICHMENT (Website Scraper & GitHub) ---
+# --- MODULE 2: ENRICHMENT (Token Endpoint & Scraper) ---
 def module2_enrichment(discovered_pools):
-    print("\n=== MODULE 2: ENRICHMENT (Scraper & GitHub) ===")
+    print("\n=== MODULE 2: ENRICHMENT (Token Endpoint & Scraper) ===")
     enriched_leads = []
-    seen_websites = set()
-    seen_symbols = set()
+    seen_addresses = set()
     
     for pool in discovered_pools:
-        website = pool['website']
-        symbol = pool['token_symbol']
+        token_address = pool['token_address']
+        network = pool['network']
         
         # In-run Deduplication
-        if website in seen_websites or symbol in seen_symbols:
-            print(f"  [DEDUPE] Skipped duplicate: {pool['pool_name']}")
+        if token_address in seen_addresses:
+            print(f"  [DEDUPE] Skipped duplicate address: {pool['name']}")
             continue
             
-        print(f"  Enriching: {pool['pool_name']}...")
+        print(f"  Enriching: {pool['name']}...")
         
-        tg_web, tw_web, gh_web = get_contacts_from_website(website)
+        website_url = ""
+        twitter_handle = ""
         
-        # Fallback to GeckoTerminal data if scraper found nothing
-        telegram = tg_web if tg_web != "Not Found" else format_handle(pool.get('twitter_handle'))
-        twitter = tw_web if tw_web != "Not Found" else format_handle(pool.get('twitter_handle'))
+        # Query GeckoTerminal Token Endpoint for website/twitter
+        if token_address:
+            try:
+                time.sleep(1.0) # Rate limiting
+                token_url = f"https://api.geckoterminal.com/api/v2/networks/{network}/tokens/{token_address}"
+                token_resp = requests.get(token_url, headers={"accept": "application/json"}, timeout=10)
+                if token_resp.status_code == 200:
+                    token_data = token_resp.json()
+                    token_attrs = token_data.get('data', {}).get('attributes', {})
+                    website_url = token_attrs.get('website_url', '') or token_attrs.get('website', '')
+                    twitter_handle = token_attrs.get('twitter_handle', '') or token_attrs.get('twitter', '')
+            except Exception as e:
+                print(f"    [WARN] Token endpoint lookup failed: {e}")
+
+        # Utility Proxy Filter: Must have a website or twitter from the token data
+        if not website_url and not twitter_handle:
+            print(f"    [DROP] No website or twitter found in token data.")
+            continue
+
+        # Web Scraper Fallback/Enhancement
+        tg_web, tw_web, gh_web = get_contacts_from_website(website_url)
+        
+        telegram = tg_web if tg_web != "Not Found" else format_handle(twitter_handle)
+        twitter = tw_web if tw_web != "Not Found" else format_handle(twitter_handle)
         
         if telegram == "Not Found" and twitter == "Not Found":
-            print(f"    [DROP] No contact methods found.")
+            print(f"    [DROP] No contact methods found after scraping.")
             continue
             
         is_active, gh_status = check_github_activity(gh_web)
@@ -208,37 +225,39 @@ def module2_enrichment(discovered_pools):
         else:
             print(f"    [PASS] GitHub: {gh_status}")
             
+        pool['website'] = website_url
         pool['telegram'] = telegram
         pool['twitter'] = twitter
         enriched_leads.append(pool)
         
-        seen_websites.add(website)
-        seen_symbols.add(symbol)
+        seen_addresses.add(token_address)
         print(f"    [PASS] Contacts: TG={telegram}, TW={twitter}")
         
     print(f"Module 2 Complete: {len(enriched_leads)} leads fully enriched.")
     return enriched_leads
 
 # --- MODULE 3: DEDUPLICATION & OUTPUT ---
-def load_processed_websites():
+def load_processed_addresses():
     if os.path.exists(STATE_FILE):
         with open(STATE_FILE, "r") as f:
             return json.load(f)
     return []
 
-def save_processed_websites(websites):
+def save_processed_addresses(addresses):
     with open(STATE_FILE, "w") as f:
-        json.dump(websites, f)
+        json.dump(addresses, f)
 
 def send_telegram_message(lead):
-    vol_str = f"${int(lead['volume_usd_h24']):,}"
+    vol_str = f"${int(lead['volume_h24']):,}"
+    res_str = f"${int(lead['reserve_usd']):,}"
     website = lead.get('website', 'N/A')
     
     text = (
         f"🚨 *High-Potential Vibe Trading Lead*\n\n"
-        f"📛 *Project*: {lead['pool_name']} ({lead.get('token_symbol', 'N/A')})\n"
-        f"⛓️ *Chain*: {lead['network']}\n"
+        f"📛 *Project*: {lead['name']}\n"
+        f"⛓️ *Chain*: {lead['network'].capitalize()}\n"
         f"📊 *24h Volume*: {vol_str}\n"
+        f"💧 *Liquidity*: {res_str}\n"
         f"🔗 *Website*: {website}\n\n"
         f"📞 *Extracted Contacts*:\n"
         f"• Telegram: {lead['telegram']}\n"
@@ -249,10 +268,10 @@ def send_telegram_message(lead):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {"chat_id": TELEGRAM_CHAT_ID, "text": text, "parse_mode": "Markdown"}
     requests.post(url, json=payload)
-    print(f"  [TELEGRAM] ✅ Sent message for {lead['pool_name']}")
+    print(f"  [TELEGRAM] ✅ Sent message for {lead['name']}")
 
 def main():
-    print("=== STARTING MULTI-STAGE QUALIFICATION FUNNEL (PHASE 12: API SYNTAX CORRECTION) ===")
+    print("=== STARTING MULTI-STAGE QUALIFICATION FUNNEL (VERIFIED API SYNTAX) ===")
     try:
         stage1 = module1_discovery()
         if not stage1:
@@ -261,12 +280,12 @@ def main():
             
         stage2 = module2_enrichment(stage1)
         
-        processed_websites = load_processed_websites()
+        processed_addresses = load_processed_addresses()
         print(f"\n=== MODULE 3: DEDUPLICATION & OUTPUT ===")
-        print(f"Current processed websites in memory: {len(processed_websites)}")
+        print(f"Current processed addresses in memory: {len(processed_addresses)}")
         
-        # Historical Deduplication
-        new_leads = [lead for lead in stage2 if lead['website'] not in processed_websites]
+        # Historical Deduplication based on token address
+        new_leads = [lead for lead in stage2 if lead['token_address'] not in processed_addresses]
         print(f"New leads to process after historical deduplication: {len(new_leads)}")
         
         if len(new_leads) == 0 and len(stage2) > 0:
@@ -274,9 +293,9 @@ def main():
         
         for lead in new_leads:
             send_telegram_message(lead)
-            processed_websites.append(lead['website'])
+            processed_addresses.append(lead['token_address'])
             
-        save_processed_websites(processed_websites)
+        save_processed_addresses(processed_addresses)
         print("\n=== PIPELINE FINISHED SUCCESSFULLY ===")
     except Exception as e:
         print(f"❌ CRITICAL ERROR: {e}")
