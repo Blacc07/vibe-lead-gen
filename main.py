@@ -15,8 +15,16 @@ CATEGORY_WHITELIST = [
     "Dexs", "Yield", "Yield Aggregator", "Lending", "Liquid Staking", 
     "Infrastructure", "Services", "RWA", "Gaming", "Derivatives", "CDP"
 ]
-# Refined blocklist: Only obvious memecoin patterns, no false positives on "safe", "ai", or "moon"
+# Refined blocklist: Only obvious memecoin patterns
 BLOCKLIST_PATTERNS = [re.compile(r'\b(pepe|doge|shib|inu|floki|kishu|bonk|wojak)\b', re.IGNORECASE)]
+
+# Phase 8: Category Tail-End Strategy
+TARGET_CATEGORIES = [
+    "decentralized-exchange-dex",
+    "yield-farming",
+    "real-world-assets-rwa",
+    "gaming"
+]
 
 # --- HELPER FUNCTIONS ---
 def is_blocked(name, symbol):
@@ -70,7 +78,7 @@ def check_github_activity(url):
     api_url = f"https://api.github.com/repos/{repo_path}"
     
     try:
-        time.sleep(1) # Rate limiting for GitHub API
+        time.sleep(1.5) # Rate limiting for GitHub API
         headers = {"Accept": "application/vnd.github.v3+json", "User-Agent": "Vibe-Lead-Gen"}
         response = requests.get(api_url, headers=headers, timeout=10)
         
@@ -85,47 +93,62 @@ def check_github_activity(url):
     except Exception as e:
         return True, f"Check Failed ({str(e)})"
 
-# --- MODULE 1: DISCOVERY (CoinGecko) ---
+# --- MODULE 1: DISCOVERY (CoinGecko Categories) ---
 def module1_discovery():
-    print("=== MODULE 1: DISCOVERY (CoinGecko) ===")
+    print("=== MODULE 1: DISCOVERY (CoinGecko Categories) ===")
     discovered_coins = []
-    url = "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&sparkline=false"
     
-    try:
-        time.sleep(1) # Rate limiting
-        response = requests.get(url, timeout=15)
-        response.raise_for_status()
-        data = response.json()
+    for category in TARGET_CATEGORIES:
+        print(f"  Fetching category: {category}...")
+        url = f"https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&category={category}&order=market_cap_desc&per_page=100&page=1&sparkline=false"
         
-        for coin in data:
-            name = coin.get('name', '')
-            symbol = coin.get('symbol', '')
-            market_cap = coin.get('market_cap', 0) or 0
-            total_volume = coin.get('total_volume', 0) or 0
+        try:
+            time.sleep(2.5) # Rate limiting between categories
+            response = requests.get(url, timeout=15)
             
-            # Hard Filters
-            if is_blocked(name, symbol):
-                continue
-                
-            if not (100_000 <= market_cap <= 15_000_000):
-                continue
-                
-            if total_volume < 50_000:
-                continue
-                
-            discovered_coins.append({
-                'id': coin.get('id'),
-                'name': name,
-                'symbol': symbol.upper(),
-                'market_cap': market_cap,
-                'total_volume': total_volume
-            })
+            # Graceful Degradation for 429 Too Many Requests
+            if response.status_code == 429:
+                print(f"    [RATE LIMIT] 429 Too Many Requests. Waiting 10s and retrying...")
+                time.sleep(10)
+                response = requests.get(url, timeout=15)
+                if response.status_code == 429:
+                    print(f"    [SKIP] Still rate limited. Skipping category {category}.")
+                    continue
+                    
+            response.raise_for_status()
+            data = response.json()
             
-        print(f"Module 1 Complete: {len(discovered_coins)} coins discovered passing initial filters.")
-    except Exception as e:
-        print(f"  [CRITICAL ERROR] Failed to fetch CoinGecko: {e}")
-        return []
-        
+            for coin in data:
+                name = coin.get('name', '')
+                symbol = coin.get('symbol', '')
+                market_cap = coin.get('market_cap', 0) or 0
+                total_volume = coin.get('total_volume', 0) or 0
+                
+                # Hard Filters
+                if is_blocked(name, symbol):
+                    continue
+                    
+                if not (100_000 <= market_cap <= 15_000_000):
+                    continue
+                    
+                if total_volume < 50_000:
+                    continue
+                    
+                discovered_coins.append({
+                    'id': coin.get('id'),
+                    'name': name,
+                    'symbol': symbol.upper(),
+                    'market_cap': market_cap,
+                    'total_volume': total_volume
+                })
+                
+            print(f"    Found {len([c for c in discovered_coins])} coins passing filters so far.")
+            
+        except Exception as e:
+            print(f"    [ERROR] Failed to fetch {category}: {e}")
+            continue
+            
+    print(f"Module 1 Complete: {len(discovered_coins)} total coins discovered passing initial filters.")
     return discovered_coins
 
 # --- MODULE 2: VALIDATION (DefiLlama) ---
@@ -270,7 +293,7 @@ def send_telegram_message(lead):
     print(f"  [TELEGRAM] ✅ Sent message for {lead['name']}")
 
 def main():
-    print("=== STARTING MULTI-STAGE QUALIFICATION FUNNEL (PHASE 7) ===")
+    print("=== STARTING MULTI-STAGE QUALIFICATION FUNNEL (PHASE 8) ===")
     try:
         # Execute Funnel
         stage1 = module1_discovery()
