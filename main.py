@@ -2,6 +2,7 @@ import os
 import json
 import requests
 import re
+import time
 
 # --- CONFIGURATION ---
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
@@ -9,18 +10,37 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 STATE_FILE = "processed_leads.json"
 
 # ICP PARAMETERS
-TARGET_CHAINS = ["Solana", "Base", "Binance", "BSC"] # Added BSC just in case DefiLlama uses it
+TARGET_CHAINS = ["Solana", "Base", "Binance"] # DefiLlama uses "Binance" for BSC
 ALLOWED_CATEGORIES = ["Dexes", "Yield", "Launchpad", "Services", "Infrastructure", "Gaming"]
 BLOCKLIST_KEYWORDS = ["doge", "shib", "pepe", "safe", "elon", "inu", "floki", "moon", "pump", "rocket", "kishu", "baby"]
 
-def fetch_defillama():
+def fetch_defillama(max_retries=3):
+    """Fetches protocols with built-in retry and rate-limit protection."""
     print("Fetching DefiLlama protocols...")
     url = "https://api.llama.fi/protocols"
-    response = requests.get(url, timeout=30)
-    response.raise_for_status()
-    return response.json()
+    
+    for attempt in range(max_retries):
+        try:
+            time.sleep(2)  # Polite delay to avoid triggering WAF
+            response = requests.get(url, timeout=30)
+            
+            if response.status_code == 429:
+                print(f"Rate limited. Waiting 60 seconds before retry {attempt + 1}...")
+                time.sleep(60)
+                continue
+                
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            print(f"Attempt {attempt + 1} failed: {e}")
+            if attempt < max_retries - 1:
+                time.sleep(10)
+            else:
+                raise
+    return []
 
 def is_blocked(name, symbol):
+    """Checks if project name or symbol contains blocklist keywords."""
     name_lower = (name or "").lower()
     symbol_lower = (symbol or "").lower()
     for keyword in BLOCKLIST_KEYWORDS:
@@ -33,7 +53,7 @@ def get_contacts(lead):
     telegram = "Not Found"
     twitter = "Not Found"
     
-    # 1. Try scraping the website
+    # 1. Try scraping the website first
     url = lead.get('website')
     if url and str(url).startswith("http"):
         try:
@@ -52,7 +72,7 @@ def get_contacts(lead):
             if tg_match: telegram = f"@{tg_match.group(1)}"
             if tw_match: twitter = f"@{tw_match.group(1)}"
         except Exception:
-            pass # Fallback to API fields below
+            pass  # Fallback to API fields below
 
     # 2. Fallback to DefiLlama API fields if website scrape failed
     if telegram == "Not Found" and lead.get('api_telegram'):
@@ -115,8 +135,8 @@ def normalize_leads(llama_data):
     # Sort by TVL descending (highest traction first)
     leads.sort(key=lambda x: x.get("tvl", 0), reverse=True)
     
-    print(f"Found {len(leads)} projects passing initial ICP metrics. Sending to scraper...")
-    return leads
+    print(f"Found {len(leads)} projects passing initial ICP metrics. Sending top 5 to scraper...")
+    return leads[:5]  # Strictly limit to top 5 highest TVL leads per run
 
 def load_processed_slugs():
     if os.path.exists(STATE_FILE):
@@ -135,18 +155,18 @@ def send_telegram_message(lead):
     print(f"Scraping contacts for: {lead['name']}")
     telegram, twitter = get_contacts(lead)
     
-    # FINAL QUALITY GATE: If we still can't find a way to contact them after scraping + fallback, drop the lead.
+    # FINAL QUALITY GATE: Drop if completely uncontactable after all efforts
     if telegram == "Not Found" and twitter == "Not Found":
-        print(f"️ Dropped {lead['name']}: No contact methods found after scraping.")
+        print(f"⚠️ Dropped {lead['name']}: No contact methods found after scraping.")
         return
 
     text = (
-        f" *High-Potential Vibe Trading Lead*\n\n"
-        f"📛 *Project*: {lead['name']} ({lead.get('symbol', 'N/A')})\n"
-        f" *Category*: {lead['category']}\n"
-        f"⛓️ *Chain*: {lead['chain']}\n"
+        f"🚨 *High-Potential Vibe Trading Lead*\n\n"
+        f" *Project*: {lead['name']} ({lead.get('symbol', 'N/A')})\n"
+        f"📂 *Category*: {lead['category']}\n"
+        f"️ *Chain*: {lead['chain']}\n"
         f"💰 *Market Cap*: {mcap_str}\n"
-        f"🏦 *TVL*: {tvl_str}\n"
+        f" *TVL*: {tvl_str}\n"
         f"🔗 *Website*: {lead.get('website', 'N/A')}\n\n"
         f"📞 *Extracted Contacts*:\n"
         f"• Telegram: {telegram}\n"
