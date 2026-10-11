@@ -39,6 +39,32 @@ def is_blocked(name, symbol):
             
     return False
 
+def fetch_with_retry(url, max_retries=3):
+    """Robust fetch function with exponential backoff for 429 Rate Limits."""
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+        "Accept": "application/json"
+    }
+    
+    for attempt in range(max_retries):
+        try:
+            response = requests.get(url, headers=headers, timeout=15)
+            if response.status_code == 200:
+                return response.json()
+            elif response.status_code == 429:
+                wait_time = 60 * (attempt + 1)  # Wait 60s, then 120s, then 180s
+                print(f"    [RATE LIMIT] 429 detected. Pausing for {wait_time} seconds before retry...", flush=True)
+                time.sleep(wait_time)
+            else:
+                print(f"    [ERROR] Unexpected status {response.status_code} for {url}", flush=True)
+                return None
+        except requests.exceptions.RequestException as e:
+            print(f"    [NETWORK ERROR] {e}. Retrying...", flush=True)
+            time.sleep(10)
+            
+    print(f"    [CRITICAL] Failed to fetch {url} after {max_retries} retries.", flush=True)
+    return None
+
 def fetch_and_filter_coingecko():
     print("=== MODULE 1: DISCOVERY & ENRICHMENT (Two-Step CoinGecko) ===", flush=True)
     validated_leads = []
@@ -49,81 +75,70 @@ def fetch_and_filter_coingecko():
         # STEP 1: Lightweight market data fetch
         url = f"https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&category={category}&order=market_cap_desc&per_page=100&page=1&sparkline=false"
         
-        try:
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
-                "Accept": "application/json"
-            }
-            response = requests.get(url, headers=headers, timeout=15)
+        markets_data = fetch_with_retry(url)
+        if not markets_data:
+            print(f"    [INFO] Skipping category {category} due to fetch failure.", flush=True)
+            continue
             
-            if response.status_code != 200:
-                print(f"    [ERROR] {response.status_code} {response.reason} for {category}", flush=True)
+        coins = markets_data
+        print(f"    [SUCCESS] Received {len(coins)} coins for {category}", flush=True)
+        
+        for coin in coins:
+            name = str(coin.get('name', ''))
+            symbol = str(coin.get('symbol', ''))
+            mcap = coin.get('market_cap') or 0
+            volume = coin.get('total_volume') or 0
+            coin_id = coin.get('id')
+            
+            # 1. Giant & Memecoin Blocklist Check
+            if is_blocked(name, symbol):
                 continue
                 
-            coins = response.json()
-            print(f"    [SUCCESS] Received {len(coins)} coins for {category}", flush=True)
+            # 2. Strict Market Cap Filter ($500k - $3M)
+            if not (500_000 <= mcap <= 3_000_000):
+                continue
+                
+            # 3. Minimum Volume Filter ($50k+)
+            if volume < 50_000:
+                continue
             
-            for coin in coins:
-                name = str(coin.get('name', ''))
-                symbol = str(coin.get('symbol', ''))
-                mcap = coin.get('market_cap') or 0
-                volume = coin.get('total_volume') or 0
-                coin_id = coin.get('id')
-                
-                # 1. Giant & Memecoin Blocklist Check
-                if is_blocked(name, symbol):
-                    continue
-                    
-                # 2. Strict Market Cap Filter ($500k - $3M)
-                if not (500_000 <= mcap <= 3_000_000):
-                    continue
-                    
-                # 3. Minimum Volume Filter ($50k+)
-                if volume < 50_000:
-                    continue
-                
-                # STEP 2: If it passes numeric filters, fetch detailed data for links
-                print(f"    [PASS Numeric] {name} (MCAP: ${mcap:,.0f}, Vol: ${volume:,.0f}). Fetching details...", flush=True)
-                
-                detail_url = f"https://api.coingecko.com/api/v3/coins/{coin_id}"
-                time.sleep(3.5) # CRITICAL: Respect CoinGecko rate limits (max 10-30 calls/min)
-                
-                detail_response = requests.get(detail_url, headers=headers, timeout=15)
-                if detail_response.status_code == 200:
-                    detail_data = detail_response.json()
-                    links = detail_data.get('links', {})
-                    
-                    # 4. Utility Proxy: Must have a valid homepage URL
-                    homepages = links.get('homepage', [])
-                    valid_homepage = next((url for url in homepages if url and str(url).strip()), None)
-                    
-                    if not valid_homepage:
-                        print(f"      [DROP] No valid homepage found.", flush=True)
-                        continue
-                        
-                    # 5. Extract Contacts
-                    twitter = links.get('twitter_screen_name', '')
-                    telegram = links.get('telegram_channel_identifier', '')
-                    
-                    validated_leads.append({
-                        'name': name,
-                        'symbol': symbol.upper(),
-                        'market_cap': float(mcap),
-                        'volume_24h': float(volume),
-                        'website': valid_homepage,
-                        'twitter': f"@{twitter}" if twitter else "Not Found",
-                        'telegram': f"@{telegram}" if telegram else "Not Found"
-                    })
-                    print(f"      [SUCCESS] Added {name} with contacts.", flush=True)
-                else:
-                    print(f"      [ERROR] Failed to fetch details for {coin_id}: {detail_response.status_code}", flush=True)
-                
-            time.sleep(2.5) # Pause between categories
+            # STEP 2: If it passes numeric filters, fetch detailed data for links
+            print(f"    [PASS Numeric] {name} (MCAP: ${mcap:,.0f}, Vol: ${volume:,.0f}). Fetching details...", flush=True)
             
-        except requests.exceptions.RequestException as e:
-            print(f"    [CRITICAL NETWORK ERROR] {e}", flush=True)
-        except Exception as e:
-            print(f"    [CRITICAL UNEXPECTED ERROR] {e}", flush=True)
+            detail_url = f"https://api.coingecko.com/api/v3/coins/{coin_id}"
+            detail_data = fetch_with_retry(detail_url)
+            
+            if detail_data:
+                links = detail_data.get('links', {})
+                
+                # 4. Utility Proxy: Must have a valid homepage URL
+                homepages = links.get('homepage', [])
+                valid_homepage = next((url for url in homepages if url and str(url).strip()), None)
+                
+                if not valid_homepage:
+                    print(f"      [DROP] No valid homepage found.", flush=True)
+                    continue
+                    
+                # 5. Extract Contacts
+                twitter = links.get('twitter_screen_name', '')
+                telegram = links.get('telegram_channel_identifier', '')
+                
+                validated_leads.append({
+                    'name': name,
+                    'symbol': symbol.upper(),
+                    'market_cap': float(mcap),
+                    'volume_24h': float(volume),
+                    'website': valid_homepage,
+                    'twitter': f"@{twitter}" if twitter else "Not Found",
+                    'telegram': f"@{telegram}" if telegram else "Not Found"
+                })
+                print(f"      [SUCCESS] Added {name} with contacts.", flush=True)
+            else:
+                print(f"      [ERROR] Failed to fetch details for {coin_id}.", flush=True)
+        
+        # Enforce strict delay between category fetches to respect API limits
+        print(f"    [INFO] Category {category} complete. Pausing 45s to respect API limits...", flush=True)
+        time.sleep(45)
 
     print(f"Module Complete: {len(validated_leads)} high-quality leads discovered.", flush=True)
     return validated_leads
@@ -164,7 +179,7 @@ def send_telegram_message(lead):
         print(f"  [TELEGRAM] ❌ Failed to send message for {lead['name']}: {e}", flush=True)
 
 def main():
-    print("=== STARTING MULTI-STAGE QUALIFICATION FUNNEL (PHASE 16: TWO-STEP API FETCH) ===", flush=True)
+    print("=== STARTING MULTI-STAGE QUALIFICATION FUNNEL (PRODUCTION STABLE) ===", flush=True)
     try:
         validated_leads = fetch_and_filter_coingecko()
         
