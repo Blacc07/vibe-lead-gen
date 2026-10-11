@@ -2,9 +2,9 @@ name: Vibe Trading Lead Gen
 
 on:
   schedule:
-    # Fallback: Runs natively every 2 hours (might be delayed by GitHub)
-    - cron: '0 */2 * * *'
-  workflow_dispatch: # Primary: Triggered instantly by cron-job.org
+    # Runs once daily at 12:00 PM UTC to respect free-tier API limits
+    - cron: '0 12 * * *'
+  workflow_dispatch: # Allows manual triggering if absolutely necessary
 
 # Grant write permissions to the GITHUB_TOKEN so it can commit the state file
 permissions:
