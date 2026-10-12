@@ -10,13 +10,24 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 STATE_FILE = "processed_leads.json"
 
 NETWORKS = ['solana', 'base', 'bsc']
-ZOMBIE_BLOCKLIST = ["serum", "belt", "qi", "hakka", "wagmi", "olympus", "wonderland", "iron", "safemoon", "squid", "terra", "luna", "celsius"]
+
+# 1. Blocklist of stock tickers and CEX tokens
+TICKER_BLOCKLIST = [
+    "mstr", "sndk", "tsla", "aapl", "amzn", "googl", "goog", "msft", "nvda", "meta", 
+    "spy", "qqq", "iwm", "coin", "hood", "mstrc", "sndkc", "tslac", "aaplc",
+    "serum", "belt", "qi", "hakka", "wagmi", "olympus", "wonderland", 
+    "iron", "safemoon", "squid", "terra", "luna", "celsius"
+]
+
+# 2. Bad keywords for URL validation
+BAD_URL_KEYWORDS = [
+    "coinbase", "robinhood", "tokenize", "tokenized", "binance", "kraken", "okx", "bybit"
+]
 
 # Quota System: Stop searching once we find this many fresh, high-quality leads
 TARGET_NEW_LEADS_PER_RUN = 4
 
 def load_processed_ids():
-    """Loads processed IDs as a set for O(1) deduplication lookups."""
     if os.path.exists(STATE_FILE):
         try:
             with open(STATE_FILE, "r") as f:
@@ -26,17 +37,14 @@ def load_processed_ids():
     return set()
 
 def save_processed_ids(ids_set):
-    """Saves the set of IDs back to JSON as a list."""
     with open(STATE_FILE, "w") as f:
         json.dump(list(ids_set), f, indent=2)
 
 def fetch_with_retry(url, max_retries=3):
-    """Robust fetch function with exponential backoff for 429 Rate Limits and Timeouts."""
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
         "Accept": "application/json"
     }
-    
     for attempt in range(max_retries):
         try:
             response = requests.get(url, headers=headers, timeout=15)
@@ -50,12 +58,19 @@ def fetch_with_retry(url, max_retries=3):
                 print(f"    [ERROR] Unexpected status {response.status_code} for {url}", flush=True)
                 return None
         except requests.exceptions.RequestException as e:
-            # Catches ReadTimeout, ConnectionError, etc.
             print(f"    [NETWORK ERROR] {e}. Retrying...", flush=True)
             time.sleep(5)
-            
     print(f"    [CRITICAL] Failed to fetch {url} after {max_retries} retries.", flush=True)
     return None
+
+def is_valid_project_url(url):
+    """Validates that a URL does not belong to a CEX or tokenized asset platform."""
+    if not url:
+        return False
+    url_lower = url.lower()
+    if any(bad_word in url_lower for bad_word in BAD_URL_KEYWORDS):
+        return False
+    return True
 
 # --- SOURCE: Paginated Discovery with Early Exit ---
 def source_active_pools(processed_ids):
@@ -98,11 +113,14 @@ def source_active_pools(processed_ids):
                         break
                         
                     attrs = pool.get('attributes', {})
-                    name = attrs.get('name', '').lower()
+                    pool_name = attrs.get('name', '').lower()
                     
-                    if any(zombie in name for zombie in ZOMBIE_BLOCKLIST):
+                    # NEW: Extract base token and check against TICKER_BLOCKLIST
+                    base_token = pool_name.split('/')[0].strip().replace(' ', '')
+                    if any(ticker in base_token for ticker in TICKER_BLOCKLIST):
                         continue
                         
+                    # Age Check (14 to 90 days)
                     created_at_str = attrs.get('pool_created_at')
                     if not created_at_str:
                         continue
@@ -111,6 +129,7 @@ def source_active_pools(processed_ids):
                     if not (14 <= age_days <= 90):
                         continue
                         
+                    # Liquidity & Volume Checks
                     liquidity_usd = float(attrs.get('reserve_in_usd', 0) or 0)
                     volume_data = attrs.get('volume_usd', {})
                     volume_h24 = float(volume_data.get('h24', 0) or 0) if isinstance(volume_data, dict) else float(volume_data or 0)
@@ -118,6 +137,7 @@ def source_active_pools(processed_ids):
                     if liquidity_usd < 50_000 or volume_h24 < 50_000:
                         continue
                         
+                    # Deduplication Check
                     relationships = pool.get('relationships', {})
                     base_token_id = relationships.get('base_token', {}).get('data', {}).get('id', '')
                     if not base_token_id or base_token_id in processed_ids:
@@ -158,7 +178,7 @@ def enrich_leads(leads):
         twitter = ''
         telegram = ''
         
-        # STEP 1: Try GeckoTerminal Token Endpoint (Using robust fetch_with_retry)
+        # STEP 1: Try GeckoTerminal Token Endpoint
         gt_url = f"https://api.geckoterminal.com/api/v2/networks/{network}/tokens/{token_address}"
         gt_data = fetch_with_retry(gt_url)
         
@@ -168,7 +188,7 @@ def enrich_leads(leads):
             twitter = token_attrs.get('twitter', '') or token_attrs.get('twitter_handle', '')
             telegram = token_attrs.get('telegram', '') or token_attrs.get('telegram_handle', '')
             
-        # STEP 2: Fallback to CoinGecko Search (Using robust fetch_with_retry)
+        # STEP 2: Fallback to CoinGecko Search
         if not website and not twitter:
             print(f"    [INFO] GeckoTerminal missing links. Trying CoinGecko search for '{token_name}'...", flush=True)
             cg_url = f"https://api.coingecko.com/api/v3/search?query={token_name}"
@@ -185,16 +205,29 @@ def enrich_leads(leads):
                         if detail_data:
                             links = detail_data.get('links', {})
                             homepages = links.get('homepage', [])
-                            website = next((url for url in homepages if url and str(url).strip()), '')
-                            twitter = links.get('twitter_screen_name', '')
-                            telegram = links.get('telegram_channel_identifier', '')
+                            temp_website = next((url for url in homepages if url and str(url).strip()), '')
+                            temp_twitter = links.get('twitter_screen_name', '')
+                            temp_telegram = links.get('telegram_channel_identifier', '')
                             
-                            if website or twitter:
+                            # NEW: CEX/Tokenized URL Check in CoinGecko Fallback
+                            if temp_website and not is_valid_project_url(temp_website):
+                                print(f"    [DROP] CoinGecko fallback returned a CEX/Tokenized URL ({temp_website}). Skipping this result.", flush=True)
+                                continue # Skip to the next CoinGecko search result
+                                
+                            if temp_website or temp_twitter:
+                                website = temp_website
+                                twitter = temp_twitter
+                                telegram = temp_telegram
                                 print(f"    [SUCCESS] Found links via CoinGecko: Web={website}, TW={twitter}", flush=True)
                                 break
                         time.sleep(2) # Respect CoinGecko rate limits
                         
         # STEP 3: Final Validation
+        # NEW: Final URL validation before accepting the lead
+        if website and not is_valid_project_url(website):
+            print(f"    [DROP] Final URL rejected as CEX/Tokenized asset: {website}", flush=True)
+            website = '' # Invalidate it
+            
         if website or twitter:
             lead['website'] = website or 'Not Found'
             lead['twitter'] = f"@{twitter}" if twitter and not twitter.startswith('@') else (twitter or 'Not Found')
@@ -202,7 +235,7 @@ def enrich_leads(leads):
             enriched.append(lead)
             print(f"    [ENRICHED] {lead['name']}", flush=True)
         else:
-            print(f"    [DROP] {lead['name']} (No verifiable website or twitter found in any source)", flush=True)
+            print(f"    [DROP] {lead['name']} (No valid website or twitter found in any source)", flush=True)
             
         time.sleep(1) # Polite delay between enrichments
 
@@ -238,7 +271,7 @@ def send_telegram_message(lead):
         print(f"  [TELEGRAM] ❌ Failed to send: {e}", flush=True)
 
 def main():
-    print("=== STARTING ENDLESS FLOW ON-CHAIN PIPELINE ===", flush=True)
+    print("=== STARTING ENDLESS FLOW ON-CHAIN PIPELINE (TOKENIZED-ASSET PROOF) ===", flush=True)
     try:
         processed_ids = load_processed_ids()
         print(f"Loaded {len(processed_ids)} previously processed token IDs.", flush=True)
