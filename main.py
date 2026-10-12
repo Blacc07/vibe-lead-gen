@@ -53,6 +53,7 @@ def save_processed_ids(ids_set):
         json.dump(list(ids_set), f, indent=2)
 
 def fetch_with_retry(url, max_retries=3):
+    """Robust fetch with exponential backoff (60s -> 120s -> 180s) to survive heavy rate limits."""
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
         "Accept": "application/json"
@@ -143,80 +144,64 @@ def source_active_pools(processed_ids):
                 
             url = f"https://api.geckoterminal.com/api/v2/networks/{network}/pools?sort=h24_volume_usd_desc&page={page}"
             
-            try:
-                response = requests.get(url, timeout=15)
-                if response.status_code == 429:
-                    print("    [RATE LIMIT] Pausing 60s before retry...", flush=True)
-                    time.sleep(60)
-                    response = requests.get(url, timeout=15)
-                    
-                if response.status_code != 200:
-                    print(f"    [ERROR] Unexpected status {response.status_code}. Moving to next network.", flush=True)
+            # FIX: Use robust fetch_with_retry to survive heavy 429 rate limits
+            data = fetch_with_retry(url)
+            if not data:
+                print(f"    [ERROR] Failed to fetch page {page} for {network} after retries. Moving to next network.", flush=True)
+                break
+                
+            pools = data.get('data', [])
+            
+            if not pools:
+                print(f"    [INFO] No more pools on page {page} for {network}.", flush=True)
+                break
+                
+            for pool in pools:
+                if len(validated_leads) >= TARGET_NEW_LEADS_PER_RUN:
                     break
                     
-                data = response.json()
-                pools = data.get('data', [])
+                attrs = pool.get('attributes', {})
+                pool_name = attrs.get('name', '').lower()
                 
-                if not pools:
-                    print(f"    [INFO] No more pools on page {page} for {network}.", flush=True)
-                    break
-                    
-                for pool in pools:
-                    if len(validated_leads) >= TARGET_NEW_LEADS_PER_RUN:
-                        break
-                        
-                    attrs = pool.get('attributes', {})
-                    pool_name = attrs.get('name', '').lower()
-                    
-                    # Extract base token (e.g., "usdc" from "usdc / weth")
-                    base_token = pool_name.split('/')[0].strip().replace(' ', '').lower()
-                    
-                    # Check 1: Exact match in the main ticker blocklist (for tokenized stocks)
-                    if any(ticker in base_token for ticker in TICKER_BLOCKLIST):
-                        continue
-                        
-                    # Check 2: Exact match in the stablecoin/legacy blocklist
-                    if base_token in STABLECOIN_AND_LEGACY_BLOCKLIST:
-                        continue
-                        
-                    # Age Check (14 to 90 days)
-                    created_at_str = attrs.get('pool_created_at')
-                    if not created_at_str:
-                        continue
-                    created_dt = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
-                    age_days = (datetime.now(timezone.utc) - created_dt).days
-                    if not (14 <= age_days <= 90):
-                        continue
-                        
-                    # Liquidity & Volume Checks
-                    liquidity_usd = float(attrs.get('reserve_in_usd', 0) or 0)
-                    volume_data = attrs.get('volume_usd', {})
-                    volume_h24 = float(volume_data.get('h24', 0) or 0) if isinstance(volume_data, dict) else float(volume_data or 0)
-                    
-                    if liquidity_usd < 50_000 or volume_h24 < 50_000:
-                        continue
-                        
-                    # Deduplication Check
-                    relationships = pool.get('relationships', {})
-                    base_token_id = relationships.get('base_token', {}).get('data', {}).get('id', '')
-                    if not base_token_id or base_token_id in processed_ids:
-                        continue
-                        
-                    validated_leads.append({
-                        'name': attrs.get('name'),
-                        'network': network,
-                        'age_days': age_days,
-                        'liquidity_usd': liquidity_usd,
-                        'volume_h24': volume_h24,
-                        'token_id': base_token_id
-                    })
-                    print(f"    [PASS] {attrs.get('name')} | Age: {age_days}d | Liq: ${liquidity_usd:,.0f} | Vol: ${volume_h24:,.0f}", flush=True)
-                    
-                time.sleep(2)
+                base_token = pool_name.split('/')[0].strip().replace(' ', '').lower()
                 
-            except Exception as e:
-                print(f"    [ERROR] Exception for {network} page {page}: {e}", flush=True)
-                continue
+                if any(ticker in base_token for ticker in TICKER_BLOCKLIST):
+                    continue
+                    
+                if base_token in STABLECOIN_AND_LEGACY_BLOCKLIST:
+                    continue
+                    
+                created_at_str = attrs.get('pool_created_at')
+                if not created_at_str:
+                    continue
+                created_dt = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+                age_days = (datetime.now(timezone.utc) - created_dt).days
+                if not (14 <= age_days <= 90):
+                    continue
+                    
+                liquidity_usd = float(attrs.get('reserve_in_usd', 0) or 0)
+                volume_data = attrs.get('volume_usd', {})
+                volume_h24 = float(volume_data.get('h24', 0) or 0) if isinstance(volume_data, dict) else float(volume_data or 0)
+                
+                if liquidity_usd < 50_000 or volume_h24 < 50_000:
+                    continue
+                    
+                relationships = pool.get('relationships', {})
+                base_token_id = relationships.get('base_token', {}).get('data', {}).get('id', '')
+                if not base_token_id or base_token_id in processed_ids:
+                    continue
+                    
+                validated_leads.append({
+                    'name': attrs.get('name'),
+                    'network': network,
+                    'age_days': age_days,
+                    'liquidity_usd': liquidity_usd,
+                    'volume_h24': volume_h24,
+                    'token_id': base_token_id
+                })
+                print(f"    [PASS] {attrs.get('name')} | Age: {age_days}d | Liq: ${liquidity_usd:,.0f} | Vol: ${volume_h24:,.0f}", flush=True)
+                
+            time.sleep(2) # Polite delay between pages
 
     print(f"Discovery Complete: {len(validated_leads)} new, high-quality leads found.", flush=True)
     return validated_leads
@@ -324,7 +309,7 @@ def send_telegram_message(lead):
         print(f"  [TELEGRAM] ❌ Failed to send: {e}", flush=True)
 
 def main():
-    print("=== STARTING ENDLESS FLOW ON-CHAIN PIPELINE (FALSE-POSITIVE PROOF) ===", flush=True)
+    print("=== STARTING ENDLESS FLOW ON-CHAIN PIPELINE (RATE-LIMIT RESILIENT) ===", flush=True)
     try:
         processed_ids = load_processed_ids()
         print(f"Loaded {len(processed_ids)} previously processed token IDs.", flush=True)
