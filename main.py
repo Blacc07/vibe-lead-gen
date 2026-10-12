@@ -31,7 +31,7 @@ STABLECOIN_AND_LEGACY_BLOCKLIST = [
     "zec", "xmr", "etc", "bch", "ltc"
 ]
 
-# Unified blocklist for substring checking
+# Unified blocklist for checking
 ALL_BLOCKED_TERMS = TICKER_BLOCKLIST + STABLECOIN_AND_LEGACY_BLOCKLIST
 
 # 3. Bad keywords for URL validation
@@ -54,6 +54,21 @@ def load_processed_ids():
 def save_processed_ids(ids_set):
     with open(STATE_FILE, "w") as f:
         json.dump(list(ids_set), f, indent=2)
+
+def is_blocked_token(base_token, blocked_terms):
+    """
+    Checks if the base token matches any blocked term.
+    - For terms >= 3 chars, uses substring matching (catches 'cbzec', 'mstrc').
+    - For terms 1-2 chars, requires exact match (prevents blocking 'debit' due to 't', or 'overdrive' due to 'v').
+    """
+    for term in blocked_terms:
+        if len(term) >= 3:
+            if term in base_token:
+                return True
+        else:
+            if base_token == term:
+                return True
+    return False
 
 def fetch_with_retry(url, max_retries=3):
     """Robust fetch with exponential backoff to survive heavy rate limits."""
@@ -168,8 +183,8 @@ def source_active_pools(processed_ids):
                 # Extract base token
                 base_token = pool_name.split('/')[0].strip().replace(' ', '').lower()
                 
-                # UNIFIED BLOCKLIST CHECK: Substring match to catch variations like 'cbzec' or 'mstrc'
-                if any(blocked in base_token for blocked in ALL_BLOCKED_TERMS):
+                # INTELLIGENT BLOCKLIST CHECK: Prevents false positives on single letters like 't' or 'v'
+                if is_blocked_token(base_token, ALL_BLOCKED_TERMS):
                     print(f"    [DROP] {attrs.get('name')} | Reason: Matches blocked term", flush=True)
                     continue
                     
@@ -314,7 +329,7 @@ def send_telegram_message(lead):
         print(f"  [TELEGRAM] ❌ Failed to send: {e}", flush=True)
 
 def main():
-    print("=== STARTING ENDLESS FLOW ON-CHAIN PIPELINE (UNLOCKED) ===", flush=True)
+    print("=== STARTING ENDLESS FLOW ON-CHAIN PIPELINE (INTELLIGENT BLOCKLIST) ===", flush=True)
     try:
         processed_ids = load_processed_ids()
         print(f"Loaded {len(processed_ids)} previously processed token IDs.", flush=True)
