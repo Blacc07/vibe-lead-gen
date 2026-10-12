@@ -45,14 +45,10 @@ def source_active_pools():
     
     for network in NETWORKS:
         print(f"  Fetching top pools for {network}...", flush=True)
-        
-        # CORRECTED ENDPOINT: Fetch all pools sorted by descending 24h volume
         url = f"https://api.geckoterminal.com/api/v2/networks/{network}/pools?sort=h24_volume_usd_desc&page=1"
         
         try:
             response = requests.get(url, timeout=15)
-            
-            # Handle Rate Limits Gracefully
             if response.status_code == 429:
                 print("    [RATE LIMIT] Pausing 60s before retry...", flush=True)
                 time.sleep(60)
@@ -69,11 +65,9 @@ def source_active_pools():
                 attrs = pool.get('attributes', {})
                 name = attrs.get('name', '').lower()
                 
-                # 1. Zombie/Legacy Blocklist Check
                 if any(zombie in name for zombie in ZOMBIE_BLOCKLIST):
                     continue
                     
-                # 2. Age Check (Must be 14 to 90 days old)
                 created_at_str = attrs.get('pool_created_at')
                 if not created_at_str:
                     continue
@@ -82,12 +76,10 @@ def source_active_pools():
                 if not (14 <= age_days <= 90):
                     continue
                     
-                # 3. Safe Liquidity Parsing
                 liquidity_usd = float(attrs.get('reserve_in_usd', 0) or 0)
                 if liquidity_usd < 50_000:
                     continue
                     
-                # 4. Safe Volume Parsing (volume_usd is a dictionary)
                 volume_data = attrs.get('volume_usd', {})
                 if isinstance(volume_data, dict):
                     volume_h24 = float(volume_data.get('h24', 0) or 0)
@@ -97,68 +89,97 @@ def source_active_pools():
                 if volume_h24 < 50_000:
                     continue
                     
-                # 5. Validity Check (Must have a base token relationship)
                 relationships = pool.get('relationships', {})
                 base_token_id = relationships.get('base_token', {}).get('data', {}).get('id', '')
                 if not base_token_id:
                     continue
                     
-                # If it passes all filters, it's a high-signal lead
                 validated_leads.append({
                     'name': attrs.get('name'),
                     'network': network,
                     'age_days': age_days,
                     'liquidity_usd': liquidity_usd,
                     'volume_h24': volume_h24,
-                    'token_id': base_token_id # Used for deduplication and enrichment
+                    'token_id': base_token_id
                 })
                 print(f"    [PASS] {attrs.get('name')} | Age: {age_days}d | Liq: ${liquidity_usd:,.0f} | Vol: ${volume_h24:,.0f}", flush=True)
                 
-            time.sleep(3) # Respect API rate limits between networks
-            
+            time.sleep(3)
         except Exception as e:
             print(f"    [ERROR] Exception for {network}: {e}", flush=True)
 
     print(f"Module Complete: {len(validated_leads)} high-quality, non-zombie leads discovered.", flush=True)
     return validated_leads
 
-# --- ENRICHMENT: Fetch Token Details for Contacts ---
+# --- ENRICHMENT: Fallback Strategy (GeckoTerminal -> CoinGecko) ---
 def enrich_leads(leads):
-    print("\n=== ENRICHMENT PHASE (Fetching Contacts) ===", flush=True)
+    print("\n=== ENRICHMENT PHASE (Fallback Strategy) ===", flush=True)
     enriched = []
     
     for lead in leads:
         token_address = lead['token_id'].split('_')[-1]
-        detail_url = f"https://api.geckoterminal.com/api/v2/networks/{lead['network']}/tokens/{token_address}"
+        # Extract base token name (e.g., "BSW" from "BSW / USDC")
+        token_name = lead['name'].split(' / ')[0].strip()
+        network = lead['network']
         
         print(f"  Enriching {lead['name']} ({token_address[:8]}...)...", flush=True)
-        time.sleep(2) # Rate limit for token endpoint
         
-        detail_response = requests.get(detail_url, timeout=10)
-        if detail_response.status_code == 200:
-            detail_data = detail_response.json()
-            token_attrs = detail_data.get('data', {}).get('attributes', {})
-            
+        website = ''
+        twitter = ''
+        telegram = ''
+        
+        # STEP 1: Try GeckoTerminal Token Endpoint
+        gt_url = f"https://api.geckoterminal.com/api/v2/networks/{network}/tokens/{token_address}"
+        gt_response = requests.get(gt_url, timeout=10)
+        
+        if gt_response.status_code == 200:
+            gt_data = gt_response.json()
+            token_attrs = gt_data.get('data', {}).get('attributes', {})
             website = token_attrs.get('website', '') or token_attrs.get('homepage', '')
             twitter = token_attrs.get('twitter', '') or token_attrs.get('twitter_handle', '')
             telegram = token_attrs.get('telegram', '') or token_attrs.get('telegram_handle', '')
             
-            # Format handles
-            twitter = f"@{twitter}" if twitter and not twitter.startswith('@') else (twitter or 'Not Found')
-            telegram = f"@{telegram}" if telegram and not telegram.startswith('@') else (telegram or 'Not Found')
+        # STEP 2: Fallback to CoinGecko Search if GeckoTerminal lacks links
+        if not website and not twitter:
+            print(f"    [INFO] GeckoTerminal missing links. Trying CoinGecko search for '{token_name}'...", flush=True)
+            cg_url = f"https://api.coingecko.com/api/v3/search?query={token_name}"
+            cg_response = requests.get(cg_url, timeout=10)
             
-            # Utility Proxy: Must have at least a website or twitter
-            if website or (twitter != 'Not Found'):
-                lead['website'] = website or 'Not Found'
-                lead['twitter'] = twitter
-                lead['telegram'] = telegram
-                enriched.append(lead)
-                print(f"    [ENRICHED] {lead['name']} | Web: {lead['website']}", flush=True)
-            else:
-                print(f"    [DROP] {lead['name']} (No website or twitter found)", flush=True)
+            if cg_response.status_code == 200:
+                cg_data = cg_response.json()
+                coins = cg_data.get('coins', [])
+                
+                for coin in coins:
+                    if coin.get('name', '').lower() == token_name.lower() or coin.get('symbol', '').lower() == token_name.lower():
+                        detail_url = f"https://api.coingecko.com/api/v3/coins/{coin.get('id')}"
+                        detail_response = requests.get(detail_url, timeout=10)
+                        
+                        if detail_response.status_code == 200:
+                            detail_data = detail_response.json()
+                            links = detail_data.get('links', {})
+                            homepages = links.get('homepage', [])
+                            website = next((url for url in homepages if url and str(url).strip()), '')
+                            twitter = links.get('twitter_screen_name', '')
+                            telegram = links.get('telegram_channel_identifier', '')
+                            
+                            if website or twitter:
+                                print(f"    [SUCCESS] Found links via CoinGecko: Web={website}, TW={twitter}", flush=True)
+                                break
+                        time.sleep(2) # Respect CoinGecko rate limits
+                        
+        # STEP 3: Final Validation
+        if website or twitter:
+            lead['website'] = website or 'Not Found'
+            lead['twitter'] = f"@{twitter}" if twitter and not twitter.startswith('@') else (twitter or 'Not Found')
+            lead['telegram'] = f"@{telegram}" if telegram and not telegram.startswith('@') else (telegram or 'Not Found')
+            enriched.append(lead)
+            print(f"    [ENRICHED] {lead['name']}", flush=True)
         else:
-            print(f"    [DROP] Failed to fetch details for {lead['name']}", flush=True)
+            print(f"    [DROP] {lead['name']} (No verifiable website or twitter found in any source)", flush=True)
             
+        time.sleep(1) # Polite delay between enrichments
+
+    print(f"Enrichment Complete: {len(enriched_leads)} leads ready for outreach.", flush=True)
     return enriched
 
 # --- STATE & OUTPUT ---
@@ -200,19 +221,16 @@ def send_telegram_message(lead):
         print(f"  [TELEGRAM] ❌ Failed to send: {e}", flush=True)
 
 def main():
-    print("=== STARTING DEFINITIVE ON-CHAIN PIPELINE ===", flush=True)
+    print("=== STARTING DEFINITIVE ON-CHAIN PIPELINE (WITH FALLBACK ENRICHMENT) ===", flush=True)
     try:
-        # 1. Source pure on-chain data
         leads = source_active_pools()
         if not leads:
             print("Exiting: No leads passed the on-chain filters.", flush=True)
-            save_processed_ids(load_processed_ids()) # Prevent git crash
+            save_processed_ids(load_processed_ids())
             return
             
-        # 2. Enrich with contact data
         enriched_leads = enrich_leads(leads)
         
-        # 3. Deduplicate by Immutable Token ID
         processed_ids = load_processed_ids()
         print(f"\n=== DEDUPLICATION ===", flush=True)
         print(f"Processed Token IDs in memory: {len(processed_ids)}", flush=True)
@@ -220,7 +238,6 @@ def main():
         new_leads = [lead for lead in enriched_leads if lead['token_id'] not in processed_ids]
         print(f"New leads to process: {len(new_leads)}", flush=True)
         
-        # 4. Deliver
         for lead in new_leads:
             send_telegram_message(lead)
             processed_ids.append(lead['token_id'])
@@ -230,7 +247,7 @@ def main():
         
     except Exception as e:
         print(f"❌ CRITICAL ERROR: {e}", flush=True)
-        save_processed_ids(load_processed_ids()) # Prevent git crash on failure
+        save_processed_ids(load_processed_ids())
         raise
 
 if __name__ == "__main__":
