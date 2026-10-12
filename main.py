@@ -25,11 +25,14 @@ TICKER_BLOCKLIST = [
     "iron", "safemoon", "squid", "terra", "luna", "celsius"
 ]
 
-# 2. Stablecoin & Legacy Blocklist (Exact match only)
+# 2. Stablecoin & Legacy Blocklist
 STABLECOIN_AND_LEGACY_BLOCKLIST = [
     "usdc", "usdt", "dai", "frax", "tusd", "busd", "eurc", "lusd", "usdd", 
     "zec", "xmr", "etc", "bch", "ltc"
 ]
+
+# Unified blocklist for substring checking
+ALL_BLOCKED_TERMS = TICKER_BLOCKLIST + STABLECOIN_AND_LEGACY_BLOCKLIST
 
 # 3. Bad keywords for URL validation
 BAD_URL_KEYWORDS = [
@@ -53,7 +56,7 @@ def save_processed_ids(ids_set):
         json.dump(list(ids_set), f, indent=2)
 
 def fetch_with_retry(url, max_retries=3):
-    """Robust fetch with exponential backoff (60s -> 120s -> 180s) to survive heavy rate limits."""
+    """Robust fetch with exponential backoff to survive heavy rate limits."""
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
         "Accept": "application/json"
@@ -144,7 +147,6 @@ def source_active_pools(processed_ids):
                 
             url = f"https://api.geckoterminal.com/api/v2/networks/{network}/pools?sort=h24_volume_usd_desc&page={page}"
             
-            # FIX: Use robust fetch_with_retry to survive heavy 429 rate limits
             data = fetch_with_retry(url)
             if not data:
                 print(f"    [ERROR] Failed to fetch page {page} for {network} after retries. Moving to next network.", flush=True)
@@ -163,14 +165,15 @@ def source_active_pools(processed_ids):
                 attrs = pool.get('attributes', {})
                 pool_name = attrs.get('name', '').lower()
                 
+                # Extract base token
                 base_token = pool_name.split('/')[0].strip().replace(' ', '').lower()
                 
-                if any(ticker in base_token for ticker in TICKER_BLOCKLIST):
+                # UNIFIED BLOCKLIST CHECK: Substring match to catch variations like 'cbzec' or 'mstrc'
+                if any(blocked in base_token for blocked in ALL_BLOCKED_TERMS):
+                    print(f"    [DROP] {attrs.get('name')} | Reason: Matches blocked term", flush=True)
                     continue
                     
-                if base_token in STABLECOIN_AND_LEGACY_BLOCKLIST:
-                    continue
-                    
+                # Age Check (14 to 90 days)
                 created_at_str = attrs.get('pool_created_at')
                 if not created_at_str:
                     continue
@@ -179,13 +182,15 @@ def source_active_pools(processed_ids):
                 if not (14 <= age_days <= 90):
                     continue
                     
+                # Liquidity & Volume Checks (LOWERED THRESHOLDS TO $10k)
                 liquidity_usd = float(attrs.get('reserve_in_usd', 0) or 0)
                 volume_data = attrs.get('volume_usd', {})
                 volume_h24 = float(volume_data.get('h24', 0) or 0) if isinstance(volume_data, dict) else float(volume_data or 0)
                 
-                if liquidity_usd < 50_000 or volume_h24 < 50_000:
+                if liquidity_usd < 10_000 or volume_h24 < 10_000:
                     continue
                     
+                # Deduplication Check
                 relationships = pool.get('relationships', {})
                 base_token_id = relationships.get('base_token', {}).get('data', {}).get('id', '')
                 if not base_token_id or base_token_id in processed_ids:
@@ -309,7 +314,7 @@ def send_telegram_message(lead):
         print(f"  [TELEGRAM] ❌ Failed to send: {e}", flush=True)
 
 def main():
-    print("=== STARTING ENDLESS FLOW ON-CHAIN PIPELINE (RATE-LIMIT RESILIENT) ===", flush=True)
+    print("=== STARTING ENDLESS FLOW ON-CHAIN PIPELINE (UNLOCKED) ===", flush=True)
     try:
         processed_ids = load_processed_ids()
         print(f"Loaded {len(processed_ids)} previously processed token IDs.", flush=True)
