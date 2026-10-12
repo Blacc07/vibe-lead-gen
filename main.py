@@ -1,10 +1,9 @@
 import os
 import json
 import requests
-import time
 import re
+import time
 from bs4 import BeautifulSoup
-from datetime import datetime, timezone
 
 # --- CONFIGURATION ---
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
@@ -12,13 +11,10 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 STATE_FILE = "processed_leads.json"
 
 TARGET_CHAINS = ['solana', 'base', 'binance', 'bsc', 'bnb']
-CEX_AND_MEME_BLOCKLIST = [
-    "coinbase", "robinhood", "binance", "kraken", "tokenize", "tokenized",
-    "doge", "shib", "pepe", "safe", "elon", "inu", "floki", "pump", "moon", "bonk"
-]
-BAD_URL_KEYWORDS = ["coinbase.com", "robinhood.com", "binance.com", "kraken.com"]
+CEX_BLOCKLIST = ["coinbase.com", "robinhood.com", "binance.com", "kraken.com", "okx.com", "bybit.com", "tokenize", "tokenized"]
+MEME_PATTERNS = [re.compile(r'\b(pepe|doge|shib|inu|floki|bonk|wojak|pump|moon|safe)\b', re.IGNORECASE)]
 
-TARGET_NEW_LEADS = 5
+TARGET_QUOTA = 5
 
 def load_processed_websites():
     if os.path.exists(STATE_FILE):
@@ -30,184 +26,284 @@ def load_processed_websites():
     return set()
 
 def save_processed_websites(websites_set):
+    # Always save, even if empty, to prevent git crashes
     with open(STATE_FILE, "w") as f:
         json.dump(list(websites_set), f, indent=2)
 
-def fetch_with_retry(url, headers, max_retries=3):
+def fetch_with_retry(url, max_retries=3):
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
     for attempt in range(max_retries):
         try:
             response = requests.get(url, headers=headers, timeout=15)
             if response.status_code == 200:
                 return response.json()
             elif response.status_code == 429:
-                wait_time = 60 * (attempt + 1)
-                print(f"    [RATE LIMIT] 429 detected. Pausing for {wait_time}s...", flush=True)
-                time.sleep(wait_time)
+                time.sleep(60 * (attempt + 1))
             else:
-                print(f"    [WARN] {url} returned status {response.status_code}.", flush=True)
                 return None
-        except requests.exceptions.RequestException as e:
-            print(f"    [NETWORK ERROR] {e}. Retrying...", flush=True)
+        except requests.exceptions.RequestException:
             time.sleep(5)
-    print(f"    [CRITICAL] Failed to fetch {url} after {max_retries} retries.", flush=True)
     return None
 
-# --- MODULE 1: Launchpad Scraper ---
-def fetch_launchpad_projects():
-    print("  [SOURCE: LAUNCHPADS] Fetching curated project directories...", flush=True)
+# --- MODULE 1: Ecosystem Directories ---
+def fetch_ecosystem_directories():
+    print("  [SOURCE 1] Fetching Ecosystem Directories...", flush=True)
+    ecosystem_leads = []
+    
+    # [NEEDS VERIFICATION]: Engineer must find the actual XHR/JSON endpoint via Chrome DevTools
+    sources = [
+        {
+            'name': 'Solana Ecosystem',
+            'url': 'https://solana.com/api/ecosystem', # [NEEDS VERIFICATION]
+            'chain': 'Solana',
+            'data_key': 'projects',
+            'name_key': 'name',
+            'url_key': 'websiteUrl'
+        },
+        {
+            'name': 'Base Ecosystem',
+            'url': 'https://www.base.org/api/ecosystem', # [NEEDS VERIFICATION]
+            'chain': 'Base',
+            'data_key': 'apps',
+            'name_key': 'name',
+            'url_key': 'url'
+        },
+        {
+            'name': 'Binance MVB',
+            'url': 'https://www.bnbchain.org/en/api/mvb/projects', # [NEEDS VERIFICATION]
+            'chain': 'Binance',
+            'data_key': 'projects',
+            'name_key': 'name',
+            'url_key': 'website'
+        }
+    ]
+    
+    for src in sources:
+        try:
+            data = fetch_with_retry(src['url'])
+            if data and isinstance(data, dict):
+                items = data.get(src['data_key'], [])
+                if isinstance(items, list):
+                    for proj in items:
+                        name = proj.get(src['name_key'], '')
+                        website = proj.get(src['url_key'], '')
+                        if name and website:
+                            ecosystem_leads.append({
+                                'name': name.strip(),
+                                'website': website.strip(),
+                                'source': src['name'],
+                                'chain': src['chain']
+                            })
+        except Exception as e:
+            print(f"    [ERROR] {src['name']} fetch failed: {e}", flush=True)
+            
+    print(f"    Found {len(ecosystem_leads)} projects from Ecosystem Directories.", flush=True)
+    return ecosystem_leads
+
+# --- MODULE 2: Mid-Tier Launchpads ---
+def fetch_launchpad_graduates():
+    print("  [SOURCE 2] Fetching Launchpad Graduates...", flush=True)
     launchpad_leads = []
     
-    # [NEEDS VERIFICATION]: Engineer must replace these placeholder URLs and JSON paths 
-    # with the actual endpoints discovered via Chrome DevTools Network Tab (Fetch/XHR).
-    launchpad_apis = {
-        'Polkastarter': {
-            'url': 'https://api.polkastarter.com/pools?page=1&limit=20', # [NEEDS VERIFICATION]
-            'headers': {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+    # [NEEDS VERIFICATION]: Engineer must find the actual XHR/JSON endpoint via Chrome DevTools
+    sources = [
+        {
+            'name': 'Polkastarter',
+            'url': 'https://api.polkastarter.com/pools?type=past', # [NEEDS VERIFICATION]
+            'data_key': 'pools',
+            'name_key': 'projectName',
+            'url_key': 'projectWebsite'
         },
-        'Legion': {
-            'url': 'https://api.daolegion.org/api/projects?status=completed', # [NEEDS VERIFICATION]
-            'headers': {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+        {
+            'name': 'ChainGPT Pad',
+            'url': 'https://pad.chaingpt.org/api/launches/past', # [NEEDS VERIFICATION]
+            'data_key': 'launches',
+            'name_key': 'name',
+            'url_key': 'websiteUrl'
         },
-        'ChainGPT': {
-            'url': 'https://api.chaingpt.org/api/launchpad/projects', # [NEEDS VERIFICATION]
-            'headers': {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+        {
+            'name': 'Legion',
+            'url': 'https://api.legion.io/projects', # [NEEDS VERIFICATION]
+            'data_key': 'projects',
+            'name_key': 'name',
+            'url_key': 'website'
         },
-        'Jupiter Studio': {
-            'url': 'https://terminal.jup.ag/api/v1/projects', # [NEEDS VERIFICATION]
-            'headers': {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+        {
+            'name': 'Jupiter Studio',
+            'url': 'https://portal.jup.ag/studio/api/projects', # [NEEDS VERIFICATION]
+            'data_key': 'projects',
+            'name_key': 'name',
+            'url_key': 'website'
         }
-    }
-
-    for pad_name, config in launchpad_apis.items():
-        print(f"    Fetching {pad_name}...", flush=True)
-        data = fetch_with_retry(config['url'], config['headers'])
-        
-        if not data:
-            continue
+    ]
+    
+    for src in sources:
+        try:
+            data = fetch_with_retry(src['url'])
+            if data and isinstance(data, dict):
+                items = data.get(src['data_key'], [])
+                if isinstance(items, list):
+                    for proj in items:
+                        name = proj.get(src['name_key'], '')
+                        website = proj.get(src['url_key'], '')
+                        if name and website:
+                            launchpad_leads.append({
+                                'name': name.strip(),
+                                'website': website.strip(),
+                                'source': src['name'],
+                                'chain': 'Multi-chain (Verify in Module 3)'
+                            })
+            time.sleep(2) # Polite delay
+        except Exception as e:
+            print(f"    [ERROR] {src['name']} fetch failed: {e}", flush=True)
             
-        # [NEEDS VERIFICATION]: Engineer must adjust this key mapping based on the actual API response structure.
-        # Common patterns: data.get('data'), data.get('projects'), data.get('pools'), or just data if it's a list.
-        projects = data.get('data', data.get('projects', data.get('pools', [])))
-        if isinstance(projects, dict): # Sometimes it's nested deeper
-            projects = projects.get('items', [])
-            
-        if not isinstance(projects, list):
-            print(f"    [WARN] {pad_name} returned unexpected JSON structure. Skipping.", flush=True)
-            continue
-            
-        for proj in projects:
-            # [NEEDS VERIFICATION]: Adjust keys ('name', 'projectName', 'website', 'projectUrl', 'chains', 'network')
-            name = proj.get('name', proj.get('projectName', proj.get('title', ''))).strip()
-            website = proj.get('website', proj.get('projectUrl', proj.get('url', '')))
-            chains = proj.get('chains', proj.get('network', proj.get('blockchain', [])))
-            
-            if isinstance(chains, str):
-                chains = [chains]
-                
-            if not name or not website:
-                continue
-                
-            launchpad_leads.append({
-                'name': name,
-                'website': website,
-                'chains': chains,
-                'source': f'{pad_name} Launchpad'
-            })
-            
-        time.sleep(2) # Polite delay between launchpad APIs
-        
-    print(f"    Found {len(launchpad_leads)} raw projects from Launchpads.", flush=True)
+    print(f"    Found {len(launchpad_leads)} projects from Launchpads.", flush=True)
     return launchpad_leads
 
-# --- MODULE 2: Social Extraction ---
-def extract_socials_from_html(url):
-    twitter = "Not Found"
-    telegram = "Not Found"
-    
+# --- MODULE 3 HELPERS ---
+def verify_chain_via_defillama(project_name):
+    """Checks if a project is officially tracked on Solana, Base, or Binance by DefiLlama."""
     try:
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-        response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # Search for Twitter/X links
-        tw_link = soup.find('a', href=re.compile(r'(twitter\.com|x\.com)/[a-zA-Z0-9_]{1,15}', re.IGNORECASE))
-        if tw_link:
-            match = re.search(r'(?:twitter\.com|x\.com)/([a-zA-Z0-9_]{1,15})', tw_link['href'], re.IGNORECASE)
-            if match:
-                twitter = f"@{match.group(1)}"
+        # DefiLlama protocols list is cached by their CDN, very fast
+        resp = requests.get("https://api.llama.fi/protocols", timeout=15)
+        if resp.status_code == 200:
+            protocols = resp.json()
+            name_lower = project_name.lower()
+            
+            for proto in protocols:
+                proto_name = proto.get('name', '').lower()
+                proto_symbol = proto.get('symbol', '').lower()
                 
-        # Search for Telegram links
-        tg_link = soup.find('a', href=re.compile(r'(t\.me|telegram\.me)/[a-zA-Z0-9_]{5,32}', re.IGNORECASE))
-        if tg_link:
-            match = re.search(r'(?:t\.me|telegram\.me)/([a-zA-Z0-9_]{5,32})', tg_link['href'], re.IGNORECASE)
-            if match:
-                telegram = f"@{match.group(1)}"
-                
+                # Fuzzy match
+                if name_lower in proto_name or proto_name in name_lower or proto_symbol == name_lower:
+                    chains = [c.lower() for c in proto.get('chains', [])]
+                    if any(target in chains for target in TARGET_CHAINS):
+                        return True
+            return False
     except Exception:
-        pass # Silently fail and return "Not Found"
+        return False # Fail open to avoid blocking on temporary DL outage, but log it
+    return False
+
+def extract_socials(website_url, project_name):
+    """Scrapes website for socials, falls back to CoinGecko search."""
+    twitter, telegram = "Not Found", "Not Found"
+    
+    # 1. Try Website Scraping
+    try:
+        resp = requests.get(website_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+        resp.raise_for_status()
+        soup = BeautifulSoup(resp.text, 'html.parser')
         
+        tw = soup.find('a', href=re.compile(r'(twitter\.com|x\.com)/[a-zA-Z0-9_]{1,15}', re.IGNORECASE))
+        if tw:
+            match = re.search(r'(?:twitter\.com|x\.com)/([a-zA-Z0-9_]{1,15})', tw['href'], re.IGNORECASE)
+            if match: twitter = f"@{match.group(1)}"
+            
+        tg = soup.find('a', href=re.compile(r'(t\.me|telegram\.me)/[a-zA-Z0-9_]{5,32}', re.IGNORECASE))
+        if tg:
+            match = re.search(r'(?:t\.me|telegram\.me)/([a-zA-Z0-9_]{5,32})', tg['href'], re.IGNORECASE)
+            if match: telegram = f"@{match.group(1)}"
+    except Exception:
+        pass
+
+    # 2. Fallback to CoinGecko if website scraping failed
+    if twitter == "Not Found" or telegram == "Not Found":
+        try:
+            search_url = f"https://api.coingecko.com/api/v3/search?query={project_name.replace(' ', '%20')}"
+            resp = requests.get(search_url, timeout=10)
+            if resp.status_code == 200:
+                coins = resp.json().get('coins', [])
+                for coin in coins[:3]: # Check top 3 matches
+                    detail_url = f"https://api.coingecko.com/api/v3/coins/{coin.get('id')}"
+                    detail_resp = requests.get(detail_url, timeout=10)
+                    if detail_resp.status_code == 200:
+                        links = detail_resp.json().get('links', {})
+                        if twitter == "Not Found" and links.get('twitter_screen_name'):
+                            twitter = f"@{links.get('twitter_screen_name')}"
+                        if telegram == "Not Found" and links.get('telegram_channel_identifier'):
+                            telegram = f"@{links.get('telegram_channel_identifier')}"
+                        if twitter != "Not Found" or telegram != "Not Found":
+                            break
+        except Exception:
+            pass
+            
     return twitter, telegram
 
-# --- MODULE 3: Strict ICP Filter & Unifier ---
-def filter_and_enrich_leads(raw_leads):
-    print("\n  [FILTER] Applying Strict ICP & Anti-Meme Filters...", flush=True)
+# --- MODULE 3 MAIN: Unifier & Filter ---
+def run_unified_pipeline():
+    print("\n=== RUNNING UNIFIED PIPELINE ===", flush=True)
+    ecosystems = fetch_ecosystem_directories()
+    launchpads = fetch_launchpad_graduates()
+    
+    all_raw_leads = ecosystems + launchpads
+    print(f"  [UNIFIER] Raw pool size: {len(all_raw_leads)} projects.", flush=True)
+    
+    # Deduplicate by Website URL
+    seen_websites = set()
+    unique_leads = []
+    for lead in all_raw_leads:
+        website = lead.get('website', '').strip().lower()
+        if website and website not in seen_websites:
+            seen_websites.add(website)
+            unique_leads.append(lead)
+            
     validated_leads = []
     processed_websites = load_processed_websites()
     
-    for lead in raw_leads:
-        if len(validated_leads) >= TARGET_NEW_LEADS:
-            print(f"    [QUOTA MET] Found {TARGET_NEW_LEADS} leads. Stopping filter.", flush=True)
+    for lead in unique_leads:
+        if len(validated_leads) >= TARGET_QUOTA:
+            print(f"  [QUOTA MET] Found {TARGET_QUOTA} leads. Stopping.", flush=True)
             break
             
         name_lower = lead['name'].lower()
         website_lower = lead['website'].lower()
         
-        # 1. Deduplication
+        # Filter A: CEX/Tokenized domains
+        if any(cex in website_lower for cex in CEX_BLOCKLIST):
+            continue
+            
+        # Filter B: Memecoins
+        if any(re.search(pattern, name_lower) for pattern in MEME_PATTERNS):
+            continue
+            
+        # Filter C: Chain Verification
+        chain_verified = False
+        if lead['chain'] != 'Multi-chain (Verify in Module 3)':
+            chain_verified = True
+        else:
+            chain_verified = verify_chain_via_defillama(lead['name'])
+            
+        if not chain_verified:
+            continue
+            
+        # Filter D: Already processed
         if website_lower in processed_websites:
             continue
             
-        # 2. Chain Verification
-        if lead['chains']:
-            if not any(chain.lower() in TARGET_CHAINS for chain in lead['chains']):
-                continue
-                
-        # 3. Aggressive Blocklist
-        if any(blocked in name_lower for blocked in CEX_AND_MEME_BLOCKLIST):
-            print(f"    [DROP] {lead['name']} | Reason: Matched CEX/Meme blocklist", flush=True)
-            continue
-            
-        # 4. Website Sanity Check
-        if not website_lower.startswith('http') or any(bad in website_lower for bad in BAD_URL_KEYWORDS):
-            continue
-            
-        # 5. Social Extraction
-        twitter, telegram = extract_socials_from_html(lead['website'])
-        
+        # Filter E: Extract Socials
+        twitter, telegram = extract_socials(lead['website'], lead['name'])
         if twitter == "Not Found" and telegram == "Not Found":
-            print(f"    [DROP] {lead['name']} | Reason: No verifiable social presence found", flush=True)
             continue
             
         lead['twitter'] = twitter
         lead['telegram'] = telegram
         validated_leads.append(lead)
-        
         processed_websites.add(website_lower)
-        print(f"    [PASS] {lead['name']} | Source: {lead['source']}", flush=True)
+        print(f"  [PASS] {lead['name']} ({lead['source']})", flush=True)
 
     save_processed_websites(processed_websites)
-    print(f"    Filtered down to {len(validated_leads)} high-signal, actionable leads.", flush=True)
+    print(f"  [FILTER] {len(validated_leads)} leads passed strict ICP filters.", flush=True)
     return validated_leads
 
-# --- MODULE 4: Dynamic Outreach Generator ---
+# --- OUTPUT: Dynamic Outreach (Launchpad/Grant Focused) ---
 def generate_personalized_dm(lead):
     name = lead['name']
-    chains = ', '.join(lead['chains']) if lead['chains'] else 'multiple chains'
+    chains = lead['chain'] if lead['chain'] != 'Multi-chain (Verify in Module 3)' else 'multiple chains'
     
-    # Since launchpad data lacks precise volume/liquidity, we use a "Post-IDO Growth" angle
+    # Using "Engagement Catalyst" / "Idle Asset" angle as DEX volume is not the primary metric here
     template = (
-        f"Hey team, huge fan of {name}'s progression since your launch on {lead['source']}.\n\n"
-        f"Post-IDO, managing treasury exposure and driving sustained trading volume are the biggest hurdles. We built Vibe Trading to solve this for curated projects:\n"
+        f"Hey team, huge fan of {name}'s progression since your {lead['source']} milestone.\n\n"
+        f"Post-launch, managing treasury exposure and driving sustained trading volume are the biggest hurdles for builders on {chains}. We built Vibe Trading to solve this:\n"
         f"• **The Solution:** List a perp on Vibe for $0 USDC. Deposit idle treasury tokens to our vault to back the Open Interest.\n"
         f"• **The Result:** You capture perpetual trading fees to fund operations and deepen liquidity, without diluting your spot holders or selling on the open market.\n\n"
         f"Are you currently exploring any derivative or liquidity-management integrations for {name}?"
@@ -216,14 +312,16 @@ def generate_personalized_dm(lead):
 
 def send_telegram_message(lead):
     dm_text = generate_personalized_dm(lead)
+    twitter_display = lead['twitter'] if lead['twitter'] != "Not Found" else 'N/A'
+    telegram_display = lead['telegram'] if lead['telegram'] != "Not Found" else 'N/A'
     
     telegram_message = (
         f"🎯 *NEW CURATED LEAD ({lead['source']})*\n\n"
         f"📛 *Project:* {lead['name']}\n"
-        f"⛓️ *Chains:* {', '.join(lead['chains']).upper() if lead['chains'] else 'Unspecified'}\n"
+        f"⛓️ *Chain:* {lead['chain'].upper() if lead['chain'] != 'Multi-chain (Verify in Module 3)' else 'VERIFIED TARGET CHAIN'}\n"
         f"🔗 *Website:* {lead['website']}\n"
-        f"🐦 *Twitter:* {lead['twitter']}\n"
-        f"✈️ *Telegram:* {lead['telegram']}\n\n"
+        f"🐦 *Twitter:* {twitter_display}\n"
+        f"✈️ *Telegram:* {telegram_display}\n\n"
         f"📝 *READY-TO-SEND DM:*\n"
         f"```\n{dm_text}\n```"
     )
@@ -239,16 +337,17 @@ def send_telegram_message(lead):
 
 # --- MAIN EXECUTION ---
 def main():
-    print("=== STARTING CURATED DIRECTORY PIPELINE ===", flush=True)
+    print("=== STARTING 7-SOURCE UNIFIED PIPELINE ===", flush=True)
     try:
-        raw_leads = fetch_launchpad_projects()
-        if not raw_leads:
-            print("Exiting: No raw projects fetched. Verify API endpoints in code.", flush=True)
+        # Ensure state file exists to prevent git crashes on early exit
+        save_processed_websites(load_processed_websites())
+        
+        validated_leads = run_unified_pipeline()
+        if not validated_leads:
+            print("Exiting: No leads passed the unified filters.", flush=True)
             return
             
-        validated_leads = filter_and_enrich_leads(raw_leads)
-        
-        print(f"\n=== DELIVERY & STATE UPDATE ===", flush=True)
+        print(f"\n=== DELIVERY ===", flush=True)
         for lead in validated_leads:
             send_telegram_message(lead)
             
