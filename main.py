@@ -118,7 +118,6 @@ def enrich_leads(leads):
     
     for lead in leads:
         token_address = lead['token_id'].split('_')[-1]
-        # Extract base token name (e.g., "BSW" from "BSW / USDC")
         token_name = lead['name'].split(' / ')[0].strip()
         network = lead['network']
         
@@ -179,7 +178,8 @@ def enrich_leads(leads):
             
         time.sleep(1) # Polite delay between enrichments
 
-    print(f"Enrichment Complete: {len(enriched_leads)} leads ready for outreach.", flush=True)
+    # FIXED: Changed 'enriched_leads' to 'enriched'
+    print(f"Enrichment Complete: {len(enriched)} leads ready for outreach.", flush=True)
     return enriched
 
 # --- STATE & OUTPUT ---
