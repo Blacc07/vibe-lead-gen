@@ -9,11 +9,10 @@ TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 STATE_FILE = "processed_leads.json"
 
-CATEGORIES = [
-    'decentralized-exchange', 
-    'yield-farming', 
-    'real-world-assets-rwa', 
-    'gaming'
+TARGET_CHAINS_DL = ["Solana", "Base", "Binance", "BSC", "Binance Smart Chain"]
+ALLOWED_CATEGORIES_DL = [
+    "Dexs", "Yield", "Yield Aggregator", "Lending", "Liquid Staking", 
+    "Infrastructure", "Services", "RWA", "Gaming", "Derivatives", "CDP"
 ]
 
 GIANT_BLOCKLIST = [
@@ -52,8 +51,8 @@ def fetch_with_retry(url, max_retries=3):
             if response.status_code == 200:
                 return response.json()
             elif response.status_code == 429:
-                wait_time = 60 * (attempt + 1)  # Wait 60s, then 120s, then 180s
-                print(f"    [RATE LIMIT] 429 detected. Pausing for {wait_time} seconds before retry...", flush=True)
+                wait_time = 60 * (attempt + 1)
+                print(f"    [RATE LIMIT] 429 detected. Pausing for {wait_time} seconds...", flush=True)
                 time.sleep(wait_time)
             else:
                 print(f"    [ERROR] Unexpected status {response.status_code} for {url}", flush=True)
@@ -65,107 +64,145 @@ def fetch_with_retry(url, max_retries=3):
     print(f"    [CRITICAL] Failed to fetch {url} after {max_retries} retries.", flush=True)
     return None
 
-def fetch_and_filter_coingecko():
-    print("=== MODULE 1: DISCOVERY & ENRICHMENT (Two-Step CoinGecko) ===", flush=True)
-    validated_leads = []
+# --- SOURCE 1 & 3: CoinGecko Recently Added (Launchpad Graduates / New Pairs) ---
+def source_recently_added():
+    print("  [SOURCE 1] Fetching CoinGecko Recently Added (Launchpad Graduates)...", flush=True)
+    url = "https://api.coingecko.com/api/v3/coins/recently_added"
+    data = fetch_with_retry(url)
     
-    for category in CATEGORIES:
-        print(f"  Fetching category: {category}...", flush=True)
-        
-        # STEP 1: Lightweight market data fetch
-        url = f"https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&category={category}&order=market_cap_desc&per_page=100&page=1&sparkline=false"
-        
-        markets_data = fetch_with_retry(url)
-        if not markets_data:
-            print(f"    [INFO] Skipping category {category} due to fetch failure.", flush=True)
-            continue
-            
-        coins = markets_data
-        print(f"    [SUCCESS] Received {len(coins)} coins for {category}", flush=True)
-        
-        for coin in coins:
+    leads = []
+    if data:
+        for coin in data:
             name = str(coin.get('name', ''))
             symbol = str(coin.get('symbol', ''))
             mcap = coin.get('market_cap') or 0
             volume = coin.get('total_volume') or 0
             coin_id = coin.get('id')
             
-            # 1. Giant & Memecoin Blocklist Check
             if is_blocked(name, symbol):
                 continue
                 
-            # 2. Strict Market Cap Filter ($500k - $3M)
-            if not (500_000 <= mcap <= 3_000_000):
+            # Strict filters for new launches
+            if not (500_000 <= mcap <= 5_000_000):
                 continue
-                
-            # 3. Minimum Volume Filter ($50k+)
             if volume < 50_000:
                 continue
+                
+            leads.append({
+                'source': 'CoinGecko_Recent',
+                'unique_id': coin_id,
+                'name': name,
+                'symbol': symbol.upper(),
+                'mcap': float(mcap),
+                'volume': float(volume)
+            })
+    print(f"    Found {len(leads)} leads from Recently Added.", flush=True)
+    return leads
+
+# --- SOURCE 2: DefiLlama Momentum (TVL > $250k, MCAP < $5M) ---
+def source_defillama_momentum():
+    print("  [SOURCE 2] Fetching DefiLlama Protocols (TVL Momentum)...", flush=True)
+    url = "https://api.llama.fi/protocols"
+    data = fetch_with_retry(url)
+    
+    leads = []
+    if data:
+        for proto in data:
+            name = str(proto.get('name', ''))
+            symbol = str(proto.get('symbol', ''))
+            chains = proto.get('chains', [])
+            category = proto.get('category', '')
+            tvl = float(proto.get('tvl', 0) or 0)
+            mcap = float(proto.get('mcap', 0) or 0)
+            slug = proto.get('slug', '')
             
-            # STEP 2: If it passes numeric filters, fetch detailed data for links
-            print(f"    [PASS Numeric] {name} (MCAP: ${mcap:,.0f}, Vol: ${volume:,.0f}). Fetching details...", flush=True)
-            
-            detail_url = f"https://api.coingecko.com/api/v3/coins/{coin_id}"
-            detail_data = fetch_with_retry(detail_url)
+            if is_blocked(name, symbol):
+                continue
+                
+            # Chain Filter
+            if not any(chain in TARGET_CHAINS_DL for chain in chains):
+                continue
+                
+            # Category Filter
+            if not any(allowed.lower() in category.lower() for allowed in ALLOWED_CATEGORIES_DL):
+                continue
+                
+            # Momentum Filters
+            if tvl < 250_000:
+                continue
+            if not (500_000 <= mcap <= 5_000_000):
+                continue
+                
+            leads.append({
+                'source': 'DefiLlama_Momentum',
+                'unique_id': f"dl_{slug}",
+                'name': name,
+                'symbol': symbol.upper(),
+                'mcap': mcap,
+                'volume': 0, # DefiLlama doesn't provide 24h volume in this endpoint
+                'website': proto.get('url', ''),
+                'twitter': proto.get('twitter', ''),
+                'telegram': proto.get('telegram', '')
+            })
+    print(f"    Found {len(leads)} leads from DefiLlama Momentum.", flush=True)
+    return leads
+
+# --- ENRICHMENT (Fetch details for CoinGecko leads) ---
+def enrich_leads(leads):
+    print("\n=== ENRICHMENT PHASE ===", flush=True)
+    enriched = []
+    
+    for lead in leads:
+        if lead['source'] == 'CoinGecko_Recent':
+            print(f"  Fetching details for {lead['name']}...", flush=True)
+            time.sleep(3.5) # Rate limit
+            detail_data = fetch_with_retry(f"https://api.coingecko.com/api/v3/coins/{lead['unique_id']}")
             
             if detail_data:
                 links = detail_data.get('links', {})
-                
-                # 4. Utility Proxy: Must have a valid homepage URL
                 homepages = links.get('homepage', [])
-                valid_homepage = next((url for url in homepages if url and str(url).strip()), None)
-                
-                if not valid_homepage:
-                    print(f"      [DROP] No valid homepage found.", flush=True)
-                    continue
-                    
-                # 5. Extract Contacts
-                twitter = links.get('twitter_screen_name', '')
-                telegram = links.get('telegram_channel_identifier', '')
-                
-                validated_leads.append({
-                    'name': name,
-                    'symbol': symbol.upper(),
-                    'market_cap': float(mcap),
-                    'volume_24h': float(volume),
-                    'website': valid_homepage,
-                    'twitter': f"@{twitter}" if twitter else "Not Found",
-                    'telegram': f"@{telegram}" if telegram else "Not Found"
-                })
-                print(f"      [SUCCESS] Added {name} with contacts.", flush=True)
+                lead['website'] = next((url for url in homepages if url and str(url).strip()), 'Not Found')
+                lead['twitter'] = f"@{links.get('twitter_screen_name', '')}" if links.get('twitter_screen_name') else 'Not Found'
+                lead['telegram'] = f"@{links.get('telegram_channel_identifier', '')}" if links.get('telegram_channel_identifier') else 'Not Found'
             else:
-                print(f"      [ERROR] Failed to fetch details for {coin_id}.", flush=True)
+                continue # Skip if we can't get details
+        else:
+            # Format DefiLlama contacts
+            lead['twitter'] = f"@{lead['twitter']}" if lead['twitter'] and not lead['twitter'].startswith('@') else (lead['twitter'] or 'Not Found')
+            lead['telegram'] = f"@{lead['telegram']}" if lead['telegram'] and not lead['telegram'].startswith('@') else (lead['telegram'] or 'Not Found')
+            
+        # Final Utility Proxy: Must have a website or twitter
+        if lead.get('website', 'Not Found') == 'Not Found' and lead.get('twitter', 'Not Found') == 'Not Found':
+            continue
+            
+        enriched.append(lead)
         
-        # Enforce strict delay between category fetches to respect API limits
-        print(f"    [INFO] Category {category} complete. Pausing 45s to respect API limits...", flush=True)
-        time.sleep(45)
+    return enriched
 
-    print(f"Module Complete: {len(validated_leads)} high-quality leads discovered.", flush=True)
-    return validated_leads
-
-def load_processed_names():
+# --- STATE & OUTPUT ---
+def load_processed_ids():
     if os.path.exists(STATE_FILE):
         with open(STATE_FILE, "r") as f:
             return json.load(f)
     return []
 
-def save_processed_names(names):
+def save_processed_ids(ids):
     with open(STATE_FILE, "w") as f:
-        json.dump(names, f)
+        json.dump(ids, f)
 
 def send_telegram_message(lead):
-    mcap_str = f"${int(lead['market_cap']):,}"
-    vol_str = f"${int(lead['volume_24h']):,}"
+    mcap_str = f"${int(lead['mcap']):,}"
+    vol_str = f"${int(lead['volume']):,}" if lead['volume'] > 0 else "N/A (DefiLlama)"
     
     text = (
-        f"🚨 *High-Potential Vibe Trading Lead*\n\n"
+        f"🚨 *Dynamic Trigger Lead: {lead['source']}*\n\n"
         f"📛 *Project*: {lead['name']} ({lead.get('symbol', 'N/A')})\n"
-        f"💰 *Market Cap*: {mcap_str}\n"
+        f" *Market Cap*: {mcap_str}\n"
         f"📊 *24h Volume*: {vol_str}\n"
         f"🔗 *Website*: {lead.get('website', 'N/A')}\n\n"
-        f"📞 *Extracted Contacts*:\n"
-        f"• Telegram: {lead['telegram']}\n"
-        f"• Twitter: {lead['twitter']}\n\n"
+        f"📞 *Contacts*:\n"
+        f"• Telegram: {lead.get('telegram', 'Not Found')}\n"
+        f"• Twitter: {lead.get('twitter', 'Not Found')}\n\n"
         f"💬 *Vibe Pitch*: \"Instead of dumping treasury, deposit tokens to Vibe's vault to list a perp for free, back OI, and earn trading fees forever.\""
     )
     
@@ -176,36 +213,40 @@ def send_telegram_message(lead):
         requests.post(url, json=payload, timeout=10)
         print(f"  [TELEGRAM] ✅ Sent message for {lead['name']}", flush=True)
     except Exception as e:
-        print(f"  [TELEGRAM] ❌ Failed to send message for {lead['name']}: {e}", flush=True)
+        print(f"  [TELEGRAM] ❌ Failed to send: {e}", flush=True)
 
 def main():
-    print("=== STARTING MULTI-STAGE QUALIFICATION FUNNEL (PRODUCTION STABLE) ===", flush=True)
+    print("=== STARTING DYNAMIC TRIGGER-BASED PIPELINE ===", flush=True)
     try:
-        validated_leads = fetch_and_filter_coingecko()
+        # 1. Fetch from Dynamic Sources
+        leads_cg = source_recently_added()
+        time.sleep(45) # Mandatory cooldown between major API calls
+        leads_dl = source_defillama_momentum()
         
-        processed_names = load_processed_names()
-        print(f"\n=== MODULE 2: DEDUPLICATION & OUTPUT ===", flush=True)
-        print(f"Current processed names in memory: {len(processed_names)}", flush=True)
+        all_leads = leads_cg + leads_dl
         
-        new_leads = [lead for lead in validated_leads if lead['name'] not in processed_names]
-        print(f"New leads to process after deduplication: {len(new_leads)}", flush=True)
+        # 2. Enrich (Fetch websites/socials)
+        enriched_leads = enrich_leads(all_leads)
         
-        if len(new_leads) == 0 and len(validated_leads) > 0:
-            print("⚠️ WARNING: All enriched leads were already processed. No new messages sent.", flush=True)
-        elif not validated_leads:
-            print("ℹ️ INFO: No leads passed the filtering criteria.", flush=True)
+        # 3. Deduplicate by Immutable ID
+        processed_ids = load_processed_ids()
+        print(f"\n=== DEDUPLICATION ===", flush=True)
+        print(f"Processed IDs in memory: {len(processed_ids)}", flush=True)
         
+        new_leads = [lead for lead in enriched_leads if lead['unique_id'] not in processed_ids]
+        print(f"New leads to process: {len(new_leads)}", flush=True)
+        
+        # 4. Deliver
         for lead in new_leads:
             send_telegram_message(lead)
-            processed_names.append(lead['name'])
+            processed_ids.append(lead['unique_id'])
             
-        # GUARANTEED SAVE: Always write the file, even if empty, to prevent git add errors
-        save_processed_names(processed_names)
+        save_processed_ids(processed_ids)
         print("\n=== PIPELINE FINISHED SUCCESSFULLY ===", flush=True)
         
     except Exception as e:
         print(f"❌ CRITICAL ERROR: {e}", flush=True)
-        save_processed_names(load_processed_names()) # Prevent git crash on failure
+        save_processed_ids(load_processed_ids())
         raise
 
 if __name__ == "__main__":
