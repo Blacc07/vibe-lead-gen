@@ -37,6 +37,7 @@ jobs:
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
+        touch proccessed_leads.json
         git add processed_leads.json
         git commit -m "Update processed leads state" -a || echo "No changes to commit"
         git push
