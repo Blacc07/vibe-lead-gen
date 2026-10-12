@@ -31,7 +31,7 @@ def save_processed_ids(ids_set):
         json.dump(list(ids_set), f, indent=2)
 
 def fetch_with_retry(url, max_retries=3):
-    """Robust fetch function with exponential backoff for 429 Rate Limits."""
+    """Robust fetch function with exponential backoff for 429 Rate Limits and Timeouts."""
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
         "Accept": "application/json"
@@ -50,8 +50,9 @@ def fetch_with_retry(url, max_retries=3):
                 print(f"    [ERROR] Unexpected status {response.status_code} for {url}", flush=True)
                 return None
         except requests.exceptions.RequestException as e:
+            # Catches ReadTimeout, ConnectionError, etc.
             print(f"    [NETWORK ERROR] {e}. Retrying...", flush=True)
-            time.sleep(10)
+            time.sleep(5)
             
     print(f"    [CRITICAL] Failed to fetch {url} after {max_retries} retries.", flush=True)
     return None
@@ -62,14 +63,12 @@ def source_active_pools(processed_ids):
     validated_leads = []
     
     for network in NETWORKS:
-        # Early Exit: Stop searching if we already hit our target
         if len(validated_leads) >= TARGET_NEW_LEADS_PER_RUN:
             print(f"    [QUOTA MET] Found {TARGET_NEW_LEADS_PER_RUN} new leads. Stopping discovery.", flush=True)
             break
             
         print(f"  Fetching pools for {network}...", flush=True)
         
-        # Check up to 5 pages to catch rising stars beyond the absolute top 10
         for page in range(1, 6):
             if len(validated_leads) >= TARGET_NEW_LEADS_PER_RUN:
                 break
@@ -85,28 +84,25 @@ def source_active_pools(processed_ids):
                     
                 if response.status_code != 200:
                     print(f"    [ERROR] Unexpected status {response.status_code}. Moving to next network.", flush=True)
-                    break # Move to next network if this page fails
+                    break
                     
                 data = response.json()
                 pools = data.get('data', [])
                 
                 if not pools:
                     print(f"    [INFO] No more pools on page {page} for {network}.", flush=True)
-                    break # No more pools on this network
+                    break
                     
                 for pool in pools:
-                    # Early Exit inside the pool loop
                     if len(validated_leads) >= TARGET_NEW_LEADS_PER_RUN:
                         break
                         
                     attrs = pool.get('attributes', {})
                     name = attrs.get('name', '').lower()
                     
-                    # 1. Zombie Blocklist
                     if any(zombie in name for zombie in ZOMBIE_BLOCKLIST):
                         continue
                         
-                    # 2. Age Check (14 to 90 days)
                     created_at_str = attrs.get('pool_created_at')
                     if not created_at_str:
                         continue
@@ -115,7 +111,6 @@ def source_active_pools(processed_ids):
                     if not (14 <= age_days <= 90):
                         continue
                         
-                    # 3. Liquidity & Volume Checks
                     liquidity_usd = float(attrs.get('reserve_in_usd', 0) or 0)
                     volume_data = attrs.get('volume_usd', {})
                     volume_h24 = float(volume_data.get('h24', 0) or 0) if isinstance(volume_data, dict) else float(volume_data or 0)
@@ -123,13 +118,11 @@ def source_active_pools(processed_ids):
                     if liquidity_usd < 50_000 or volume_h24 < 50_000:
                         continue
                         
-                    # 4. Deduplication Check (BEFORE enriching to save API calls)
                     relationships = pool.get('relationships', {})
                     base_token_id = relationships.get('base_token', {}).get('data', {}).get('id', '')
                     if not base_token_id or base_token_id in processed_ids:
                         continue
                         
-                    # If it passes all filters, add to our target list
                     validated_leads.append({
                         'name': attrs.get('name'),
                         'network': network,
@@ -140,7 +133,7 @@ def source_active_pools(processed_ids):
                     })
                     print(f"    [PASS] {attrs.get('name')} | Age: {age_days}d | Liq: ${liquidity_usd:,.0f} | Vol: ${volume_h24:,.0f}", flush=True)
                     
-                time.sleep(2) # Polite delay between pages
+                time.sleep(2)
                 
             except Exception as e:
                 print(f"    [ERROR] Exception for {network} page {page}: {e}", flush=True)
@@ -165,34 +158,31 @@ def enrich_leads(leads):
         twitter = ''
         telegram = ''
         
-        # STEP 1: Try GeckoTerminal Token Endpoint
+        # STEP 1: Try GeckoTerminal Token Endpoint (Using robust fetch_with_retry)
         gt_url = f"https://api.geckoterminal.com/api/v2/networks/{network}/tokens/{token_address}"
-        gt_response = requests.get(gt_url, timeout=10)
+        gt_data = fetch_with_retry(gt_url)
         
-        if gt_response.status_code == 200:
-            gt_data = gt_response.json()
+        if gt_data:
             token_attrs = gt_data.get('data', {}).get('attributes', {})
             website = token_attrs.get('website', '') or token_attrs.get('homepage', '')
             twitter = token_attrs.get('twitter', '') or token_attrs.get('twitter_handle', '')
             telegram = token_attrs.get('telegram', '') or token_attrs.get('telegram_handle', '')
             
-        # STEP 2: Fallback to CoinGecko Search if GeckoTerminal lacks links
+        # STEP 2: Fallback to CoinGecko Search (Using robust fetch_with_retry)
         if not website and not twitter:
             print(f"    [INFO] GeckoTerminal missing links. Trying CoinGecko search for '{token_name}'...", flush=True)
             cg_url = f"https://api.coingecko.com/api/v3/search?query={token_name}"
-            cg_response = requests.get(cg_url, timeout=10)
+            cg_data = fetch_with_retry(cg_url)
             
-            if cg_response.status_code == 200:
-                cg_data = cg_response.json()
+            if cg_data:
                 coins = cg_data.get('coins', [])
                 
                 for coin in coins:
                     if coin.get('name', '').lower() == token_name.lower() or coin.get('symbol', '').lower() == token_name.lower():
                         detail_url = f"https://api.coingecko.com/api/v3/coins/{coin.get('id')}"
-                        detail_response = requests.get(detail_url, timeout=10)
+                        detail_data = fetch_with_retry(detail_url)
                         
-                        if detail_response.status_code == 200:
-                            detail_data = detail_response.json()
+                        if detail_data:
                             links = detail_data.get('links', {})
                             homepages = links.get('homepage', [])
                             website = next((url for url in homepages if url and str(url).strip()), '')
@@ -250,20 +240,16 @@ def send_telegram_message(lead):
 def main():
     print("=== STARTING ENDLESS FLOW ON-CHAIN PIPELINE ===", flush=True)
     try:
-        # 1. Load existing memory
         processed_ids = load_processed_ids()
         print(f"Loaded {len(processed_ids)} previously processed token IDs.", flush=True)
         
-        # 2. Source pure on-chain data (with early exit quota)
         leads = source_active_pools(processed_ids)
         if not leads:
             print("Exiting: No new leads passed the on-chain filters.", flush=True)
             return
             
-        # 3. Enrich with contact data
         enriched_leads = enrich_leads(leads)
         
-        # 4. Deliver & Update Memory
         print(f"\n=== DELIVERY & STATE UPDATE ===", flush=True)
         newly_processed_ids = []
         
@@ -271,7 +257,6 @@ def main():
             send_telegram_message(lead)
             newly_processed_ids.append(lead['token_id'])
             
-        # Update the master set and save
         processed_ids.update(newly_processed_ids)
         save_processed_ids(processed_ids)
         
