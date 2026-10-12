@@ -1,7 +1,6 @@
 import os
 import json
 import requests
-import re
 import time
 from datetime import datetime, timezone
 
@@ -26,7 +25,13 @@ TICKER_BLOCKLIST = [
     "iron", "safemoon", "squid", "terra", "luna", "celsius"
 ]
 
-# 2. Bad keywords for URL validation
+# 2. Stablecoin & Legacy Blocklist (Exact match only)
+STABLECOIN_AND_LEGACY_BLOCKLIST = [
+    "usdc", "usdt", "dai", "frax", "tusd", "busd", "eurc", "lusd", "usdd", 
+    "zec", "xmr", "etc", "bch", "ltc"
+]
+
+# 3. Bad keywords for URL validation
 BAD_URL_KEYWORDS = [
     "coinbase", "robinhood", "tokenize", "tokenized", "binance", "kraken", "okx", "bybit"
 ]
@@ -80,19 +85,12 @@ def is_valid_project_url(url):
 
 # --- DYNAMIC TEMPLATE ENGINE ---
 def generate_personalized_dm(lead):
-    """
-    Generates a highly personalized, metric-driven cold DM based on the lead's specific data.
-    Aligns with Vibe Trading's core value prop: zero USDC listing, vault-backed liquidity, perpetual fee share.
-    """
-    # Extract clean variables
-    name = lead['name'].split('/')[0].strip()  # e.g., "DEBIT" from "DEBIT / USDT"
-    chain = lead['network'].capitalize()       # e.g., "Bsc", "Solana", "Base"
-    volume = f"${lead['volume_h24']:,.0f}"     # e.g., "$52,288,967"
+    name = lead['name'].split('/')[0].strip()
+    chain = lead['network'].capitalize()
+    volume = f"${lead['volume_h24']:,.0f}"
     age = lead['age_days']
     
-    # STRATEGIC TEMPLATE SELECTION BASED ON METRICS
     if lead['volume_h24'] > 10_000_000:
-        # High Volume: Use the "Volume Leakage" angle
         template = (
             f"Hey team, been tracking {name}'s traction on {chain}. The trading volume you’re seeing right now is incredible.\n\n"
             f"With volume this high, a lot of speculative trading and fee revenue is likely leaking to external perp platforms. We built Vibe Trading to help projects like yours capture that value:\n"
@@ -101,7 +99,6 @@ def generate_personalized_dm(lead):
             f"Mind if I send over a quick 1-pager on how the vault mechanics work?"
         )
     elif age < 30:
-        # Early Stage: Use the "Engagement Catalyst" angle
         template = (
             f"Hey team, huge fan of the momentum behind {name} on {chain}.\n\n"
             f"Keeping the community engaged between major updates is always the hardest part for early-stage projects. We built Vibe Trading to solve this:\n"
@@ -110,7 +107,6 @@ def generate_personalized_dm(lead):
             f"Are you currently exploring any derivative integrations for {name}?"
         )
     elif lead['liquidity_usd'] > 1_000_000:
-        # High Liquidity: Use the "Liquidity Consolidation" angle
         template = (
             f"Hey team, great work on the recent traction for {name} on {chain}.\n\n"
             f"One thing we see with high-potential tokens is that fragmented liquidity can scare away larger traders. We built Vibe Trading to solve this:\n"
@@ -119,7 +115,6 @@ def generate_personalized_dm(lead):
             f"Open to seeing a quick case study on how this works?"
         )
     else:
-        # Standard: Use the "Idle Asset / Runway" angle
         template = (
             f"Hey team, great work on the recent traction for {name} on {chain}.\n\n"
             f"Managing a treasury that is heavily weighted in native tokens is tough when operational costs are in USD. We built Vibe Trading to solve this:\n"
@@ -173,15 +168,18 @@ def source_active_pools(processed_ids):
                     attrs = pool.get('attributes', {})
                     pool_name = attrs.get('name', '').lower()
                     
+                    # Extract base token (e.g., "usdc" from "usdc / weth")
                     base_token = pool_name.split('/')[0].strip().replace(' ', '').lower()
                     
+                    # Check 1: Exact match in the main ticker blocklist (for tokenized stocks)
                     if any(ticker in base_token for ticker in TICKER_BLOCKLIST):
                         continue
                         
-                    if re.match(r'^[a-z]{2,5}c$', base_token):
-                        print(f"    [DROP] {attrs.get('name')} | Reason: Matches tokenized stock naming pattern", flush=True)
+                    # Check 2: Exact match in the stablecoin/legacy blocklist
+                    if base_token in STABLECOIN_AND_LEGACY_BLOCKLIST:
                         continue
                         
+                    # Age Check (14 to 90 days)
                     created_at_str = attrs.get('pool_created_at')
                     if not created_at_str:
                         continue
@@ -190,6 +188,7 @@ def source_active_pools(processed_ids):
                     if not (14 <= age_days <= 90):
                         continue
                         
+                    # Liquidity & Volume Checks
                     liquidity_usd = float(attrs.get('reserve_in_usd', 0) or 0)
                     volume_data = attrs.get('volume_usd', {})
                     volume_h24 = float(volume_data.get('h24', 0) or 0) if isinstance(volume_data, dict) else float(volume_data or 0)
@@ -197,6 +196,7 @@ def source_active_pools(processed_ids):
                     if liquidity_usd < 50_000 or volume_h24 < 50_000:
                         continue
                         
+                    # Deduplication Check
                     relationships = pool.get('relationships', {})
                     base_token_id = relationships.get('base_token', {}).get('data', {}).get('id', '')
                     if not base_token_id or base_token_id in processed_ids:
@@ -298,15 +298,13 @@ def enrich_leads(leads):
 
 # --- OUTPUT: Dynamic Sales Dossier ---
 def send_telegram_message(lead):
-    # Generate the personalized message
     dm_text = generate_personalized_dm(lead)
     
-    # Format the final output for your Telegram bot
     telegram_message = (
         f" *NEW HIGH-SIGNAL LEAD*\n\n"
         f"📛 *Project:* {lead['name']}\n"
         f"⛓️ *Chain:* {lead['network'].capitalize()}\n"
-        f" *Age:* {lead['age_days']} days\n"
+        f"⏳ *Age:* {lead['age_days']} days\n"
         f"💧 *Liquidity:* ${lead['liquidity_usd']:,.0f}\n"
         f"📊 *24h Volume:* ${lead['volume_h24']:,.0f}\n"
         f"🔗 *Website:* {lead.get('website', 'N/A')}\n"
@@ -326,7 +324,7 @@ def send_telegram_message(lead):
         print(f"  [TELEGRAM] ❌ Failed to send: {e}", flush=True)
 
 def main():
-    print("=== STARTING ENDLESS FLOW ON-CHAIN PIPELINE (DYNAMIC SALES ENGINE) ===", flush=True)
+    print("=== STARTING ENDLESS FLOW ON-CHAIN PIPELINE (FALSE-POSITIVE PROOF) ===", flush=True)
     try:
         processed_ids = load_processed_ids()
         print(f"Loaded {len(processed_ids)} previously processed token IDs.", flush=True)
