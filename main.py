@@ -1,6 +1,7 @@
 import os
 import json
 import requests
+import re
 import time
 from datetime import datetime, timezone
 
@@ -11,10 +12,16 @@ STATE_FILE = "processed_leads.json"
 
 NETWORKS = ['solana', 'base', 'bsc']
 
-# 1. Blocklist of stock tickers and CEX tokens
+# 1. Expanded Blocklist of stock tickers, CEX tokens, and legacy zombies
 TICKER_BLOCKLIST = [
     "mstr", "sndk", "tsla", "aapl", "amzn", "googl", "goog", "msft", "nvda", "meta", 
     "spy", "qqq", "iwm", "coin", "hood", "mstrc", "sndkc", "tslac", "aaplc",
+    "mu", "muc", "spcx", "spcxc", "pltr", "pltrc", "xaug", "nflx", "dis", "v", "ma", 
+    "jpm", "bac", "wfc", "gs", "ms", "jnj", "pg", "ko", "pep", "wmt", "hd", "mcd", 
+    "nke", "intc", "csco", "crm", "orcl", "ibm", "qcom", "avgo", "adbe", "pypl", 
+    "tmus", "vz", "t", "f", "gm", "abnb", "dash", "spot", "snap", "roku", "sq", 
+    "sofi", "upst", "crwd", "ddog", "net", "snow", "mdb", "okta", "zm", "docu", 
+    "team", "wdc", "stx", "box", "drop", "hubspot", "zendesk", "twilio",
     "serum", "belt", "qi", "hakka", "wagmi", "olympus", "wonderland", 
     "iron", "safemoon", "squid", "terra", "luna", "celsius"
 ]
@@ -115,9 +122,16 @@ def source_active_pools(processed_ids):
                     attrs = pool.get('attributes', {})
                     pool_name = attrs.get('name', '').lower()
                     
-                    # NEW: Extract base token and check against TICKER_BLOCKLIST
-                    base_token = pool_name.split('/')[0].strip().replace(' ', '')
+                    # Extract base token (e.g., "muc" from "muc / usdc")
+                    base_token = pool_name.split('/')[0].strip().replace(' ', '').lower()
+                    
+                    # Check 1: Exact match in blocklist
                     if any(ticker in base_token for ticker in TICKER_BLOCKLIST):
+                        continue
+                        
+                    # Check 2: Regex catch-all for tokenized stock pattern (e.g., "muc", "pltrc", "spcxc")
+                    if re.match(r'^[a-z]{2,5}c$', base_token):
+                        print(f"    [DROP] {attrs.get('name')} | Reason: Matches tokenized stock naming pattern", flush=True)
                         continue
                         
                     # Age Check (14 to 90 days)
@@ -209,10 +223,10 @@ def enrich_leads(leads):
                             temp_twitter = links.get('twitter_screen_name', '')
                             temp_telegram = links.get('telegram_channel_identifier', '')
                             
-                            # NEW: CEX/Tokenized URL Check in CoinGecko Fallback
+                            # CEX/Tokenized URL Check in CoinGecko Fallback
                             if temp_website and not is_valid_project_url(temp_website):
-                                print(f"    [DROP] CoinGecko fallback returned a CEX/Tokenized URL ({temp_website}). Skipping this result.", flush=True)
-                                continue # Skip to the next CoinGecko search result
+                                print(f"    [DROP] CoinGecko fallback returned a CEX/Tokenized URL ({temp_website}). Skipping.", flush=True)
+                                continue
                                 
                             if temp_website or temp_twitter:
                                 website = temp_website
@@ -223,7 +237,6 @@ def enrich_leads(leads):
                         time.sleep(2) # Respect CoinGecko rate limits
                         
         # STEP 3: Final Validation
-        # NEW: Final URL validation before accepting the lead
         if website and not is_valid_project_url(website):
             print(f"    [DROP] Final URL rejected as CEX/Tokenized asset: {website}", flush=True)
             website = '' # Invalidate it
