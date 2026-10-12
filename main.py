@@ -12,6 +12,24 @@ STATE_FILE = "processed_leads.json"
 NETWORKS = ['solana', 'base', 'bsc']
 ZOMBIE_BLOCKLIST = ["serum", "belt", "qi", "hakka", "wagmi", "olympus", "wonderland", "iron", "safemoon", "squid", "terra", "luna", "celsius"]
 
+# Quota System: Stop searching once we find this many fresh, high-quality leads
+TARGET_NEW_LEADS_PER_RUN = 4
+
+def load_processed_ids():
+    """Loads processed IDs as a set for O(1) deduplication lookups."""
+    if os.path.exists(STATE_FILE):
+        try:
+            with open(STATE_FILE, "r") as f:
+                return set(json.load(f))
+        except (json.JSONDecodeError, FileNotFoundError):
+            return set()
+    return set()
+
+def save_processed_ids(ids_set):
+    """Saves the set of IDs back to JSON as a list."""
+    with open(STATE_FILE, "w") as f:
+        json.dump(list(ids_set), f, indent=2)
+
 def fetch_with_retry(url, max_retries=3):
     """Robust fetch function with exponential backoff for 429 Rate Limits."""
     headers = {
@@ -38,77 +56,97 @@ def fetch_with_retry(url, max_retries=3):
     print(f"    [CRITICAL] Failed to fetch {url} after {max_retries} retries.", flush=True)
     return None
 
-# --- SOURCE 1: GeckoTerminal Pools (Sorted by Volume) ---
-def source_active_pools():
-    print("  [SOURCE] Fetching GeckoTerminal Pools (Sorted by 24h Volume)...", flush=True)
+# --- SOURCE: Paginated Discovery with Early Exit ---
+def source_active_pools(processed_ids):
+    print("  [SOURCE] Fetching GeckoTerminal Pools (Paginated Quota System)...", flush=True)
     validated_leads = []
     
     for network in NETWORKS:
-        print(f"  Fetching top pools for {network}...", flush=True)
-        url = f"https://api.geckoterminal.com/api/v2/networks/{network}/pools?sort=h24_volume_usd_desc&page=1"
-        
-        try:
-            response = requests.get(url, timeout=15)
-            if response.status_code == 429:
-                print("    [RATE LIMIT] Pausing 60s before retry...", flush=True)
-                time.sleep(60)
-                response = requests.get(url, timeout=15)
-                
-            if response.status_code != 200:
-                print(f"    [ERROR] Unexpected status {response.status_code}", flush=True)
-                continue
-                
-            data = response.json()
-            pools = data.get('data', [])
+        # Early Exit: Stop searching if we already hit our target
+        if len(validated_leads) >= TARGET_NEW_LEADS_PER_RUN:
+            print(f"    [QUOTA MET] Found {TARGET_NEW_LEADS_PER_RUN} new leads. Stopping discovery.", flush=True)
+            break
             
-            for pool in pools:
-                attrs = pool.get('attributes', {})
-                name = attrs.get('name', '').lower()
+        print(f"  Fetching pools for {network}...", flush=True)
+        
+        # Check up to 5 pages to catch rising stars beyond the absolute top 10
+        for page in range(1, 6):
+            if len(validated_leads) >= TARGET_NEW_LEADS_PER_RUN:
+                break
                 
-                if any(zombie in name for zombie in ZOMBIE_BLOCKLIST):
-                    continue
+            url = f"https://api.geckoterminal.com/api/v2/networks/{network}/pools?sort=h24_volume_usd_desc&page={page}"
+            
+            try:
+                response = requests.get(url, timeout=15)
+                if response.status_code == 429:
+                    print("    [RATE LIMIT] Pausing 60s before retry...", flush=True)
+                    time.sleep(60)
+                    response = requests.get(url, timeout=15)
                     
-                created_at_str = attrs.get('pool_created_at')
-                if not created_at_str:
-                    continue
-                created_dt = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
-                age_days = (datetime.now(timezone.utc) - created_dt).days
-                if not (14 <= age_days <= 90):
-                    continue
+                if response.status_code != 200:
+                    print(f"    [ERROR] Unexpected status {response.status_code}. Moving to next network.", flush=True)
+                    break # Move to next network if this page fails
                     
-                liquidity_usd = float(attrs.get('reserve_in_usd', 0) or 0)
-                if liquidity_usd < 50_000:
-                    continue
-                    
-                volume_data = attrs.get('volume_usd', {})
-                if isinstance(volume_data, dict):
-                    volume_h24 = float(volume_data.get('h24', 0) or 0)
-                else:
-                    volume_h24 = float(volume_data or 0)
-                    
-                if volume_h24 < 50_000:
-                    continue
-                    
-                relationships = pool.get('relationships', {})
-                base_token_id = relationships.get('base_token', {}).get('data', {}).get('id', '')
-                if not base_token_id:
-                    continue
-                    
-                validated_leads.append({
-                    'name': attrs.get('name'),
-                    'network': network,
-                    'age_days': age_days,
-                    'liquidity_usd': liquidity_usd,
-                    'volume_h24': volume_h24,
-                    'token_id': base_token_id
-                })
-                print(f"    [PASS] {attrs.get('name')} | Age: {age_days}d | Liq: ${liquidity_usd:,.0f} | Vol: ${volume_h24:,.0f}", flush=True)
+                data = response.json()
+                pools = data.get('data', [])
                 
-            time.sleep(3)
-        except Exception as e:
-            print(f"    [ERROR] Exception for {network}: {e}", flush=True)
+                if not pools:
+                    print(f"    [INFO] No more pools on page {page} for {network}.", flush=True)
+                    break # No more pools on this network
+                    
+                for pool in pools:
+                    # Early Exit inside the pool loop
+                    if len(validated_leads) >= TARGET_NEW_LEADS_PER_RUN:
+                        break
+                        
+                    attrs = pool.get('attributes', {})
+                    name = attrs.get('name', '').lower()
+                    
+                    # 1. Zombie Blocklist
+                    if any(zombie in name for zombie in ZOMBIE_BLOCKLIST):
+                        continue
+                        
+                    # 2. Age Check (14 to 90 days)
+                    created_at_str = attrs.get('pool_created_at')
+                    if not created_at_str:
+                        continue
+                    created_dt = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+                    age_days = (datetime.now(timezone.utc) - created_dt).days
+                    if not (14 <= age_days <= 90):
+                        continue
+                        
+                    # 3. Liquidity & Volume Checks
+                    liquidity_usd = float(attrs.get('reserve_in_usd', 0) or 0)
+                    volume_data = attrs.get('volume_usd', {})
+                    volume_h24 = float(volume_data.get('h24', 0) or 0) if isinstance(volume_data, dict) else float(volume_data or 0)
+                    
+                    if liquidity_usd < 50_000 or volume_h24 < 50_000:
+                        continue
+                        
+                    # 4. Deduplication Check (BEFORE enriching to save API calls)
+                    relationships = pool.get('relationships', {})
+                    base_token_id = relationships.get('base_token', {}).get('data', {}).get('id', '')
+                    if not base_token_id or base_token_id in processed_ids:
+                        continue
+                        
+                    # If it passes all filters, add to our target list
+                    validated_leads.append({
+                        'name': attrs.get('name'),
+                        'network': network,
+                        'age_days': age_days,
+                        'liquidity_usd': liquidity_usd,
+                        'volume_h24': volume_h24,
+                        'token_id': base_token_id
+                    })
+                    print(f"    [PASS] {attrs.get('name')} | Age: {age_days}d | Liq: ${liquidity_usd:,.0f} | Vol: ${volume_h24:,.0f}", flush=True)
+                    
+                time.sleep(2) # Polite delay between pages
+                
+            except Exception as e:
+                print(f"    [ERROR] Exception for {network} page {page}: {e}", flush=True)
+                continue
 
-    print(f"Module Complete: {len(validated_leads)} high-quality, non-zombie leads discovered.", flush=True)
+    print(f"Discovery Complete: {len(validated_leads)} new, high-quality leads found.", flush=True)
     return validated_leads
 
 # --- ENRICHMENT: Fallback Strategy (GeckoTerminal -> CoinGecko) ---
@@ -178,21 +216,10 @@ def enrich_leads(leads):
             
         time.sleep(1) # Polite delay between enrichments
 
-    # FIXED: Changed 'enriched_leads' to 'enriched'
     print(f"Enrichment Complete: {len(enriched)} leads ready for outreach.", flush=True)
     return enriched
 
-# --- STATE & OUTPUT ---
-def load_processed_ids():
-    if os.path.exists(STATE_FILE):
-        with open(STATE_FILE, "r") as f:
-            return json.load(f)
-    return []
-
-def save_processed_ids(ids):
-    with open(STATE_FILE, "w") as f:
-        json.dump(ids, f)
-
+# --- OUTPUT ---
 def send_telegram_message(lead):
     liq_str = f"${int(lead['liquidity_usd']):,}"
     vol_str = f"${int(lead['volume_h24']):,}"
@@ -221,33 +248,38 @@ def send_telegram_message(lead):
         print(f"  [TELEGRAM] ❌ Failed to send: {e}", flush=True)
 
 def main():
-    print("=== STARTING DEFINITIVE ON-CHAIN PIPELINE (WITH FALLBACK ENRICHMENT) ===", flush=True)
+    print("=== STARTING ENDLESS FLOW ON-CHAIN PIPELINE ===", flush=True)
     try:
-        leads = source_active_pools()
+        # 1. Load existing memory
+        processed_ids = load_processed_ids()
+        print(f"Loaded {len(processed_ids)} previously processed token IDs.", flush=True)
+        
+        # 2. Source pure on-chain data (with early exit quota)
+        leads = source_active_pools(processed_ids)
         if not leads:
-            print("Exiting: No leads passed the on-chain filters.", flush=True)
-            save_processed_ids(load_processed_ids())
+            print("Exiting: No new leads passed the on-chain filters.", flush=True)
             return
             
+        # 3. Enrich with contact data
         enriched_leads = enrich_leads(leads)
         
-        processed_ids = load_processed_ids()
-        print(f"\n=== DEDUPLICATION ===", flush=True)
-        print(f"Processed Token IDs in memory: {len(processed_ids)}", flush=True)
+        # 4. Deliver & Update Memory
+        print(f"\n=== DELIVERY & STATE UPDATE ===", flush=True)
+        newly_processed_ids = []
         
-        new_leads = [lead for lead in enriched_leads if lead['token_id'] not in processed_ids]
-        print(f"New leads to process: {len(new_leads)}", flush=True)
-        
-        for lead in new_leads:
+        for lead in enriched_leads:
             send_telegram_message(lead)
-            processed_ids.append(lead['token_id'])
+            newly_processed_ids.append(lead['token_id'])
             
+        # Update the master set and save
+        processed_ids.update(newly_processed_ids)
         save_processed_ids(processed_ids)
-        print("\n=== PIPELINE FINISHED SUCCESSFULLY ===", flush=True)
+        
+        print(f"\n=== PIPELINE FINISHED SUCCESSFULLY ===", flush=True)
+        print(f"Sent {len(enriched_leads)} leads. Database updated with {len(newly_processed_ids)} new IDs.", flush=True)
         
     except Exception as e:
         print(f"❌ CRITICAL ERROR: {e}", flush=True)
-        save_processed_ids(load_processed_ids())
         raise
 
 if __name__ == "__main__":
