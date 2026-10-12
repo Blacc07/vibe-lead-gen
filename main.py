@@ -38,14 +38,16 @@ def fetch_with_retry(url, max_retries=3):
     print(f"    [CRITICAL] Failed to fetch {url} after {max_retries} retries.", flush=True)
     return None
 
-# --- SOURCE 1: GeckoTerminal New Pools (Pure On-Chain Data) ---
-def source_new_pools():
-    print("  [SOURCE] Fetching GeckoTerminal New Pools (On-Chain Metrics)...", flush=True)
+# --- SOURCE 1: GeckoTerminal Pools (Sorted by Volume) ---
+def source_active_pools():
+    print("  [SOURCE] Fetching GeckoTerminal Pools (Sorted by 24h Volume)...", flush=True)
     validated_leads = []
     
     for network in NETWORKS:
-        print(f"  Fetching new pools for {network}...", flush=True)
-        url = f"https://api.geckoterminal.com/api/v2/networks/{network}/new_pools"
+        print(f"  Fetching top pools for {network}...", flush=True)
+        
+        # CORRECTED ENDPOINT: Fetch all pools sorted by descending 24h volume
+        url = f"https://api.geckoterminal.com/api/v2/networks/{network}/pools?sort=h24_volume_usd_desc&page=1"
         
         try:
             response = requests.get(url, timeout=15)
@@ -80,15 +82,19 @@ def source_new_pools():
                 if not (14 <= age_days <= 90):
                     continue
                     
-                # 3. Liquidity Check (>= $50,000 USD)
+                # 3. Safe Liquidity Parsing
                 liquidity_usd = float(attrs.get('reserve_in_usd', 0) or 0)
-                if liquidity_usd < 50000:
+                if liquidity_usd < 50_000:
                     continue
                     
-                # 4. Volume Check (>= $50,000 USD in 24h)
-                volume_dict = attrs.get('volume_usd', {})
-                volume_h24 = float(volume_dict.get('h24', 0) or 0)
-                if volume_h24 < 50000:
+                # 4. Safe Volume Parsing (volume_usd is a dictionary)
+                volume_data = attrs.get('volume_usd', {})
+                if isinstance(volume_data, dict):
+                    volume_h24 = float(volume_data.get('h24', 0) or 0)
+                else:
+                    volume_h24 = float(volume_data or 0)
+                    
+                if volume_h24 < 50_000:
                     continue
                     
                 # 5. Validity Check (Must have a base token relationship)
@@ -197,7 +203,7 @@ def main():
     print("=== STARTING DEFINITIVE ON-CHAIN PIPELINE ===", flush=True)
     try:
         # 1. Source pure on-chain data
-        leads = source_new_pools()
+        leads = source_active_pools()
         if not leads:
             print("Exiting: No leads passed the on-chain filters.", flush=True)
             save_processed_ids(load_processed_ids()) # Prevent git crash
