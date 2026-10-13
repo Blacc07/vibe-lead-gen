@@ -53,16 +53,8 @@ def fetch_ecosystem_directories():
     # [NEEDS VERIFICATION]: Engineer must find the actual XHR/JSON endpoint via Chrome DevTools
     sources = [
         {
-            'name': 'Solana Ecosystem',
-            'url': 'https://solana.com/api/ecosystem', # [NEEDS VERIFICATION]
-            'chain': 'Solana',
-            'data_key': 'projects',
-            'name_key': 'name',
-            'url_key': 'websiteUrl'
-        },
-        {
             'name': 'Base Ecosystem',
-            'url': 'https://www.base.org/api/ecosystem', # [NEEDS VERIFICATION]
+            'url': 'https://www.base.org/ecosystem-fund?_rsc=f3Thn-3X2L3XeD6R',
             'chain': 'Base',
             'data_key': 'apps',
             'name_key': 'name',
@@ -70,7 +62,7 @@ def fetch_ecosystem_directories():
         },
         {
             'name': 'Binance MVB',
-            'url': 'https://www.bnbchain.org/en/api/mvb/projects', # [NEEDS VERIFICATION]
+            'url': 'https://www.binance.com/bapi/apex/v1/friendly/apex/web/launchpool/holder/project?pageIndex=1&pageSize=20',
             'chain': 'Binance',
             'data_key': 'projects',
             'name_key': 'name',
@@ -109,28 +101,28 @@ def fetch_launchpad_graduates():
     sources = [
         {
             'name': 'Polkastarter',
-            'url': 'https://api.polkastarter.com/pools?type=past', # [NEEDS VERIFICATION]
+            'url': 'https://launchpad.polkastarter.com/v3/projects?status=finalized&view=metrics&search=&page=1&sort_direction=desc&sort_by=finalized_at&per_page=15&order=finalized_at&sort=desc',
             'data_key': 'pools',
             'name_key': 'projectName',
             'url_key': 'projectWebsite'
         },
         {
             'name': 'ChainGPT Pad',
-            'url': 'https://pad.chaingpt.org/api/launches/past', # [NEEDS VERIFICATION]
+            'url': 'https://padapi.chaingpt.org/pools/v3/complete-sale-pools-details',
             'data_key': 'launches',
             'name_key': 'name',
             'url_key': 'websiteUrl'
         },
         {
             'name': 'Legion',
-            'url': 'https://api.legion.io/projects', # [NEEDS VERIFICATION]
+            'url': 'https://api.legion.cc/sales/past?limit=100', 
             'data_key': 'projects',
             'name_key': 'name',
             'url_key': 'website'
         },
         {
             'name': 'Jupiter Studio',
-            'url': 'https://portal.jup.ag/studio/api/projects', # [NEEDS VERIFICATION]
+            'url': ' https://datapi.jup.ag/v2/search?query=&tokenExactCaseInsensitive=false&tokenVerified=false&includeStocks=true', 
             'data_key': 'projects',
             'name_key': 'name',
             'url_key': 'website'
