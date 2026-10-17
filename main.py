@@ -1,5 +1,6 @@
 import os
 import json
+import random
 import requests
 import time
 from datetime import datetime, timezone, timedelta
@@ -16,7 +17,6 @@ BLOCKED_CHAINS_CG = ['ethereum', 'optimistic-ethereum', 'arbitrum-one', 'polygon
 TARGET_CHAINS_LL = ['Solana', 'Base', 'Binance'] 
 BLOCKED_CHAINS_LL = ['Ethereum', 'Arbitrum', 'Optimism', 'Polygon', 'Avalanche']
 
-# EXPANDED: Added high-value DeFi categories to increase the baseline pool
 TARGET_CATEGORIES_LL = [
     'Dexes', 'Yield', 'RWA', 'Gaming', 'Infrastructure', 'Services',
     'Lending', 'Liquid Staking', 'CDP', 'Derivatives', 'Yield Aggregator', 
@@ -29,7 +29,6 @@ ZOMBIE_BLOCKLIST = [
     "iron", "safemoon", "squid", "terra", "tokenized", "wrapped"
 ]
 
-# QUOTA: 5 leads per run. At 4 runs/day, this yields 20 leads/day.
 TARGET_QUOTA = 5
 
 # --- MODULE 1: STRICT DATA INTERSECTION ---
@@ -93,7 +92,6 @@ def fetch_and_intersect_datasets():
         website = proto.get('url', '')
         twitter = proto.get('twitter', '')
         
-        # RELAXED: Twitter is no longer a hard blocker. Valid website is mandatory.
         if not website or not str(website).startswith('http'):
             continue
             
@@ -101,7 +99,6 @@ def fetch_and_intersect_datasets():
         tvl = proto.get('tvl', 0)
         is_valid_size = False
         
-        # EXPANDED: MCAP cap to $30M, TVL cap to $50M
         if mcap and 500_000 <= float(mcap) <= 30_000_000:
             is_valid_size = True
         elif tvl and 250_000 <= float(tvl) <= 50_000_000:
@@ -123,26 +120,34 @@ def fetch_and_intersect_datasets():
     print(f"    Intersection Complete: {len(validated_leads)} strictly filtered baseline leads found.")
     return validated_leads
 
-# --- MODULE 2: SOFT GITHUB VALIDATION ---
-def validate_active_builders(leads):
+# --- MODULE 2: SOFT GITHUB VALIDATION (WITH RANDOMIZATION & EARLY DEDUPE) ---
+def validate_active_builders(leads, processed_ids):
     print("\n=== MODULE 2: GITHUB ACTIVE BUILDER VALIDATION ===")
     active_leads = []
     
+    # CRITICAL FIX 1: Shuffle the leads so we don't always pick the same top items from DefiLlama
+    random.shuffle(leads)
+    
+    # Python 3.12+ compatible UTC time
     cutoff_date = (datetime.now(timezone.utc) - timedelta(days=60)).strftime('%Y-%m-%d')
     
     for lead in leads:
-        # QUOTA CHECK: Stop at 5 leads per run
         if len(active_leads) >= TARGET_QUOTA:
-            print(f"  [QUOTA MET] Found {TARGET_QUOTA} verified leads for this run. Stopping GitHub checks.")
+            print(f"  [QUOTA MET] Found {TARGET_QUOTA} NEW verified leads for this run.")
             break
+            
+        # CRITICAL FIX 2: Check deduplication BEFORE doing any GitHub work
+        lead_id = lead.get('gecko_id') or lead.get('website')
+        if lead_id in processed_ids:
+            continue # Skip already processed leads immediately
             
         print(f"  Checking GitHub activity for {lead['name']}...")
         
         github_repos = lead.get('github_repos', [])
         
         if not github_repos:
-            print(f"    [WARNING] No official GitHub repository listed in DefiLlama. Proceeding with caution.")
-            lead['github_repo'] = "Unverified (Not listed in DefiLlama)"
+            print(f"    [WARNING] No official GitHub repository listed. Proceeding.")
+            lead['github_repo'] = "Unverified (Not listed)"
             lead['last_push'] = "N/A"
             active_leads.append(lead)
             continue
@@ -154,8 +159,8 @@ def validate_active_builders(leads):
             owner = url_parts[-2]
             repo = url_parts[-1]
         except IndexError:
-            print(f"    [WARNING] Invalid GitHub URL format: {official_repo_url}. Proceeding.")
-            lead['github_repo'] = "Unverified (Invalid URL format)"
+            print(f"    [WARNING] Invalid GitHub URL format. Proceeding.")
+            lead['github_repo'] = "Unverified (Invalid URL)"
             lead['last_push'] = "N/A"
             active_leads.append(lead)
             continue
@@ -172,30 +177,25 @@ def validate_active_builders(leads):
                 last_push = repo_data.get('pushed_at', '')
                 
                 if last_push and last_push[:10] >= cutoff_date:
-                    print(f"    [PASS] Official repo active: {official_repo_url} (Last push: {last_push[:10]})")
+                    print(f"    [PASS] Official repo active (Last push: {last_push[:10]})")
                     lead['github_repo'] = official_repo_url
                     lead['last_push'] = last_push[:10]
                     active_leads.append(lead)
                 else:
-                    print(f"    [DROP] Official repo exists, but inactive since {last_push[:10]} (Zombie project).")
-            elif resp.status_code == 404:
-                print(f"    [WARNING] Official GitHub repo returned 404. Proceeding with caution.")
-                lead['github_repo'] = "Unverified (Repo not found)"
-                lead['last_push'] = "N/A"
-                active_leads.append(lead)
+                    print(f"    [DROP] Zombie project (inactive since {last_push[:10]}).")
             else:
-                print(f"    [WARNING] GitHub API returned {resp.status_code}. Proceeding with caution.")
-                lead['github_repo'] = f"Unverified (API Error: {resp.status_code})"
+                print(f"    [WARNING] GitHub API returned {resp.status_code}. Proceeding.")
+                lead['github_repo'] = f"Unverified (API: {resp.status_code})"
                 lead['last_push'] = "N/A"
                 active_leads.append(lead)
                 
         except Exception as e:
-            print(f"    [WARNING] GitHub check failed for {lead['name']}: {e}. Proceeding with caution.")
+            print(f"    [WARNING] GitHub check failed. Proceeding.")
             lead['github_repo'] = "Unverified (Check failed)"
             lead['last_push'] = "N/A"
             active_leads.append(lead)
 
-    print(f"\n    Validation Complete: {len(active_leads)} leads verified or flagged for manual review.")
+    print(f"    Validation Complete: {len(active_leads)} new leads ready for delivery.")
     return active_leads
 
 # --- MODULE 3: DELIVERY & STATE UPDATE ---
@@ -204,7 +204,6 @@ def generate_personalized_dm(lead):
     category = lead['category']
     twitter = lead.get('twitter', '')
     
-    # DYNAMIC GREETING: Adjusts based on available contact method
     if twitter and twitter != "Not Found":
         greeting = f"Hey {twitter}, huge fan of what you're building with {name} in the {category} space."
     else:
@@ -220,21 +219,14 @@ def generate_personalized_dm(lead):
     )
     return template
 
-def deliver_leads(leads):
+def deliver_leads(leads, processed_ids):
     print("\n=== MODULE 3: DELIVERY & STATE UPDATE ===")
     
-    try:
-        with open(STATE_FILE, 'r') as f:
-            processed_ids = set(json.load(f))
-    except (FileNotFoundError, json.JSONDecodeError):
-        processed_ids = set()
-
     newly_processed = []
     
     for lead in leads:
-        if lead['gecko_id'] in processed_ids:
-            continue
-            
+        lead_id = lead.get('gecko_id') or lead.get('website')
+        
         dm_text = generate_personalized_dm(lead)
         chains_str = ", ".join(lead.get('chains', ['Unknown']))
         
@@ -258,13 +250,13 @@ def deliver_leads(leads):
             tg_resp = requests.post(tg_url, json=payload, timeout=10)
             if tg_resp.status_code == 200:
                 print(f"  [TELEGRAM] ✅ Sent outreach for {lead['name']}")
+                newly_processed.append(lead_id)
             else:
                 print(f"  [TELEGRAM] ❌ Failed to send for {lead['name']}: {tg_resp.text}")
         except Exception as e:
             print(f"  [TELEGRAM] ❌ Network error sending for {lead['name']}: {e}")
-            
-        newly_processed.append(lead['gecko_id'])
 
+    # Update state
     processed_ids.update(newly_processed)
     with open(STATE_FILE, 'w') as f:
         json.dump(list(processed_ids), f, indent=2)
@@ -274,9 +266,23 @@ def deliver_leads(leads):
 # === MAIN EXECUTION ===
 if __name__ == "__main__":
     print("=== STARTING HIGH-VELOCITY ACTIVE BUILDER PIPELINE ===")
+    
+    # 1. Load processed IDs early
+    try:
+        with open(STATE_FILE, 'r') as f:
+            processed_ids = set(json.load(f))
+    except (FileNotFoundError, json.JSONDecodeError):
+        processed_ids = set()
+
+    # 2. Fetch Baseline
     baseline_leads = fetch_and_intersect_datasets()
+    
     if baseline_leads:
-        active_leads = validate_active_builders(baseline_leads)
+        # 3. Validate (Passing processed_ids to filter out old leads early)
+        active_leads = validate_active_builders(baseline_leads, processed_ids)
+        
+        # 4. Deliver
         if active_leads:
-            deliver_leads(active_leads)
+            deliver_leads(active_leads, processed_ids)
+            
     print("=== PIPELINE COMPLETE ===")
