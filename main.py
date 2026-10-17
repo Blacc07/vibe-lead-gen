@@ -2,6 +2,7 @@ import os
 import json
 import requests
 import time
+import re
 from datetime import datetime, timezone, timedelta
 
 # --- CONFIGURATION ---
@@ -16,7 +17,12 @@ BLOCKED_CHAINS_CG = ['ethereum', 'optimistic-ethereum', 'arbitrum-one', 'polygon
 TARGET_CHAINS_LL = ['Solana', 'Base', 'Binance'] # DefiLlama's exact naming for BSC is 'Binance'
 BLOCKED_CHAINS_LL = ['Ethereum', 'Arbitrum', 'Optimism', 'Polygon', 'Avalanche']
 
-TARGET_CATEGORIES_LL = ['Dexes', 'Yield', 'RWA', 'Gaming', 'Infrastructure', 'Services']
+# OPTION A: Expanded Target Categories to increase baseline lead pool
+TARGET_CATEGORIES_LL = [
+    'Dexes', 'Yield', 'RWA', 'Gaming', 'Infrastructure', 'Services', 
+    'Liquid Staking', 'Derivatives', 'CDP', 'Lending'
+]
+
 ZOMBIE_BLOCKLIST = [
     "coinbase", "robinhood", "binance", "kraken", "okx", "bybit", 
     "serum", "belt", "qi", "hakka", "wagmi", "olympus", "wonderland", 
@@ -41,7 +47,6 @@ def fetch_and_intersect_datasets():
             platforms = coin.get('platforms', {})
             platform_keys = [k.lower() for k in platforms.keys()]
             
-            # MUST have a target chain AND MUST NOT have a blocked chain
             has_target = any(chain in platform_keys for chain in TARGET_CHAINS_CG)
             has_blocked = any(chain in platform_keys for chain in BLOCKED_CHAINS_CG)
             
@@ -67,24 +72,19 @@ def fetch_and_intersect_datasets():
     validated_leads = []
     for proto in ll_data:
         gecko_id = proto.get('gecko_id')
-        
-        # Filter 1: Must exist in the strict CoinGecko target list
         if not gecko_id or gecko_id not in valid_cg_ids:
             continue
             
         name = proto.get('name', '')
         name_lower = name.lower()
         
-        # Filter 2: Blocklist Check
         if any(blocked in name_lower for blocked in ZOMBIE_BLOCKLIST):
             continue
             
-        # Filter 3: Category Check
         category = proto.get('category', '')
         if category not in TARGET_CATEGORIES_LL:
             continue
             
-        # Filter 4: Strict DefiLlama Chain Check
         chains = proto.get('chains', [])
         has_target_ll = any(chain in TARGET_CHAINS_LL for chain in chains)
         has_blocked_ll = any(chain in BLOCKED_CHAINS_LL for chain in chains)
@@ -92,13 +92,11 @@ def fetch_and_intersect_datasets():
         if not has_target_ll or has_blocked_ll:
             continue
             
-        # Filter 5: Must have native website and Twitter
         website = proto.get('url', '')
         twitter = proto.get('twitter', '')
         if not website or not str(website).startswith('http') or not twitter:
             continue
             
-        # Filter 6: Size Check ($500k - $15M MCAP, or $250k - $20M TVL fallback)
         mcap = proto.get('mcap')
         tvl = proto.get('tvl', 0)
         is_valid_size = False
@@ -123,7 +121,7 @@ def fetch_and_intersect_datasets():
     print(f"    Intersection Complete: {len(validated_leads)} strictly filtered baseline leads found.")
     return validated_leads
 
-# --- MODULE 2: GITHUB ACTIVE BUILDER VALIDATION ---
+# --- MODULE 2: GITHUB ACTIVE BUILDER VALIDATION (WITH SMART FALLBACK) ---
 def validate_active_builders(leads):
     print("\n=== MODULE 2: GITHUB ACTIVE BUILDER VALIDATION ===")
     active_leads = []
@@ -138,65 +136,72 @@ def validate_active_builders(leads):
         print(f"  Checking official GitHub activity for {lead['name']}...")
         
         github_repos = lead.get('github_repos', [])
-        if not github_repos:
-            print(f"    [DROP] No official GitHub repository listed in DefiLlama.")
-            continue
-            
-        official_repo_str = str(github_repos[0]).strip()
+        official_repo_str = str(github_repos[0]).strip() if github_repos else ""
         
         try:
             time.sleep(7) # Respect GitHub's unauthenticated rate limit
-            
             headers = {'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'Vibe-BD-Pipeline'}
+            lead_name_lower = lead['name'].lower().replace(' ', '')
             
-            # Scenario 1: Full URL (e.g., "https://github.com/owner/repo")
-            if official_repo_str.startswith('https://github.com/'):
-                parts = official_repo_str.rstrip('/').split('/')
-                if len(parts) >= 2:
-                    owner, repo = parts[-2], parts[-1]
+            # SCENARIO 1: DefiLlama provided a GitHub link
+            if official_repo_str:
+                if official_repo_str.startswith('https://github.com/'):
+                    parts = official_repo_str.rstrip('/').split('/')
+                    if len(parts) >= 2:
+                        owner, repo = parts[-2], parts[-1]
+                        api_url = f"https://api.github.com/repos/{owner}/{repo}"
+                elif '/' in official_repo_str:
+                    owner, repo = official_repo_str.split('/', 1)
                     api_url = f"https://api.github.com/repos/{owner}/{repo}"
-                    resp = requests.get(api_url, headers=headers, timeout=15)
+                else:
+                    # It's just an org name, use constrained search
+                    org_name = official_repo_str
+                    search_query = f"org:{org_name} pushed:>{cutoff_date}"
+                    api_url = f"https://api.github.com/search/repositories?q={search_query.replace(' ', '+')}&sort=updated&order=desc"
                     
-                    if resp.status_code == 200:
+                resp = requests.get(api_url, headers=headers, timeout=15)
+                
+                if resp.status_code == 200:
+                    # Handle both single repo response and search response
+                    if 'items' in resp.json():
+                        data = resp.json()
+                        if data.get('total_count', 0) > 0:
+                            top_repo = data['items'][0]
+                            repo_name = top_repo.get('name', '').lower()
+                            repo_desc = (top_repo.get('description') or '').lower()
+                            
+                            if lead_name_lower in repo_name or lead_name_lower in repo_desc or official_repo_str.lower() in repo_name:
+                                print(f"    [PASS] Active repo found in org: {top_repo['html_url']} (Last push: {top_repo['pushed_at'][:10]})")
+                                lead['github_repo'] = top_repo['html_url']
+                                lead['last_push'] = top_repo['pushed_at'][:10]
+                                active_leads.append(lead)
+                            else:
+                                print(f"    [DROP] Org has activity, but no repo clearly matches {lead['name']}.")
+                        else:
+                            print(f"    [DROP] No recent GitHub activity found for org: {official_repo_str}.")
+                    else:
                         repo_data = resp.json()
                         last_push = repo_data.get('pushed_at', '')
                         if last_push and last_push[:10] >= cutoff_date:
-                            print(f"    [PASS] Official repo active: {official_repo_str} (Last push: {last_push[:10]})")
-                            lead['github_repo'] = official_repo_str
+                            print(f"    [PASS] Official repo active: {api_url} (Last push: {last_push[:10]})")
+                            lead['github_repo'] = api_url.replace('https://api.github.com/repos/', 'https://github.com/')
                             lead['last_push'] = last_push[:10]
                             active_leads.append(lead)
                         else:
                             print(f"    [DROP] Official repo exists, but inactive since {last_push[:10]}.")
-                    elif resp.status_code == 404:
-                        print(f"    [DROP] Official GitHub repo not found (404).")
-                    else:
-                        print(f"    [ERROR] GitHub API returned {resp.status_code}.")
-                        
-            # Scenario 2: Specific Repo String (e.g., "owner/repo")
-            elif '/' in official_repo_str:
-                owner, repo = official_repo_str.split('/', 1)
-                api_url = f"https://api.github.com/repos/{owner}/{repo}"
-                resp = requests.get(api_url, headers=headers, timeout=15)
-                
-                if resp.status_code == 200:
-                    repo_data = resp.json()
-                    last_push = repo_data.get('pushed_at', '')
-                    if last_push and last_push[:10] >= cutoff_date:
-                        print(f"    [PASS] Official repo active: {official_repo_str} (Last push: {last_push[:10]})")
-                        lead['github_repo'] = f"https://github.com/{owner}/{repo}"
-                        lead['last_push'] = last_push[:10]
-                        active_leads.append(lead)
-                    else:
-                        print(f"    [DROP] Official repo exists, but inactive since {last_push[:10]}.")
                 elif resp.status_code == 404:
                     print(f"    [DROP] Official GitHub repo not found (404).")
+                elif resp.status_code == 403:
+                    print(f"    [WARN] GitHub rate limit hit. Stopping validation early.")
+                    break
                 else:
                     print(f"    [ERROR] GitHub API returned {resp.status_code}.")
                     
-            # Scenario 3: Organization Name Only (e.g., "aurafinance")
+            # SCENARIO 2 (OPTION B): Smart Fallback if DefiLlama has NO GitHub link
             else:
-                org_name = official_repo_str
-                search_query = f"org:{org_name} pushed:>{cutoff_date}"
+                print(f"    [INFO] No GitHub in DefiLlama. Triggering smart fallback search...")
+                # Constrained search: Project name MUST be in the repo name, and pushed recently
+                search_query = f"{lead['name'].replace(' ', '')} in:name pushed:>{cutoff_date}"
                 search_url = f"https://api.github.com/search/repositories?q={search_query.replace(' ', '+')}&sort=updated&order=desc"
                 
                 resp = requests.get(search_url, headers=headers, timeout=15)
@@ -207,19 +212,21 @@ def validate_active_builders(leads):
                     
                     if total_repos > 0:
                         top_repo = data['items'][0]
-                        repo_name = top_repo.get('name', '').lower()
+                        repo_name = top_repo.get('name', '').lower().replace(' ', '')
                         repo_desc = (top_repo.get('description') or '').lower()
-                        lead_name_lower = lead['name'].lower()
+                        owner = top_repo.get('owner', {}).get('login', '').lower()
                         
-                        if lead_name_lower in repo_name or lead_name_lower in repo_desc or org_name.lower() in repo_name:
-                            print(f"    [PASS] Active repo found in org: {top_repo['html_url']} (Last push: {top_repo['pushed_at'][:10]})")
+                        # STRICT VALIDATION: The repo name or owner must closely match the project name
+                        # This prevents "Hello-Aura-Cafe" from matching "Aura"
+                        if lead_name_lower in repo_name or lead_name_lower in owner:
+                            print(f"    [PASS] Fallback verified repo: {top_repo['html_url']} (Last push: {top_repo['pushed_at'][:10]})")
                             lead['github_repo'] = top_repo['html_url']
                             lead['last_push'] = top_repo['pushed_at'][:10]
                             active_leads.append(lead)
                         else:
-                            print(f"    [DROP] Org has recent activity, but no repo clearly matches {lead['name']}.")
+                            print(f"    [DROP] Fallback found repo, but name/owner '{owner}/{repo_name}' doesn't match '{lead['name']}'.")
                     else:
-                        print(f"    [DROP] No recent GitHub activity found for org: {org_name}.")
+                        print(f"    [DROP] No recent GitHub activity found matching project name.")
                 elif resp.status_code == 403:
                     print(f"    [WARN] GitHub rate limit hit. Stopping validation early.")
                     break
@@ -298,7 +305,7 @@ def deliver_leads(leads):
 
 # === MAIN EXECUTION ===
 if __name__ == "__main__":
-    print("=== STARTING STRICT CHAIN ACTIVE BUILDER PIPELINE ===")
+    print("=== STARTING STRICT CHAIN ACTIVE BUILDER PIPELINE (EXPANDED) ===")
     baseline_leads = fetch_and_intersect_datasets()
     if baseline_leads:
         active_leads = validate_active_builders(baseline_leads)
