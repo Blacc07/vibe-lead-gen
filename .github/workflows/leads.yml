@@ -1,4 +1,4 @@
-name: Dual-Source Momentum Pipeline
+name: Active Momentum Pipeline
 
 on:
   schedule:
