@@ -9,7 +9,13 @@ TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 STATE_FILE = "processed_leads.json"
 
+# 1. Define strict BD criteria
 TARGET_CHAINS_CG = ['solana', 'base', 'binance-smart-chain'] 
+BLOCKED_CHAINS_CG = ['ethereum', 'optimistic-ethereum', 'arbitrum-one', 'polygon-pos', 'avalanche']
+
+TARGET_CHAINS_LL = ['Solana', 'Base', 'Binance'] # DefiLlama's exact naming for BSC is 'Binance'
+BLOCKED_CHAINS_LL = ['Ethereum', 'Arbitrum', 'Optimism', 'Polygon', 'Avalanche']
+
 TARGET_CATEGORIES_LL = ['Dexes', 'Yield', 'RWA', 'Gaming', 'Infrastructure', 'Services']
 ZOMBIE_BLOCKLIST = [
     "coinbase", "robinhood", "binance", "kraken", "okx", "bybit", 
@@ -19,10 +25,11 @@ ZOMBIE_BLOCKLIST = [
 
 TARGET_QUOTA = 5
 
+# --- MODULE 1: STRICT DATA INTERSECTION ---
 def fetch_and_intersect_datasets():
-    print("=== MODULE 1: DATA INTERSECTION ===")
+    print("=== MODULE 1: STRICT DATA INTERSECTION ===")
     
-    # STEP A: CoinGecko Master List (Chain Verification)
+    # STEP A: CoinGecko Master List (Strict Chain Verification)
     print("  [1/2] Fetching CoinGecko Master List...")
     try:
         cg_resp = requests.get("https://api.coingecko.com/api/v3/coins/list?include_platform=true", timeout=30)
@@ -32,14 +39,21 @@ def fetch_and_intersect_datasets():
         valid_cg_ids = set()
         for coin in cg_data:
             platforms = coin.get('platforms', {})
-            if any(chain in platforms for chain in TARGET_CHAINS_CG):
+            platform_keys = [k.lower() for k in platforms.keys()]
+            
+            # MUST have a target chain AND MUST NOT have a blocked chain
+            has_target = any(chain in platform_keys for chain in TARGET_CHAINS_CG)
+            has_blocked = any(chain in platform_keys for chain in BLOCKED_CHAINS_CG)
+            
+            if has_target and not has_blocked:
                 valid_cg_ids.add(coin['id'])
-        print(f"    Found {len(valid_cg_ids)} coins deployed on target chains.")
+                
+        print(f"    Found {len(valid_cg_ids)} coins strictly on target chains (Ethereum excluded).")
     except Exception as e:
         print(f"    [ERROR] CoinGecko fetch failed: {e}")
         return []
 
-    # STEP B: DefiLlama Master List (Metadata & Financials)
+    # STEP B: DefiLlama Master List (Strict Chain & Metadata Verification)
     print("  [2/2] Fetching DefiLlama Protocol Directory...")
     try:
         ll_resp = requests.get("https://api.llama.fi/protocols", timeout=30)
@@ -53,24 +67,38 @@ def fetch_and_intersect_datasets():
     validated_leads = []
     for proto in ll_data:
         gecko_id = proto.get('gecko_id')
+        
+        # Filter 1: Must exist in the strict CoinGecko target list
         if not gecko_id or gecko_id not in valid_cg_ids:
             continue
             
         name = proto.get('name', '')
         name_lower = name.lower()
         
+        # Filter 2: Blocklist Check
         if any(blocked in name_lower for blocked in ZOMBIE_BLOCKLIST):
             continue
             
+        # Filter 3: Category Check
         category = proto.get('category', '')
         if category not in TARGET_CATEGORIES_LL:
             continue
             
+        # Filter 4: Strict DefiLlama Chain Check
+        chains = proto.get('chains', [])
+        has_target_ll = any(chain in TARGET_CHAINS_LL for chain in chains)
+        has_blocked_ll = any(chain in BLOCKED_CHAINS_LL for chain in chains)
+        
+        if not has_target_ll or has_blocked_ll:
+            continue
+            
+        # Filter 5: Must have native website and Twitter
         website = proto.get('url', '')
         twitter = proto.get('twitter', '')
         if not website or not str(website).startswith('http') or not twitter:
             continue
             
+        # Filter 6: Size Check ($500k - $15M MCAP, or $250k - $20M TVL fallback)
         mcap = proto.get('mcap')
         tvl = proto.get('tvl', 0)
         is_valid_size = False
@@ -92,9 +120,10 @@ def fetch_and_intersect_datasets():
             'github_repos': proto.get('github', []) 
         })
 
-    print(f"    Intersection Complete: {len(validated_leads)} baseline leads found.")
+    print(f"    Intersection Complete: {len(validated_leads)} strictly filtered baseline leads found.")
     return validated_leads
 
+# --- MODULE 2: GITHUB ACTIVE BUILDER VALIDATION ---
 def validate_active_builders(leads):
     print("\n=== MODULE 2: GITHUB ACTIVE BUILDER VALIDATION ===")
     active_leads = []
@@ -182,7 +211,6 @@ def validate_active_builders(leads):
                         repo_desc = (top_repo.get('description') or '').lower()
                         lead_name_lower = lead['name'].lower()
                         
-                        # Verify the repo is actually related to the project
                         if lead_name_lower in repo_name or lead_name_lower in repo_desc or org_name.lower() in repo_name:
                             print(f"    [PASS] Active repo found in org: {top_repo['html_url']} (Last push: {top_repo['pushed_at'][:10]})")
                             lead['github_repo'] = top_repo['html_url']
@@ -204,6 +232,7 @@ def validate_active_builders(leads):
     print(f"\n    Validation Complete: {len(active_leads)} actively building teams verified.")
     return active_leads
 
+# --- MODULE 3: DELIVERY & STATE UPDATE ---
 def generate_personalized_dm(lead):
     name = lead['name']
     category = lead['category']
@@ -269,7 +298,7 @@ def deliver_leads(leads):
 
 # === MAIN EXECUTION ===
 if __name__ == "__main__":
-    print("=== STARTING ACTIVE BUILDER INTERSECTION PIPELINE ===")
+    print("=== STARTING STRICT CHAIN ACTIVE BUILDER PIPELINE ===")
     baseline_leads = fetch_and_intersect_datasets()
     if baseline_leads:
         active_leads = validate_active_builders(baseline_leads)
