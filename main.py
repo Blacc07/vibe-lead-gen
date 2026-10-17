@@ -66,13 +66,11 @@ def fetch_and_intersect_datasets():
         if category not in TARGET_CATEGORIES_LL:
             continue
             
-        # Must have native website and Twitter in DefiLlama
         website = proto.get('url', '')
         twitter = proto.get('twitter', '')
         if not website or not str(website).startswith('http') or not twitter:
             continue
             
-        # Size Check: $500k - $15M MCAP (or $250k - $20M TVL if MCAP is missing)
         mcap = proto.get('mcap')
         tvl = proto.get('tvl', 0)
         is_valid_size = False
@@ -85,7 +83,6 @@ def fetch_and_intersect_datasets():
         if not is_valid_size:
             continue
             
-        # UPDATED: Capture official GitHub repositories from DefiLlama
         validated_leads.append({
             'name': name,
             'category': category,
@@ -102,7 +99,6 @@ def validate_active_builders(leads):
     print("\n=== MODULE 2: GITHUB ACTIVE BUILDER VALIDATION ===")
     active_leads = []
     
-    # Calculate the date 60 days ago (Python 3.12+ compatible)
     cutoff_date = (datetime.now(timezone.utc) - timedelta(days=60)).strftime('%Y-%m-%d')
     
     for lead in leads:
@@ -113,54 +109,95 @@ def validate_active_builders(leads):
         print(f"  Checking official GitHub activity for {lead['name']}...")
         
         github_repos = lead.get('github_repos', [])
-        
         if not github_repos:
             print(f"    [DROP] No official GitHub repository listed in DefiLlama.")
             continue
             
-        # Check the first official repo listed
-        official_repo_url = github_repos[0]
-        
-        # Extract owner and repo name from the URL (e.g., "https://github.com/owner/repo" -> "owner/repo")
-        try:
-            url_parts = official_repo_url.rstrip('/').split('/')
-            owner = url_parts[-2]
-            repo = url_parts[-1]
-        except IndexError:
-            print(f"    [DROP] Invalid GitHub URL format: {official_repo_url}")
-            continue
-            
-        # Query the specific, official repository
-        api_url = f"https://api.github.com/repos/{owner}/{repo}"
+        official_repo_str = str(github_repos[0]).strip()
         
         try:
-            # Respect GitHub's unauthenticated rate limit (60 req/hour). 
-            # 7 seconds sleep guarantees we stay well under any burst limits.
-            time.sleep(7) 
+            time.sleep(7) # Respect GitHub's unauthenticated rate limit
             
             headers = {'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'Vibe-BD-Pipeline'}
-            resp = requests.get(api_url, headers=headers, timeout=15)
             
-            if resp.status_code == 200:
-                repo_data = resp.json()
-                last_push = repo_data.get('pushed_at', '')
+            # Scenario 1: Full URL (e.g., "https://github.com/owner/repo")
+            if official_repo_str.startswith('https://github.com/'):
+                parts = official_repo_str.rstrip('/').split('/')
+                if len(parts) >= 2:
+                    owner, repo = parts[-2], parts[-1]
+                    api_url = f"https://api.github.com/repos/{owner}/{repo}"
+                    resp = requests.get(api_url, headers=headers, timeout=15)
+                    
+                    if resp.status_code == 200:
+                        repo_data = resp.json()
+                        last_push = repo_data.get('pushed_at', '')
+                        if last_push and last_push[:10] >= cutoff_date:
+                            print(f"    [PASS] Official repo active: {official_repo_str} (Last push: {last_push[:10]})")
+                            lead['github_repo'] = official_repo_str
+                            lead['last_push'] = last_push[:10]
+                            active_leads.append(lead)
+                        else:
+                            print(f"    [DROP] Official repo exists, but inactive since {last_push[:10]}.")
+                    elif resp.status_code == 404:
+                        print(f"    [DROP] Official GitHub repo not found (404).")
+                    else:
+                        print(f"    [ERROR] GitHub API returned {resp.status_code}.")
+                        
+            # Scenario 2: Specific Repo String (e.g., "owner/repo")
+            elif '/' in official_repo_str:
+                owner, repo = official_repo_str.split('/', 1)
+                api_url = f"https://api.github.com/repos/{owner}/{repo}"
+                resp = requests.get(api_url, headers=headers, timeout=15)
                 
-                # Check if the last push is newer than our cutoff date
-                if last_push and last_push[:10] >= cutoff_date:
-                    print(f"    [PASS] Official repo active: {official_repo_url} (Last push: {last_push[:10]})")
-                    lead['github_repo'] = official_repo_url
-                    lead['last_push'] = last_push[:10]
-                    active_leads.append(lead)
+                if resp.status_code == 200:
+                    repo_data = resp.json()
+                    last_push = repo_data.get('pushed_at', '')
+                    if last_push and last_push[:10] >= cutoff_date:
+                        print(f"    [PASS] Official repo active: {official_repo_str} (Last push: {last_push[:10]})")
+                        lead['github_repo'] = f"https://github.com/{owner}/{repo}"
+                        lead['last_push'] = last_push[:10]
+                        active_leads.append(lead)
+                    else:
+                        print(f"    [DROP] Official repo exists, but inactive since {last_push[:10]}.")
+                elif resp.status_code == 404:
+                    print(f"    [DROP] Official GitHub repo not found (404).")
                 else:
-                    print(f"    [DROP] Official repo exists, but inactive since {last_push[:10]}.")
-            elif resp.status_code == 404:
-                print(f"    [DROP] Official GitHub repo not found (404).")
-            elif resp.status_code == 403:
-                print(f"    [WARN] GitHub rate limit hit. Stopping validation early.")
-                break
+                    print(f"    [ERROR] GitHub API returned {resp.status_code}.")
+                    
+            # Scenario 3: Organization Name Only (e.g., "aurafinance")
             else:
-                print(f"    [ERROR] GitHub API returned {resp.status_code}. Skipping.")
+                org_name = official_repo_str
+                search_query = f"org:{org_name} pushed:>{cutoff_date}"
+                search_url = f"https://api.github.com/search/repositories?q={search_query.replace(' ', '+')}&sort=updated&order=desc"
                 
+                resp = requests.get(search_url, headers=headers, timeout=15)
+                
+                if resp.status_code == 200:
+                    data = resp.json()
+                    total_repos = data.get('total_count', 0)
+                    
+                    if total_repos > 0:
+                        top_repo = data['items'][0]
+                        repo_name = top_repo.get('name', '').lower()
+                        repo_desc = (top_repo.get('description') or '').lower()
+                        lead_name_lower = lead['name'].lower()
+                        
+                        # Verify the repo is actually related to the project
+                        if lead_name_lower in repo_name or lead_name_lower in repo_desc or org_name.lower() in repo_name:
+                            print(f"    [PASS] Active repo found in org: {top_repo['html_url']} (Last push: {top_repo['pushed_at'][:10]})")
+                            lead['github_repo'] = top_repo['html_url']
+                            lead['last_push'] = top_repo['pushed_at'][:10]
+                            active_leads.append(lead)
+                        else:
+                            print(f"    [DROP] Org has recent activity, but no repo clearly matches {lead['name']}.")
+                    else:
+                        print(f"    [DROP] No recent GitHub activity found for org: {org_name}.")
+                elif resp.status_code == 403:
+                    print(f"    [WARN] GitHub rate limit hit. Stopping validation early.")
+                    break
+                else:
+                    print(f"    [ERROR] GitHub Search API returned {resp.status_code}.")
+                    
         except Exception as e:
             print(f"    [ERROR] GitHub check failed for {lead['name']}: {e}")
 
@@ -210,7 +247,6 @@ def deliver_leads(leads):
             f"```\n{dm_text}\n```"
         )
         
-        # Actual Telegram Delivery
         tg_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
         payload = {"chat_id": TELEGRAM_CHAT_ID, "text": telegram_message, "parse_mode": "Markdown"}
         
@@ -225,7 +261,6 @@ def deliver_leads(leads):
             
         newly_processed.append(lead['gecko_id'])
 
-    # Update database
     processed_ids.update(newly_processed)
     with open(STATE_FILE, 'w') as f:
         json.dump(list(processed_ids), f, indent=2)
