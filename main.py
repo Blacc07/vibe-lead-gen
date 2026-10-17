@@ -1,354 +1,230 @@
 import os
 import json
 import requests
-import re
 import time
-from bs4 import BeautifulSoup
+import re
+from datetime import datetime, timezone, timedelta
 
 # --- CONFIGURATION ---
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 STATE_FILE = "processed_leads.json"
 
-TARGET_CHAINS = ['solana', 'base', 'binance', 'bsc', 'bnb']
-CEX_BLOCKLIST = ["coinbase.com", "robinhood.com", "binance.com", "kraken.com", "okx.com", "bybit.com", "tokenize", "tokenized"]
-MEME_PATTERNS = [re.compile(r'\b(pepe|doge|shib|inu|floki|bonk|wojak|pump|moon|safe)\b', re.IGNORECASE)]
+TARGET_CHAINS_CG = ['solana', 'base', 'binance-smart-chain'] 
+TARGET_CATEGORIES_LL = ['Dexes', 'Yield', 'RWA', 'Gaming', 'Infrastructure', 'Services']
+ZOMBIE_BLOCKLIST = [
+    "coinbase", "robinhood", "binance", "kraken", "okx", "bybit", 
+    "serum", "belt", "qi", "hakka", "wagmi", "olympus", "wonderland", 
+    "iron", "safemoon", "squid", "terra", "tokenized", "wrapped"
+]
 
 TARGET_QUOTA = 5
 
-def load_processed_websites():
-    if os.path.exists(STATE_FILE):
-        try:
-            with open(STATE_FILE, "r") as f:
-                return set(json.load(f))
-        except (json.JSONDecodeError, FileNotFoundError):
-            return set()
-    return set()
-
-def save_processed_websites(websites_set):
-    # Always save, even if empty, to prevent git crashes
-    with open(STATE_FILE, "w") as f:
-        json.dump(list(websites_set), f, indent=2)
-
-def fetch_with_retry(url, max_retries=3):
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
-    for attempt in range(max_retries):
-        try:
-            response = requests.get(url, headers=headers, timeout=15)
-            if response.status_code == 200:
-                return response.json()
-            elif response.status_code == 429:
-                time.sleep(60 * (attempt + 1))
-            else:
-                return None
-        except requests.exceptions.RequestException:
-            time.sleep(5)
-    return None
-
-# --- MODULE 1: Ecosystem Directories ---
-def fetch_ecosystem_directories():
-    print("  [SOURCE 1] Fetching Ecosystem Directories...", flush=True)
-    ecosystem_leads = []
+def fetch_and_intersect_datasets():
+    print("=== MODULE 1: DATA INTERSECTION ===")
     
-    # [NEEDS VERIFICATION]: Engineer must find the actual XHR/JSON endpoint via Chrome DevTools
-    sources = [
-        {
-            'name': 'Base Ecosystem',
-            'url': 'https://www.base.org/ecosystem-fund?_rsc=f3Thn-3X2L3XeD6R',
-            'chain': 'Base',
-            'data_key': 'apps',
-            'name_key': 'name',
-            'url_key': 'url'
-        },
-        {
-            'name': 'Binance MVB',
-            'url': 'https://www.binance.com/bapi/apex/v1/friendly/apex/web/launchpool/holder/project?pageIndex=1&pageSize=20',
-            'chain': 'Binance',
-            'data_key': 'projects',
-            'name_key': 'name',
-            'url_key': 'website'
-        }
-    ]
-    
-    for src in sources:
-        try:
-            data = fetch_with_retry(src['url'])
-            if data and isinstance(data, dict):
-                items = data.get(src['data_key'], [])
-                if isinstance(items, list):
-                    for proj in items:
-                        name = proj.get(src['name_key'], '')
-                        website = proj.get(src['url_key'], '')
-                        if name and website:
-                            ecosystem_leads.append({
-                                'name': name.strip(),
-                                'website': website.strip(),
-                                'source': src['name'],
-                                'chain': src['chain']
-                            })
-        except Exception as e:
-            print(f"    [ERROR] {src['name']} fetch failed: {e}", flush=True)
-            
-    print(f"    Found {len(ecosystem_leads)} projects from Ecosystem Directories.", flush=True)
-    return ecosystem_leads
-
-# --- MODULE 2: Mid-Tier Launchpads ---
-def fetch_launchpad_graduates():
-    print("  [SOURCE 2] Fetching Launchpad Graduates...", flush=True)
-    launchpad_leads = []
-    
-    # [NEEDS VERIFICATION]: Engineer must find the actual XHR/JSON endpoint via Chrome DevTools
-    sources = [
-        {
-            'name': 'Polkastarter',
-            'url': 'https://launchpad.polkastarter.com/v3/projects?status=finalized&view=metrics&search=&page=1&sort_direction=desc&sort_by=finalized_at&per_page=15&order=finalized_at&sort=desc',
-            'data_key': 'pools',
-            'name_key': 'projectName',
-            'url_key': 'projectWebsite'
-        },
-        {
-            'name': 'ChainGPT Pad',
-            'url': 'https://padapi.chaingpt.org/pools/v3/complete-sale-pools-details',
-            'data_key': 'launches',
-            'name_key': 'name',
-            'url_key': 'websiteUrl'
-        },
-        {
-            'name': 'Legion',
-            'url': 'https://api.legion.cc/sales/past?limit=100', 
-            'data_key': 'projects',
-            'name_key': 'name',
-            'url_key': 'website'
-        },
-        {
-            'name': 'Jupiter Studio',
-            'url': ' https://datapi.jup.ag/v2/search?query=&tokenExactCaseInsensitive=false&tokenVerified=false&includeStocks=true', 
-            'data_key': 'projects',
-            'name_key': 'name',
-            'url_key': 'website'
-        }
-    ]
-    
-    for src in sources:
-        try:
-            data = fetch_with_retry(src['url'])
-            if data and isinstance(data, dict):
-                items = data.get(src['data_key'], [])
-                if isinstance(items, list):
-                    for proj in items:
-                        name = proj.get(src['name_key'], '')
-                        website = proj.get(src['url_key'], '')
-                        if name and website:
-                            launchpad_leads.append({
-                                'name': name.strip(),
-                                'website': website.strip(),
-                                'source': src['name'],
-                                'chain': 'Multi-chain (Verify in Module 3)'
-                            })
-            time.sleep(2) # Polite delay
-        except Exception as e:
-            print(f"    [ERROR] {src['name']} fetch failed: {e}", flush=True)
-            
-    print(f"    Found {len(launchpad_leads)} projects from Launchpads.", flush=True)
-    return launchpad_leads
-
-# --- MODULE 3 HELPERS ---
-def verify_chain_via_defillama(project_name):
-    """Checks if a project is officially tracked on Solana, Base, or Binance by DefiLlama."""
+    # STEP A: CoinGecko Master List (Chain Verification)
+    print("  [1/2] Fetching CoinGecko Master List...")
     try:
-        # DefiLlama protocols list is cached by their CDN, very fast
-        resp = requests.get("https://api.llama.fi/protocols", timeout=15)
-        if resp.status_code == 200:
-            protocols = resp.json()
-            name_lower = project_name.lower()
-            
-            for proto in protocols:
-                proto_name = proto.get('name', '').lower()
-                proto_symbol = proto.get('symbol', '').lower()
-                
-                # Fuzzy match
-                if name_lower in proto_name or proto_name in name_lower or proto_symbol == name_lower:
-                    chains = [c.lower() for c in proto.get('chains', [])]
-                    if any(target in chains for target in TARGET_CHAINS):
-                        return True
-            return False
-    except Exception:
-        return False # Fail open to avoid blocking on temporary DL outage, but log it
-    return False
-
-def extract_socials(website_url, project_name):
-    """Scrapes website for socials, falls back to CoinGecko search."""
-    twitter, telegram = "Not Found", "Not Found"
-    
-    # 1. Try Website Scraping
-    try:
-        resp = requests.get(website_url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
-        resp.raise_for_status()
-        soup = BeautifulSoup(resp.text, 'html.parser')
+        cg_resp = requests.get("https://api.coingecko.com/api/v3/coins/list?include_platform=true", timeout=30)
+        cg_resp.raise_for_status()
+        cg_data = cg_resp.json()
         
-        tw = soup.find('a', href=re.compile(r'(twitter\.com|x\.com)/[a-zA-Z0-9_]{1,15}', re.IGNORECASE))
-        if tw:
-            match = re.search(r'(?:twitter\.com|x\.com)/([a-zA-Z0-9_]{1,15})', tw['href'], re.IGNORECASE)
-            if match: twitter = f"@{match.group(1)}"
-            
-        tg = soup.find('a', href=re.compile(r'(t\.me|telegram\.me)/[a-zA-Z0-9_]{5,32}', re.IGNORECASE))
-        if tg:
-            match = re.search(r'(?:t\.me|telegram\.me)/([a-zA-Z0-9_]{5,32})', tg['href'], re.IGNORECASE)
-            if match: telegram = f"@{match.group(1)}"
-    except Exception:
-        pass
+        valid_cg_ids = set()
+        for coin in cg_data:
+            platforms = coin.get('platforms', {})
+            if any(chain in platforms for chain in TARGET_CHAINS_CG):
+                valid_cg_ids.add(coin['id'])
+        print(f"    Found {len(valid_cg_ids)} coins deployed on target chains.")
+    except Exception as e:
+        print(f"    [ERROR] CoinGecko fetch failed: {e}")
+        return []
 
-    # 2. Fallback to CoinGecko if website scraping failed
-    if twitter == "Not Found" or telegram == "Not Found":
-        try:
-            search_url = f"https://api.coingecko.com/api/v3/search?query={project_name.replace(' ', '%20')}"
-            resp = requests.get(search_url, timeout=10)
-            if resp.status_code == 200:
-                coins = resp.json().get('coins', [])
-                for coin in coins[:3]: # Check top 3 matches
-                    detail_url = f"https://api.coingecko.com/api/v3/coins/{coin.get('id')}"
-                    detail_resp = requests.get(detail_url, timeout=10)
-                    if detail_resp.status_code == 200:
-                        links = detail_resp.json().get('links', {})
-                        if twitter == "Not Found" and links.get('twitter_screen_name'):
-                            twitter = f"@{links.get('twitter_screen_name')}"
-                        if telegram == "Not Found" and links.get('telegram_channel_identifier'):
-                            telegram = f"@{links.get('telegram_channel_identifier')}"
-                        if twitter != "Not Found" or telegram != "Not Found":
-                            break
-        except Exception:
-            pass
-            
-    return twitter, telegram
+    # STEP B: DefiLlama Master List (Metadata & Financials)
+    print("  [2/2] Fetching DefiLlama Protocol Directory...")
+    try:
+        ll_resp = requests.get("https://api.llama.fi/protocols", timeout=30)
+        ll_resp.raise_for_status()
+        ll_data = ll_resp.json()
+    except Exception as e:
+        print(f"    [ERROR] DefiLlama fetch failed: {e}")
+        return []
 
-# --- MODULE 3 MAIN: Unifier & Filter ---
-def run_unified_pipeline():
-    print("\n=== RUNNING UNIFIED PIPELINE ===", flush=True)
-    ecosystems = fetch_ecosystem_directories()
-    launchpads = fetch_launchpad_graduates()
-    
-    all_raw_leads = ecosystems + launchpads
-    print(f"  [UNIFIER] Raw pool size: {len(all_raw_leads)} projects.", flush=True)
-    
-    # Deduplicate by Website URL
-    seen_websites = set()
-    unique_leads = []
-    for lead in all_raw_leads:
-        website = lead.get('website', '').strip().lower()
-        if website and website not in seen_websites:
-            seen_websites.add(website)
-            unique_leads.append(lead)
-            
+    # STEP C: Intersect and Filter
     validated_leads = []
-    processed_websites = load_processed_websites()
-    
-    for lead in unique_leads:
-        if len(validated_leads) >= TARGET_QUOTA:
-            print(f"  [QUOTA MET] Found {TARGET_QUOTA} leads. Stopping.", flush=True)
-            break
+    for proto in ll_data:
+        gecko_id = proto.get('gecko_id')
+        if not gecko_id or gecko_id not in valid_cg_ids:
+            continue
             
-        name_lower = lead['name'].lower()
-        website_lower = lead['website'].lower()
+        name = proto.get('name', '')
+        name_lower = name.lower()
         
-        # Filter A: CEX/Tokenized domains
-        if any(cex in website_lower for cex in CEX_BLOCKLIST):
+        if any(blocked in name_lower for blocked in ZOMBIE_BLOCKLIST):
             continue
             
-        # Filter B: Memecoins
-        if any(re.search(pattern, name_lower) for pattern in MEME_PATTERNS):
+        category = proto.get('category', '')
+        if category not in TARGET_CATEGORIES_LL:
             continue
             
-        # Filter C: Chain Verification
-        chain_verified = False
-        if lead['chain'] != 'Multi-chain (Verify in Module 3)':
-            chain_verified = True
-        else:
-            chain_verified = verify_chain_via_defillama(lead['name'])
-            
-        if not chain_verified:
+        # Must have native website and Twitter in DefiLlama
+        website = proto.get('url', '')
+        twitter = proto.get('twitter', '')
+        if not website or not str(website).startswith('http') or not twitter:
             continue
             
-        # Filter D: Already processed
-        if website_lower in processed_websites:
+        # Size Check: $500k - $15M MCAP (or $250k - $20M TVL if MCAP is missing)
+        mcap = proto.get('mcap')
+        tvl = proto.get('tvl', 0)
+        is_valid_size = False
+        
+        if mcap and 500_000 <= float(mcap) <= 15_000_000:
+            is_valid_size = True
+        elif tvl and 250_000 <= float(tvl) <= 20_000_000:
+            is_valid_size = True
+            
+        if not is_valid_size:
             continue
             
-        # Filter E: Extract Socials
-        twitter, telegram = extract_socials(lead['website'], lead['name'])
-        if twitter == "Not Found" and telegram == "Not Found":
-            continue
-            
-        lead['twitter'] = twitter
-        lead['telegram'] = telegram
-        validated_leads.append(lead)
-        processed_websites.add(website_lower)
-        print(f"  [PASS] {lead['name']} ({lead['source']})", flush=True)
+        validated_leads.append({
+            'name': name,
+            'category': category,
+            'website': website,
+            'twitter': f"@{twitter}",
+            'gecko_id': gecko_id
+        })
 
-    save_processed_websites(processed_websites)
-    print(f"  [FILTER] {len(validated_leads)} leads passed strict ICP filters.", flush=True)
+    print(f"    Intersection Complete: {len(validated_leads)} baseline leads found.")
     return validated_leads
 
-# --- OUTPUT: Dynamic Outreach (Launchpad/Grant Focused) ---
+def validate_active_builders(leads):
+    print("\n=== MODULE 2: GITHUB ACTIVE BUILDER VALIDATION ===")
+    active_leads = []
+    
+    # Calculate the date 60 days ago (Python 3.12+ compatible)
+    cutoff_date = (datetime.now(timezone.utc) - timedelta(days=60)).strftime('%Y-%m-%d')
+    
+    for lead in leads:
+        if len(active_leads) >= TARGET_QUOTA:
+            print(f"  [QUOTA MET] Found {TARGET_QUOTA} verified leads. Stopping GitHub checks.")
+            break
+            
+        print(f"  Checking GitHub activity for {lead['name']}...")
+        
+        query = f"{lead['name']} pushed:>{cutoff_date}"
+        url = f"https://api.github.com/search/repositories?q={query.replace(' ', '+')}&sort=updated&order=desc"
+        
+        try:
+            # GitHub unauthenticated rate limit is 10 requests per minute. 
+            # 7 seconds sleep guarantees we stay under the limit (8.5 req/min).
+            time.sleep(7) 
+            
+            headers = {'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'Vibe-BD-Pipeline'}
+            resp = requests.get(url, headers=headers, timeout=15)
+            
+            if resp.status_code == 200:
+                data = resp.json()
+                total_repos = data.get('total_count', 0)
+                
+                if total_repos > 0:
+                    top_repo = data['items'][0]
+                    repo_name = top_repo.get('name', '').lower()
+                    repo_desc = (top_repo.get('description') or '').lower()
+                    lead_name_lower = lead['name'].lower()
+                    
+                    # Basic name match validation to prevent false positives on generic names
+                    if lead_name_lower in repo_name or lead_name_lower in repo_desc:
+                        print(f"    [PASS] Active repo found: {top_repo['html_url']} (Last push: {top_repo['pushed_at'][:10]})")
+                        lead['github_repo'] = top_repo['html_url']
+                        lead['last_push'] = top_repo['pushed_at']
+                        active_leads.append(lead)
+                    else:
+                        print(f"    [DROP] GitHub repos found, but none clearly match {lead['name']}.")
+                else:
+                    print(f"    [DROP] No GitHub activity found in the last 60 days.")
+            elif resp.status_code == 403:
+                print(f"    [WARN] GitHub rate limit hit. Stopping validation early.")
+                break
+            else:
+                print(f"    [ERROR] GitHub API returned {resp.status_code}. Skipping.")
+                
+        except Exception as e:
+            print(f"    [ERROR] GitHub check failed for {lead['name']}: {e}")
+
+    print(f"\n    Validation Complete: {len(active_leads)} actively building teams verified.")
+    return active_leads
+
 def generate_personalized_dm(lead):
     name = lead['name']
-    chains = lead['chain'] if lead['chain'] != 'Multi-chain (Verify in Module 3)' else 'multiple chains'
+    category = lead['category']
     
-    # Using "Engagement Catalyst" / "Idle Asset" angle as DEX volume is not the primary metric here
     template = (
-        f"Hey team, huge fan of {name}'s progression since your {lead['source']} milestone.\n\n"
-        f"Post-launch, managing treasury exposure and driving sustained trading volume are the biggest hurdles for builders on {chains}. We built Vibe Trading to solve this:\n"
-        f"• **The Solution:** List a perp on Vibe for $0 USDC. Deposit idle treasury tokens to our vault to back the Open Interest.\n"
-        f"• **The Result:** You capture perpetual trading fees to fund operations and deepen liquidity, without diluting your spot holders or selling on the open market.\n\n"
-        f"Are you currently exploring any derivative or liquidity-management integrations for {name}?"
+        f"Hey team, huge fan of what you're building with {name} in the {category} space.\n\n"
+        f"Saw the recent GitHub activity—looks like you guys are shipping. Quick question: are you currently capturing any derivative volume for your token, or is that liquidity leaking to CEXs?\n\n"
+        f"We built Vibe Trading to help protocols like yours capture that value:\n"
+        f"• **The Solution:** List a native perp on Vibe for $0 USDC. Deposit idle treasury tokens to our vault to back the Open Interest.\n"
+        f"• **The Result:** You earn perpetual trading fees to fund operations without selling a single token on the spot market.\n\n"
+        f"Mind if I send over a quick 1-pager on how the vault mechanics work?"
     )
     return template
 
-def send_telegram_message(lead):
-    dm_text = generate_personalized_dm(lead)
-    twitter_display = lead['twitter'] if lead['twitter'] != "Not Found" else 'N/A'
-    telegram_display = lead['telegram'] if lead['telegram'] != "Not Found" else 'N/A'
-    
-    telegram_message = (
-        f"🎯 *NEW CURATED LEAD ({lead['source']})*\n\n"
-        f"📛 *Project:* {lead['name']}\n"
-        f"⛓️ *Chain:* {lead['chain'].upper() if lead['chain'] != 'Multi-chain (Verify in Module 3)' else 'VERIFIED TARGET CHAIN'}\n"
-        f"🔗 *Website:* {lead['website']}\n"
-        f"🐦 *Twitter:* {twitter_display}\n"
-        f"✈️ *Telegram:* {telegram_display}\n\n"
-        f"📝 *READY-TO-SEND DM:*\n"
-        f"```\n{dm_text}\n```"
-    )
-    
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": telegram_message, "parse_mode": "Markdown"}
+def deliver_leads(leads):
+    print("\n=== MODULE 3: DELIVERY & STATE UPDATE ===")
     
     try:
-        requests.post(url, json=payload, timeout=10)
-        print(f"  [TELEGRAM] ✅ Sent sales dossier for {lead['name']}", flush=True)
-    except Exception as e:
-        print(f"  [TELEGRAM] ❌ Failed to send: {e}", flush=True)
+        with open(STATE_FILE, 'r') as f:
+            processed_ids = set(json.load(f))
+    except (FileNotFoundError, json.JSONDecodeError):
+        processed_ids = set()
 
-# --- MAIN EXECUTION ---
-def main():
-    print("=== STARTING 7-SOURCE UNIFIED PIPELINE ===", flush=True)
-    try:
-        # Ensure state file exists to prevent git crashes on early exit
-        save_processed_websites(load_processed_websites())
-        
-        validated_leads = run_unified_pipeline()
-        if not validated_leads:
-            print("Exiting: No leads passed the unified filters.", flush=True)
-            return
+    newly_processed = []
+    
+    for lead in leads:
+        if lead['gecko_id'] in processed_ids:
+            continue
             
-        print(f"\n=== DELIVERY ===", flush=True)
-        for lead in validated_leads:
-            send_telegram_message(lead)
-            
-        print(f"\n=== PIPELINE FINISHED SUCCESSFULLY ===", flush=True)
-        print(f"Sent {len(validated_leads)} curated leads.", flush=True)
+        dm_text = generate_personalized_dm(lead)
         
-    except Exception as e:
-        print(f"❌ CRITICAL ERROR: {e}", flush=True)
-        raise
+        telegram_message = (
+            f"🎯 *NEW VERIFIED LEAD*\n\n"
+            f"📛 **Project:** {lead['name']}\n"
+            f"📂 **Category:** {lead['category']}\n"
+            f"🔗 **Website:** {lead['website']}\n"
+            f"🐦 **Twitter:** {lead['twitter']}\n"
+            f"💻 **GitHub:** {lead['github_repo']}\n"
+            f"📅 **Last Commit:** {lead['last_push'][:10]}\n\n"
+            f"📝 *READY-TO-SEND DM:*\n"
+            f"```\n{dm_text}\n```"
+        )
+        
+        # Actual Telegram Delivery
+        tg_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+        payload = {"chat_id": TELEGRAM_CHAT_ID, "text": telegram_message, "parse_mode": "Markdown"}
+        
+        try:
+            tg_resp = requests.post(tg_url, json=payload, timeout=10)
+            if tg_resp.status_code == 200:
+                print(f"  [TELEGRAM] ✅ Sent outreach for {lead['name']}")
+            else:
+                print(f"  [TELEGRAM] ❌ Failed to send for {lead['name']}: {tg_resp.text}")
+        except Exception as e:
+            print(f"  [TELEGRAM] ❌ Network error sending for {lead['name']}: {e}")
+            
+        newly_processed.append(lead['gecko_id'])
 
+    # Update database
+    processed_ids.update(newly_processed)
+    with open(STATE_FILE, 'w') as f:
+        json.dump(list(processed_ids), f, indent=2)
+        
+    print(f"\nPipeline Finished. {len(newly_processed)} new leads processed and saved.")
+
+# === MAIN EXECUTION ===
 if __name__ == "__main__":
-    main()
+    print("=== STARTING ACTIVE BUILDER INTERSECTION PIPELINE ===")
+    baseline_leads = fetch_and_intersect_datasets()
+    if baseline_leads:
+        active_leads = validate_active_builders(baseline_leads)
+        if active_leads:
+            deliver_leads(active_leads)
+    print("=== PIPELINE COMPLETE ===")
