@@ -16,9 +16,11 @@ BLOCKED_CHAINS_CG = ['ethereum', 'optimistic-ethereum', 'arbitrum-one', 'polygon
 TARGET_CHAINS_LL = ['Solana', 'Base', 'Binance'] 
 BLOCKED_CHAINS_LL = ['Ethereum', 'Arbitrum', 'Optimism', 'Polygon', 'Avalanche']
 
+# EXPANDED: Added high-value DeFi categories to increase the baseline pool
 TARGET_CATEGORIES_LL = [
-    'Dexes', 'Yield', 'RWA', 'Gaming', 'Infrastructure', 'Services', 
-    'Liquid Staking', 'Derivatives', 'CDP', 'Lending'
+    'Dexes', 'Yield', 'RWA', 'Gaming', 'Infrastructure', 'Services',
+    'Lending', 'Liquid Staking', 'CDP', 'Derivatives', 'Yield Aggregator', 
+    'Indexes', 'Options', 'Prediction Market'
 ]
 
 ZOMBIE_BLOCKLIST = [
@@ -27,13 +29,13 @@ ZOMBIE_BLOCKLIST = [
     "iron", "safemoon", "squid", "terra", "tokenized", "wrapped"
 ]
 
+# QUOTA: 5 leads per run. At 4 runs/day, this yields 20 leads/day.
 TARGET_QUOTA = 5
 
 # --- MODULE 1: STRICT DATA INTERSECTION ---
 def fetch_and_intersect_datasets():
     print("=== MODULE 1: STRICT DATA INTERSECTION ===")
     
-    # STEP A: CoinGecko Master List (Strict Chain Verification)
     print("  [1/2] Fetching CoinGecko Master List...")
     try:
         cg_resp = requests.get("https://api.coingecko.com/api/v3/coins/list?include_platform=true", timeout=30)
@@ -56,7 +58,6 @@ def fetch_and_intersect_datasets():
         print(f"    [ERROR] CoinGecko fetch failed: {e}")
         return []
 
-    # STEP B: DefiLlama Master List (Strict Chain & Metadata Verification)
     print("  [2/2] Fetching DefiLlama Protocol Directory...")
     try:
         ll_resp = requests.get("https://api.llama.fi/protocols", timeout=30)
@@ -66,7 +67,6 @@ def fetch_and_intersect_datasets():
         print(f"    [ERROR] DefiLlama fetch failed: {e}")
         return []
 
-    # STEP C: Intersect and Filter
     validated_leads = []
     for proto in ll_data:
         gecko_id = proto.get('gecko_id')
@@ -92,16 +92,19 @@ def fetch_and_intersect_datasets():
             
         website = proto.get('url', '')
         twitter = proto.get('twitter', '')
-        if not website or not str(website).startswith('http') or not twitter:
+        
+        # RELAXED: Twitter is no longer a hard blocker. Valid website is mandatory.
+        if not website or not str(website).startswith('http'):
             continue
             
         mcap = proto.get('mcap')
         tvl = proto.get('tvl', 0)
         is_valid_size = False
         
-        if mcap and 500_000 <= float(mcap) <= 15_000_000:
+        # EXPANDED: MCAP cap to $30M, TVL cap to $50M
+        if mcap and 500_000 <= float(mcap) <= 30_000_000:
             is_valid_size = True
-        elif tvl and 250_000 <= float(tvl) <= 20_000_000:
+        elif tvl and 250_000 <= float(tvl) <= 50_000_000:
             is_valid_size = True
             
         if not is_valid_size:
@@ -110,9 +113,9 @@ def fetch_and_intersect_datasets():
         validated_leads.append({
             'name': name,
             'category': category,
-            'chains': chains, # Added for Telegram visibility
+            'chains': chains,
             'website': website,
-            'twitter': f"@{twitter}",
+            'twitter': f"@{twitter}" if twitter else "Not Found",
             'gecko_id': gecko_id,
             'github_repos': proto.get('github', []) 
         })
@@ -125,12 +128,12 @@ def validate_active_builders(leads):
     print("\n=== MODULE 2: GITHUB ACTIVE BUILDER VALIDATION ===")
     active_leads = []
     
-    # Calculate the date 60 days ago (Python 3.12+ compatible)
     cutoff_date = (datetime.now(timezone.utc) - timedelta(days=60)).strftime('%Y-%m-%d')
     
     for lead in leads:
+        # QUOTA CHECK: Stop at 5 leads per run
         if len(active_leads) >= TARGET_QUOTA:
-            print(f"  [QUOTA MET] Found {TARGET_QUOTA} verified leads. Stopping GitHub checks.")
+            print(f"  [QUOTA MET] Found {TARGET_QUOTA} verified leads for this run. Stopping GitHub checks.")
             break
             
         print(f"  Checking GitHub activity for {lead['name']}...")
@@ -138,17 +141,14 @@ def validate_active_builders(leads):
         github_repos = lead.get('github_repos', [])
         
         if not github_repos:
-            # SOFT FILTER: If no official repo is listed, do NOT drop.
             print(f"    [WARNING] No official GitHub repository listed in DefiLlama. Proceeding with caution.")
             lead['github_repo'] = "Unverified (Not listed in DefiLlama)"
             lead['last_push'] = "N/A"
             active_leads.append(lead)
             continue
             
-        # We only need to check the first official repo listed
         official_repo_url = github_repos[0]
         
-        # Extract owner and repo name from the URL
         try:
             url_parts = official_repo_url.rstrip('/').split('/')
             owner = url_parts[-2]
@@ -160,11 +160,10 @@ def validate_active_builders(leads):
             active_leads.append(lead)
             continue
             
-        # Query the specific, official repository
         api_url = f"https://api.github.com/repos/{owner}/{repo}"
         
         try:
-            time.sleep(6) # Respect GitHub's unauthenticated rate limit (10 req/min)
+            time.sleep(6) # Respect GitHub's unauthenticated rate limit
             
             resp = requests.get(api_url, headers={'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'Vibe-BD-Pipeline'}, timeout=15)
             
@@ -172,7 +171,6 @@ def validate_active_builders(leads):
                 repo_data = resp.json()
                 last_push = repo_data.get('pushed_at', '')
                 
-                # Check if the last push is newer than our cutoff date
                 if last_push and last_push[:10] >= cutoff_date:
                     print(f"    [PASS] Official repo active: {official_repo_url} (Last push: {last_push[:10]})")
                     lead['github_repo'] = official_repo_url
@@ -204,10 +202,17 @@ def validate_active_builders(leads):
 def generate_personalized_dm(lead):
     name = lead['name']
     category = lead['category']
+    twitter = lead.get('twitter', '')
     
+    # DYNAMIC GREETING: Adjusts based on available contact method
+    if twitter and twitter != "Not Found":
+        greeting = f"Hey {twitter}, huge fan of what you're building with {name} in the {category} space."
+    else:
+        greeting = f"Hey {name} team, huge fan of what you're building in the {category} space."
+
     template = (
-        f"Hey team, huge fan of what you're building with {name} in the {category} space.\n\n"
-        f"Saw the recent GitHub activity—looks like you guys are shipping. Quick question: are you currently capturing any derivative volume for your token, or is that liquidity leaking to CEXs?\n\n"
+        f"{greeting}\n\n"
+        f"Saw the recent progress—looks like you guys are shipping. Quick question: are you currently capturing any derivative volume for your token, or is that liquidity leaking to CEXs?\n\n"
         f"We built Vibe Trading to help protocols like yours capture that value:\n"
         f"• **The Solution:** List a native perp on Vibe for $0 USDC. Deposit idle treasury tokens to our vault to back the Open Interest.\n"
         f"• **The Result:** You earn perpetual trading fees to fund operations without selling a single token on the spot market.\n\n"
@@ -268,7 +273,7 @@ def deliver_leads(leads):
 
 # === MAIN EXECUTION ===
 if __name__ == "__main__":
-    print("=== STARTING STRICT CHAIN ACTIVE BUILDER PIPELINE (SOFT GITHUB) ===")
+    print("=== STARTING HIGH-VELOCITY ACTIVE BUILDER PIPELINE ===")
     baseline_leads = fetch_and_intersect_datasets()
     if baseline_leads:
         active_leads = validate_active_builders(baseline_leads)
