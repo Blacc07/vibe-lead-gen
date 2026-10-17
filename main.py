@@ -217,10 +217,11 @@ def deliver_leads(leads, processed_ids):
 if __name__ == "__main__":
     print("=== STARTING ACTIVE MOMENTUM PIPELINE ===")
     
+    # FIXED: Catch both FileNotFoundError AND json.JSONDecodeError (for empty files)
     try:
         with open('processed_leads.json', 'r') as f:
             processed_ids = set(json.load(f))
-    except FileNotFoundError:
+    except (FileNotFoundError, json.JSONDecodeError):
         processed_ids = set()
 
     candidates = fetch_coingecko_candidates()
