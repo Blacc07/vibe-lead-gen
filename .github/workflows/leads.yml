@@ -1,16 +1,15 @@
-name: Vibe Trading Lead Gen
+name: Active Builder Lead Pipeline
 
 on:
   schedule:
-    # Runs once daily at 12:00 PM UTC
-    - cron: '0 12 * * *'
+    - cron: '0 12 * * *' # Runs daily at 12:00 PM UTC
   workflow_dispatch: # Allows manual triggering
 
 permissions:
   contents: write
 
 jobs:
-  run-lead-gen:
+  run-pipeline:
     runs-on: ubuntu-latest
     
     steps:
@@ -25,15 +24,15 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install requests beautifulsoup4  # <-- ADDED beautifulsoup4 HERE
+        pip install requests
 
-    - name: Run Lead Generation Script
+    - name: Run Lead Generation Pipeline
       env:
         TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       run: python main.py
 
-    - name: Commit and push state file
+    - name: Commit state file
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
