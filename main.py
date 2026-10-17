@@ -27,30 +27,29 @@ def fetch_dexscreener_momentum():
             if resp.status_code == 200:
                 data = resp.json()
                 pairs = data.get('pairs', [])
+                print(f"    [DEBUG] Fetched {len(pairs)} pairs for {chain}")
                 
                 for pair in pairs:
-                    # 1. Age Check (pairCreatedAt is in milliseconds)
                     created_at_ms = pair.get('pairCreatedAt', 0)
                     if not created_at_ms:
                         continue
+                    
                     age_days = (datetime.now(timezone.utc).timestamp() * 1000 - created_at_ms) / (1000 * 60 * 60 * 24)
-                    if not (14 <= age_days <= 180):
+                    
+                    # RELAXED: Must be at least 14 days old to avoid day-1 rugs, 
+                    # but NO upper limit to ensure we don't filter out valid high-volume pairs >180 days old.
+                    if age_days < 14:
                         continue
                         
-                    # 2. Liquidity & Volume Checks
                     liquidity_usd = float(pair.get('liquidity', {}).get('usd', 0) or 0)
                     volume_h24 = float(pair.get('volume', {}).get('h24', 0) or 0)
                     
                     if liquidity_usd < 50_000 or volume_h24 < 20_000:
                         continue
                         
-                    # 3. Mandatory Website Check (The "Alive" Proxy)
                     info = pair.get('info', {})
                     websites = info.get('websites', [])
                     website = websites[0].get('url', '') if websites else ''
-                    
-                    socials = info.get('socials', [])
-                    twitter = next((s.get('url', '') for s in socials if s.get('type') == 'twitter'), '')
                     
                     if not website or not str(website).startswith('http'):
                         continue
@@ -58,14 +57,16 @@ def fetch_dexscreener_momentum():
                     leads.append({
                         'name': pair.get('baseToken', {}).get('symbol', 'Unknown'),
                         'website': website,
-                        'twitter': twitter,
+                        'twitter': '',
                         'source': 'DexScreener Momentum',
                         'chain': chain.capitalize(),
                         'liquidity_usd': liquidity_usd,
                         'volume_h24': volume_h24,
-                        'unique_id': website.lower() # Dedupe by website
+                        'unique_id': website.lower()
                     })
-            time.sleep(2) # Rate limit respect
+            else:
+                print(f"    [DEBUG] DexScreener {chain} returned status {resp.status_code}")
+            time.sleep(2)
         except Exception as e:
             print(f"    [ERROR] DexScreener {chain} fetch failed: {e}")
             
@@ -78,34 +79,31 @@ def fetch_recently_added():
     leads = []
     
     try:
-        # No auth required, strictly free
         url = "https://api.coingecko.com/api/v3/coins/recently_added"
         resp = requests.get(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}, timeout=15)
         
         if resp.status_code == 200:
             data = resp.json()
+            print(f"    [DEBUG] Fetched {len(data)} recently added coins from CoinGecko")
             
             for coin in data[:100]: # Check top 100 most recent
                 platforms = coin.get('platforms', {})
                 platform_keys = [k.lower() for k in platforms.keys()]
                 
-                # Must be on our target chains
-                if not any(chain in platform_keys for chain in TARGET_CHAINS_CG):
-                    continue
-                    
-                name = coin.get('name', 'Unknown')
-                
-                leads.append({
-                    'name': name,
-                    'website': '', # Will be populated in enrichment
-                    'twitter': '',
-                    'source': 'CoinGecko Recently Added',
-                    'chain': ', '.join([p for p in platform_keys if p in TARGET_CHAINS_CG]).replace('binance-smart-chain', 'BSC').title(),
-                    'liquidity_usd': 0,
-                    'volume_h24': float(coin.get('total_volume', 0) or 0),
-                    'unique_id': coin.get('id'), # Dedupe by CoinGecko ID
-                    'gecko_id': coin.get('id')
-                })
+                if any(chain in platform_keys for chain in TARGET_CHAINS_CG):
+                    leads.append({
+                        'name': coin.get('name', 'Unknown'),
+                        'website': '', # Will be populated in enrichment
+                        'twitter': '',
+                        'source': 'CoinGecko Recently Added',
+                        'chain': ', '.join([p for p in platform_keys if p in TARGET_CHAINS_CG]).replace('binance-smart-chain', 'BSC').title(),
+                        'liquidity_usd': 0,
+                        'volume_h24': float(coin.get('total_volume', 0) or 0),
+                        'unique_id': coin.get('id'),
+                        'gecko_id': coin.get('id')
+                    })
+        else:
+            print(f"    [DEBUG] CoinGecko recently added returned status {resp.status_code}")
     except Exception as e:
         print(f"    [ERROR] CoinGecko recently added fetch failed: {e}")
         
@@ -116,7 +114,6 @@ def fetch_recently_added():
 def enrich_and_deliver_leads(ds_leads, cg_leads, processed_ids):
     print("\n=== MODULE 3: ENRICHMENT & DELIVERY ===")
     
-    # Merge and shuffle to ensure random selection
     all_leads = ds_leads + cg_leads
     random.shuffle(all_leads)
     
@@ -128,12 +125,12 @@ def enrich_and_deliver_leads(ds_leads, cg_leads, processed_ids):
             
         unique_id = lead.get('unique_id')
         if unique_id in processed_ids:
-            continue # Skip already processed
+            continue
             
-        # Enrichment for CoinGecko leads (fetch website/twitter)
+        # Enrichment for CoinGecko leads
         if lead['source'] == 'CoinGecko Recently Added' and not lead['website']:
             try:
-                time.sleep(3) # Respect CoinGecko rate limits
+                time.sleep(3)
                 detail_url = f"https://api.coingecko.com/api/v3/coins/{lead['gecko_id']}"
                 detail_resp = requests.get(detail_url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=15)
                 if detail_resp.status_code == 200:
@@ -145,7 +142,6 @@ def enrich_and_deliver_leads(ds_leads, cg_leads, processed_ids):
             except Exception:
                 pass
                 
-        # Final filter: Must have a website to be considered "alive"
         if not lead['website'] or not str(lead['website']).startswith('http'):
             continue
             
@@ -155,10 +151,8 @@ def enrich_and_deliver_leads(ds_leads, cg_leads, processed_ids):
     print(f"    Delivery Queue: {len(active_leads)} new leads ready.")
     
     for lead in active_leads:
-        # Dynamic greeting
         twitter_handle = lead.get('twitter', '')
         if twitter_handle and twitter_handle != "Not Found":
-            # Clean up twitter handle if it's a full URL
             import re
             match = re.search(r'(?:twitter\.com|x\.com)/([a-zA-Z0-9_]{1,15})', twitter_handle)
             clean_tw = f"@{match.group(1)}" if match else (f"@{twitter_handle}" if not twitter_handle.startswith('@') else twitter_handle)
@@ -179,6 +173,7 @@ def enrich_and_deliver_leads(ds_leads, cg_leads, processed_ids):
         vol_str = f"${int(lead['volume_h24']):,}" if lead['volume_h24'] > 0 else "N/A"
         tw_display = lead['twitter'] if lead['twitter'] else "Not Found"
         if tw_display != "Not Found" and not tw_display.startswith('@'):
+            import re
             match = re.search(r'(?:twitter\.com|x\.com)/([a-zA-Z0-9_]{1,15})', tw_display)
             if match: tw_display = f"@{match.group(1)}"
         
@@ -206,7 +201,6 @@ def enrich_and_deliver_leads(ds_leads, cg_leads, processed_ids):
         except Exception as e:
             print(f"  [TELEGRAM] ❌ Network error sending for {lead['name']}: {e}")
 
-    # Save updated state
     with open(STATE_FILE, 'w') as f:
         json.dump(list(processed_ids), f, indent=2)
         
@@ -216,18 +210,15 @@ def enrich_and_deliver_leads(ds_leads, cg_leads, processed_ids):
 if __name__ == "__main__":
     print("=== STARTING DUAL-SOURCE MOMENTUM PIPELINE ===")
     
-    # 1. Load processed IDs
     try:
         with open(STATE_FILE, 'r') as f:
             processed_ids = set(json.load(f))
     except (FileNotFoundError, json.JSONDecodeError):
         processed_ids = set()
 
-    # 2. Fetch from both sources
     ds_leads = fetch_dexscreener_momentum()
     cg_leads = fetch_recently_added()
     
-    # 3. Process and Deliver
     if ds_leads or cg_leads:
         enrich_and_deliver_leads(ds_leads, cg_leads, processed_ids)
     else:
