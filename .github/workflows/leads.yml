@@ -1,8 +1,8 @@
-name: Active Builder Lead Pipeline
+name: High-Velocity Lead Pipeline
 
 on:
   schedule:
-    - cron: '0 12 * * *' # Runs daily at 12:00 PM UTC
+    - cron: '0 */6 * * *' # Runs every 6 hours (4 times a day)
   workflow_dispatch: # Allows manual triggering
 
 permissions:
