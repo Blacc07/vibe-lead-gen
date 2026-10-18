@@ -1,0 +1,126 @@
+def build_master_lists():
+    """
+    Builds:
+    - master_spot_list.json: base symbols listed on CEX spot markets
+    - master_perp_list.json: base symbols with existing perp/derivative markets
+    """
+    if ccxt is None:
+        raise RuntimeError("ccxt is not installed. The GitHub workflow must install it.")
+
+    print("=== BUILDING MASTER CEX SPOT + PERP LISTS ===")
+
+    spot_symbols = set()
+    perp_symbols = set()
+    perp_symbol_counts = Counter()
+    stats = {}
+
+    for exchange_id in CEX_EXCHANGE_IDS:
+        print(f"  [CEX] {exchange_id}: fetching markets...")
+
+        try:
+            exchange_cls = getattr(ccxt, exchange_id)
+            exchange = exchange_cls(
+                {
+                    "enableRateLimit": True,
+                    "timeout": 20000,
+                    "userAgent": USER_AGENT,
+                }
+            )
+
+            markets = exchange.fetch_markets()
+
+            if isinstance(markets, dict):
+                market_list = list(markets.values())
+            else:
+                market_list = markets
+
+            spot_count = 0
+            perp_count = 0
+
+            for market in market_list:
+                if not isinstance(market, dict):
+                    continue
+
+                # CCXT normally normalizes active status.
+                if market.get("active") is False:
+                    continue
+
+                base = norm(market.get("base"))
+                quote = norm(market.get("quote"))
+
+                if not base or not quote:
+                    continue
+
+                market_type = norm(market.get("type"))
+
+                is_spot = market.get("spot") is True or market_type == "SPOT"
+                is_perp = market.get("swap") is True or market_type == "SWAP"
+
+                if is_spot:
+                    spot_count += 1
+                    if base not in NON_TARGET_BASES:
+                        spot_symbols.add(base)
+
+                if is_perp:
+                    perp_count += 1
+                    if base not in NON_TARGET_BASES:
+                        perp_symbols.add(base)
+                        perp_symbol_counts[base] += 1
+
+            stats[exchange_id] = {
+                "spot_markets": spot_count,
+                "perp_markets": perp_count,
+                "total_markets": len(market_list),
+            }
+
+            print(f"  [CEX] {exchange_id}: spot={spot_count}, perp={perp_count}")
+
+        except Exception as e:
+            stats[exchange_id] = {"error": str(e)}
+            print(f"  [CEX] {exchange_id}: ERROR: {e}")
+
+        time.sleep(1)
+
+    # Best-effort DEX perp coverage.
+    print("  [DEX PERPS] Fetching Hyperliquid and dYdX best-effort...")
+
+    hyperliquid_symbols = fetch_hyperliquid_perps()
+    dydx_symbols = fetch_dydx_perps()
+
+    perp_symbols.update(hyperliquid_symbols)
+    perp_symbols.update(dydx_symbols)
+
+    for symbol in hyperliquid_symbols:
+        perp_symbol_counts[symbol] += 1
+
+    for symbol in dydx_symbols:
+        perp_symbol_counts[symbol] += 1
+
+    stats["hyperliquid"] = {"perp_symbols": len(hyperliquid_symbols)}
+    stats["dydx"] = {"perp_symbols": len(dydx_symbols)}
+
+    spot_output = {
+        "generated_at": now_utc().isoformat(),
+        "source": "ccxt_cex_spot",
+        "stats": stats,
+        "total_unique_spot_base_symbols": len(spot_symbols),
+        "symbols": sorted(list(spot_symbols)),
+    }
+
+    perp_output = {
+        "generated_at": now_utc().isoformat(),
+        "source": "ccxt_cex_perp_plus_best_effort_dex_perp",
+        "stats": stats,
+        "total_unique_perp_base_symbols": len(perp_symbols),
+        "symbols": sorted(list(perp_symbols)),
+        "symbol_source_counts": dict(perp_symbol_counts),
+    }
+
+    save_json(SPOT_FILE, spot_output)
+    save_json(PERP_FILE, perp_output)
+
+    print(f"\n[SUCCESS] Master spot symbols: {len(spot_symbols)}")
+    print(f"[SUCCESS] Master perp symbols: {len(perp_symbols)}")
+    print(f"[SUCCESS] Perp symbols with 2+ sources: {sum(1 for v in perp_symbol_counts.values() if v >= 2)}")
+
+    return spot_symbols, perp_symbols, perp_symbol_counts
