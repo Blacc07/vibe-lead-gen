@@ -1,0 +1,50 @@
+name: Perp-Gap CEX Spot Lead Pipeline
+
+on:
+  schedule:
+    # Runs every 6 hours.
+    - cron: "0 */6 * * *"
+
+  # Allows manual triggering from the Actions tab.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ccxt requests
+
+      - name: Run perp-gap lead pipeline
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python main.py
+
+      - name: Commit state and master lists
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+          touch processed_leads.json
+
+          git add processed_leads.json || true
+          git add master_spot_list.json || true
+          git add master_perp_list.json || true
+
+          git commit -m "Update perp-gap pipeline state" || echo "No changes to commit"
+          git push
