@@ -1,0 +1,170 @@
+def find_perp_gap_leads(
+    candidates,
+    processed_ids,
+    perp_symbols,
+    perp_symbol_counts,
+    spot_symbols,
+    perp_contracts=None,
+):
+    """
+    Core strategic filter:
+    1. Skip already processed tokens.
+    2. Resolve candidate by contract address.
+    3. Validate live DEX liquidity/volume by contract.
+    4. Classify perp risk:
+       - hard drop if contract-level perp exists
+       - hard drop if symbol appears on multiple perp venues
+       - manual review if symbol appears on only one venue
+       - auto-send if no perp detected
+    5. Prioritize tokens already listed on CEX spot.
+    """
+    print("\n=== MODULE 2: CONTRACT-FIRST PERP-GAP FILTERING ===")
+
+    auto_leads = []
+    review_leads = []
+
+    perp_contracts = perp_contracts or set()
+
+    random.shuffle(candidates)
+
+    checked = 0
+
+    for coin in candidates:
+        if len(auto_leads) >= TARGET_QUOTA and len(review_leads) >= TARGET_QUOTA:
+            print("  [QUOTA MET] Found enough auto and review leads.")
+            break
+
+        if checked >= MAX_CANDIDATES_TO_PROCESS:
+            print(f"  [LIMIT MET] Checked {MAX_CANDIDATES_TO_PROCESS} candidates this run.")
+            break
+
+        coin_id = coin["id"]
+        symbol = coin["symbol"]
+
+        if coin_id in processed_ids:
+            continue
+
+        checked += 1
+
+        # Early hard-drop optimization:
+        # If the symbol appears on multiple perp venues, we can drop before
+        # spending CoinGecko/DexScreener calls.
+        early_source_count = perp_symbol_counts.get(symbol, 0)
+        if symbol in perp_symbols and early_source_count >= PERP_SYMBOL_MIN_SOURCES_FOR_AUTO_DROP:
+            print(
+                f"  [DROP] {coin['name']} ({symbol}) | "
+                f"Reason: Perp symbol appears on {early_source_count} venues."
+            )
+            processed_ids.add(coin_id)
+            continue
+
+        print(f"  Processing candidate: {coin['name']} ({symbol})...")
+
+        details = get_coin_details(coin_id)
+        time.sleep(4)
+
+        if not details:
+            print("    [TRANSIENT] No CoinGecko details returned. Not marking processed.")
+            continue
+
+        links = details.get("links", {})
+        platforms = details.get("platforms", {})
+
+        homepages = links.get("homepage", [])
+        website = next(
+            (url for url in homepages if url and str(url).startswith("http")),
+            "",
+        )
+
+        if not website:
+            print("    [DROP] No website found.")
+            processed_ids.add(coin_id)
+            continue
+
+        twitter = links.get("twitter_screen_name", "")
+
+        target_contract = None
+        target_chain = None
+
+        for chain in TARGET_CHAINS_CG:
+            if chain in platforms and platforms[chain]:
+                target_contract = platforms[chain]
+                target_chain = chain
+                break
+
+        if not target_contract:
+            print("    [DROP] No target-chain contract address found.")
+            processed_ids.add(coin_id)
+            continue
+
+        dex_pair = fetch_dexscreener_best_pair(target_contract)
+        time.sleep(1)
+
+        if not dex_pair:
+            print("    [DROP] No qualifying live DEX pair found on target chains.")
+            processed_ids.add(coin_id)
+            continue
+
+        risk, reason = classify_perp_risk(
+            symbol=symbol,
+            contract=target_contract,
+            perp_symbols=perp_symbols,
+            perp_symbol_counts=perp_symbol_counts,
+            perp_contracts=perp_contracts,
+        )
+
+        priority = (
+            "CEX_SPOT_NO_PERP"
+            if symbol in spot_symbols
+            else "DEX_MOMENTUM_NO_PERP"
+        )
+
+        lead = {
+            "gecko_id": coin_id,
+            "name": coin["name"],
+            "symbol": symbol,
+            "market_cap": coin["market_cap"],
+            "cg_volume_24h": coin["cg_volume_24h"],
+            "website": website,
+            "twitter": f"@{twitter}" if twitter else "Not Found",
+            "contract": target_contract,
+            "chain": target_chain,
+            "chain_display": CHAIN_DISPLAY.get(target_chain, target_chain),
+            "dex": dex_pair,
+            "priority": priority,
+            "perp_risk": risk,
+            "perp_reason": reason,
+            "perp_symbol_source_count": perp_symbol_counts.get(symbol, 0),
+        }
+
+        if risk == "hard_drop":
+            print(f"    [DROP] {reason}")
+            processed_ids.add(coin_id)
+            continue
+
+        if risk == "manual_review":
+            print(f"    [REVIEW] {reason}")
+            review_leads.append(lead)
+
+            # Mark processed to avoid repeated review spam.
+            # If you want the pipeline to re-evaluate these later, remove this line.
+            processed_ids.add(coin_id)
+            continue
+
+        print(
+            f"    [AUTO PASS] {reason} | "
+            f"Liq=${dex_pair['liquidity_usd']:,.0f}, "
+            f"Vol=${dex_pair['volume_h24']:,.0f}, "
+            f"Chain={dex_pair['chain_display']}, "
+            f"Priority={priority}"
+        )
+
+        auto_leads.append(lead)
+
+    print(
+        f"\n    Validation Complete: "
+        f"{len(auto_leads)} auto-send leads, "
+        f"{len(review_leads)} review leads."
+    )
+
+    return auto_leads, review_leads
