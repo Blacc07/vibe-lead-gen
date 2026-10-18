@@ -18,6 +18,20 @@ except Exception:
 # CONFIGURATION
 # ============================================================
 
+from collections import Counter
+
+REVIEW_FILE = Path("review_leads.json")
+
+# If a perp symbol appears on at least this many independent venues,
+# treat it as high-confidence and hard-drop.
+#
+# Set this higher, e.g. 999, if you want almost no symbol-based hard drops.
+PERP_SYMBOL_MIN_SOURCES_FOR_AUTO_DROP = 2
+
+# Optional future contract-level perp list.
+# For now this will usually be empty unless we add on-chain perp adapters.
+PERP_CONTRACTS_FILE = Path("master_perp_contracts.json")
+
 STATE_FILE = Path("processed_leads.json")
 SPOT_FILE = Path("master_spot_list.json")
 PERP_FILE = Path("master_perp_list.json")
