@@ -1,0 +1,48 @@
+def load_perp_contracts():
+    """
+    Optional future-proofing.
+
+    If we later add on-chain perp venues that expose underlying token contracts,
+    store them in master_perp_contracts.json as:
+
+    {
+      "generated_at": "...",
+      "contracts": ["0x...", "SolanaMint..."]
+    }
+    """
+    data = load_json(PERP_CONTRACTS_FILE)
+    if not data:
+        return set()
+
+    contracts = data.get("contracts", [])
+    return {norm(c) for c in contracts if norm(c)}
+
+
+def classify_perp_risk(symbol, contract, perp_symbols, perp_symbol_counts, perp_contracts=None):
+    """
+    Returns:
+      risk: "auto_send" | "manual_review" | "hard_drop"
+      reason: human-readable explanation
+    """
+    perp_contracts = perp_contracts or set()
+
+    # Highest confidence: contract-level perp exists.
+    if contract and norm(contract) in perp_contracts:
+        return "hard_drop", "Contract-level perp market exists."
+
+    # Symbol-level perp exists.
+    if symbol in perp_symbols:
+        source_count = perp_symbol_counts.get(symbol, 1)
+
+        if source_count >= PERP_SYMBOL_MIN_SOURCES_FOR_AUTO_DROP:
+            return (
+                "hard_drop",
+                f"Perp symbol appears on {source_count} independent venues. High-confidence existing perp.",
+            )
+
+        return (
+            "manual_review",
+            f"Perp symbol appears on only {source_count} venue. Possible symbol collision. Manual review required.",
+        )
+
+    return "auto_send", "No perp market detected."
