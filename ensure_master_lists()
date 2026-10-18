@@ -1,0 +1,54 @@
+def load_perp_symbol_counts(perp_data):
+    if not perp_data:
+        return {}
+
+    counts = perp_data.get("symbol_source_counts", {})
+
+    if isinstance(counts, dict) and counts:
+        return {norm(k): int(v) for k, v in counts.items()}
+
+    # Fallback for older master_perp_list.json files.
+    symbols = perp_data.get("symbols", [])
+    return {norm(s): 1 for s in symbols if norm(s)}
+
+
+def ensure_master_lists():
+    """
+    Loads fresh master lists if available.
+    Otherwise rebuilds them.
+    Falls back to stale lists if rebuild fails.
+    """
+    spot_data = load_json(SPOT_FILE)
+    perp_data = load_json(PERP_FILE)
+
+    if is_fresh(spot_data) and is_fresh(perp_data):
+        spot_symbols = set(spot_data.get("symbols", []))
+        perp_symbols = set(perp_data.get("symbols", []))
+        perp_symbol_counts = load_perp_symbol_counts(perp_data)
+
+        print("=== LOADED FRESH MASTER LISTS ===")
+        print(f"  Spot symbols: {len(spot_symbols)}")
+        print(f"  Perp symbols: {len(perp_symbols)}")
+        print(f"  Perp symbol count entries: {len(perp_symbol_counts)}")
+
+        return spot_symbols, perp_symbols, perp_symbol_counts
+
+    print("=== MASTER LISTS MISSING OR STALE ===")
+
+    try:
+        spot_symbols, perp_symbols, perp_symbol_counts = build_master_lists()
+        if perp_symbols:
+            return spot_symbols, perp_symbols, perp_symbol_counts
+        print("[WARNING] Built perp list is empty.")
+    except Exception as e:
+        print(f"[ERROR] Failed to build master lists: {e}")
+
+    # Fallback to stale lists if they exist.
+    if perp_data and perp_data.get("symbols"):
+        print("[WARNING] Falling back to stale master lists.")
+        spot_symbols = set(spot_data.get("symbols", [])) if spot_data else set()
+        perp_symbols = set(perp_data.get("symbols", []))
+        perp_symbol_counts = load_perp_symbol_counts(perp_data)
+        return spot_symbols, perp_symbols, perp_symbol_counts
+
+    return set(), set(), {}
