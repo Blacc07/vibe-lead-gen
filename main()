@@ -1,0 +1,42 @@
+def main():
+    print("=== STARTING CONTRACT-FIRST PERP-GAP PIPELINE ===")
+
+    processed_ids = load_processed_ids()
+    print(f"Loaded {len(processed_ids)} previously processed CoinGecko IDs.")
+
+    spot_symbols, perp_symbols, perp_symbol_counts = ensure_master_lists()
+    perp_contracts = load_perp_contracts()
+
+    if not perp_symbols:
+        print("\n[ERROR] Could not build or load a perp master list.")
+        print("[ACTION] Aborting to avoid pitching tokens that may already have perps.")
+        save_processed_ids(processed_ids)
+        return
+
+    candidates = fetch_coingecko_candidates()
+
+    if not candidates:
+        print("\nNo baseline candidates found from CoinGecko.")
+        save_processed_ids(processed_ids)
+        return
+
+    auto_leads, review_leads = find_perp_gap_leads(
+        candidates=candidates,
+        processed_ids=processed_ids,
+        perp_symbols=perp_symbols,
+        perp_symbol_counts=perp_symbol_counts,
+        spot_symbols=spot_symbols,
+        perp_contracts=perp_contracts,
+    )
+
+    if review_leads:
+        save_review_leads(review_leads)
+
+    if auto_leads:
+        deliver_leads(auto_leads, processed_ids)
+    else:
+        print("\nNo auto-send perp-gap leads passed validation this run.")
+
+    save_processed_ids(processed_ids)
+
+    print("\n=== PIPELINE COMPLETE ===")
