@@ -1,0 +1,84 @@
+def fetch_dexscreener_best_pair(contract_address):
+    """
+    Validation layer:
+    Use DexScreener to verify the token contract has real liquidity and volume
+    on Solana, Base, or BSC.
+
+    [NEEDS VERIFICATION]
+    DexScreener public endpoint shape can change. Before production deployment,
+    test:
+      GET https://api.dexscreener.com/latest/dex/tokens/{contract_address}
+
+    Expected response contains:
+      pairs[].chainId
+      pairs[].dexId
+      pairs[].baseToken.address
+      pairs[].liquidity.usd
+      pairs[].volume.h24
+      pairs[].priceChange.h24
+      pairs[].url
+    """
+    url = f"https://api.dexscreener.com/latest/dex/tokens/{contract_address}"
+    headers = {"User-Agent": USER_AGENT}
+
+    try:
+        resp = requests.get(url, headers=headers, timeout=20)
+
+        if resp.status_code != 200:
+            print(f"    [ERROR] DexScreener returned {resp.status_code}")
+            return None
+
+        data = resp.json()
+        pairs = data.get("pairs", [])
+
+        best_pair = None
+        best_score = 0
+
+        for pair in pairs:
+            if not isinstance(pair, dict):
+                continue
+
+            chain_id = pair.get("chainId", "")
+            if chain_id not in TARGET_CHAINS_DS:
+                continue
+
+            # Extra safety: confirm the pair's base token address matches our contract.
+            base_token = pair.get("baseToken", {})
+            base_address = base_token.get("address", "")
+
+            if base_address and norm(base_address) != norm(contract_address):
+                continue
+
+            try:
+                liquidity = float(pair.get("liquidity", {}).get("usd", 0) or 0)
+                volume = float(pair.get("volume", {}).get("h24", 0) or 0)
+            except Exception:
+                continue
+
+            if liquidity < DEX_LIQUIDITY_MIN_USD or volume < DEX_VOLUME_24H_MIN_USD:
+                continue
+
+            # Score primarily by volume, with liquidity as a secondary signal.
+            score = volume + (liquidity * 0.25)
+
+            if score > best_score:
+                best_score = score
+                best_pair = {
+                    "chain": chain_id,
+                    "chain_display": CHAIN_DISPLAY.get(chain_id, chain_id),
+                    "dex": pair.get("dexId", "unknown"),
+                    "pair_address": pair.get("pairAddress", ""),
+                    "base_token_symbol": base_token.get("symbol", ""),
+                    "base_token_address": base_address,
+                    "quote_token_symbol": pair.get("quoteToken", {}).get("symbol", ""),
+                    "liquidity_usd": liquidity,
+                    "volume_h24": volume,
+                    "price_change_h24": pair.get("priceChange", {}).get("h24", None),
+                    "url": pair.get("url", ""),
+                }
+
+        return best_pair
+
+    except Exception as e:
+        print(f"    [ERROR] DexScreener validation failed: {e}")
+        return None
