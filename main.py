@@ -100,7 +100,6 @@ CEX_EXCHANGE_IDS = [
     "kucoinfutures",
     "phemex",
     "bingx",
-    "coinex",
 ]
 
 # Group related CCXT endpoints under the actual exchange venue. In particular,
@@ -114,7 +113,6 @@ CEX_VENUE_BY_EXCHANGE_ID = {
     "kucoinfutures": "kucoin",
     "phemex": "phemex",
     "bingx": "bingx",
-    "coinex": "coinex",
 }
 
 # CoinGecko chain IDs.
@@ -1074,9 +1072,13 @@ def get_coin_details(coin_id):
 
 def fetch_dexscreener_best_pair(contract_address):
     """
-    Validation layer:
-    Use DexScreener to verify the token contract has real liquidity and volume
-    on Solana, Base, or BSC.
+    Validate a contract against DexScreener.
+
+    Returns (best_pair, status):
+      - (pair, "ok") when a qualifying pair was found
+      - (None, "ok") when the request succeeded but no qualifying pair exists
+      - (None, "transient") when the API/network response was unusable, so the
+        candidate should remain eligible for a later retry
     """
     url = f"https://api.dexscreener.com/latest/dex/tokens/{contract_address}"
     headers = {"User-Agent": USER_AGENT}
@@ -1085,11 +1087,24 @@ def fetch_dexscreener_best_pair(contract_address):
         resp = requests.get(url, headers=headers, timeout=20)
 
         if resp.status_code != 200:
-            print(f"    [ERROR] DexScreener returned {resp.status_code}")
-            return None
+            print(f"    [DEXSCREENER TRANSIENT] HTTP {resp.status_code}; candidate will remain unprocessed.")
+            return None, "transient"
 
-        data = resp.json()
-        pairs = data.get("pairs", [])
+        try:
+            data = resp.json()
+        except (ValueError, requests.exceptions.JSONDecodeError) as e:
+            print(f"    [DEXSCREENER TRANSIENT] Invalid JSON response: {e}")
+            return None, "transient"
+
+        if not isinstance(data, dict):
+            print("    [DEXSCREENER TRANSIENT] Response payload was not an object.")
+            return None, "transient"
+
+        # The API may return {"pairs": null}; treat it as an empty successful result.
+        pairs = data.get("pairs") or []
+        if not isinstance(pairs, list):
+            print("    [DEXSCREENER TRANSIENT] 'pairs' field was not a list.")
+            return None, "transient"
 
         best_pair = None
         best_score = 0
@@ -1102,7 +1117,7 @@ def fetch_dexscreener_best_pair(contract_address):
             if chain_id not in TARGET_CHAINS_DS:
                 continue
 
-            base_token = pair.get("baseToken", {})
+            base_token = pair.get("baseToken") or {}
             if not isinstance(base_token, dict):
                 continue
 
@@ -1110,10 +1125,17 @@ def fetch_dexscreener_best_pair(contract_address):
             if base_address and norm(base_address) != norm(contract_address):
                 continue
 
+            liquidity_data = pair.get("liquidity") or {}
+            volume_data = pair.get("volume") or {}
+            quote_token = pair.get("quoteToken") or {}
+            price_change = pair.get("priceChange") or {}
+            if not all(isinstance(item, dict) for item in (liquidity_data, volume_data, quote_token, price_change)):
+                continue
+
             try:
-                liquidity = float(pair.get("liquidity", {}).get("usd", 0) or 0)
-                volume = float(pair.get("volume", {}).get("h24", 0) or 0)
-            except Exception:
+                liquidity = float(liquidity_data.get("usd", 0) or 0)
+                volume = float(volume_data.get("h24", 0) or 0)
+            except (TypeError, ValueError):
                 continue
 
             if liquidity < DEX_LIQUIDITY_MIN_USD or volume < DEX_VOLUME_24H_MIN_USD:
@@ -1130,18 +1152,18 @@ def fetch_dexscreener_best_pair(contract_address):
                     "pair_address": pair.get("pairAddress", ""),
                     "base_token_symbol": base_token.get("symbol", ""),
                     "base_token_address": base_address,
-                    "quote_token_symbol": pair.get("quoteToken", {}).get("symbol", ""),
+                    "quote_token_symbol": quote_token.get("symbol", ""),
                     "liquidity_usd": liquidity,
                     "volume_h24": volume,
-                    "price_change_h24": pair.get("priceChange", {}).get("h24", None),
+                    "price_change_h24": price_change.get("h24"),
                     "url": pair.get("url", ""),
                 }
 
-        return best_pair
+        return best_pair, "ok"
 
     except Exception as e:
-        print(f"    [ERROR] DexScreener validation failed: {e}")
-        return None
+        print(f"    [DEXSCREENER TRANSIENT] Validation request failed: {e}; candidate will remain unprocessed.")
+        return None, "transient"
 
 
 # ============================================================
@@ -1266,8 +1288,12 @@ def find_perp_gap_leads(
             processed_ids.add(coin_id)
             continue
 
-        dex_pair = fetch_dexscreener_best_pair(target_contract)
+        dex_pair, dex_status = fetch_dexscreener_best_pair(target_contract)
         time.sleep(1)
+
+        if dex_status != "ok":
+            print("    [TRANSIENT/SKIP] DexScreener could not validate this candidate. Not marking processed; it can retry next run.")
+            continue
 
         if not dex_pair:
             print("    [DROP] No qualifying live DEX pair found on target chains.")
