@@ -23,6 +23,7 @@ STATE_FILE = Path("processed_leads.json")
 SPOT_FILE = Path("master_spot_list.json")
 PERP_FILE = Path("master_perp_list.json")
 REVIEW_FILE = Path("review_leads.json")
+CATEGORY_CURSOR_FILE = Path("category_cursor.json")
 
 # Optional future contract-level perp list.
 # Expected format:
@@ -32,25 +33,51 @@ REVIEW_FILE = Path("review_leads.json")
 # }
 PERP_CONTRACTS_FILE = Path("master_perp_contracts.json")
 
-# Conservative settings for a 2-hour cadence.
-# Increase later only after monitoring API/runtime behavior.
+# Lead generation quota.
 TARGET_QUOTA = 3
-MAX_CANDIDATES_TO_PROCESS = 15
+
+# Maximum number of candidates that will consume a CoinGecko detail API call.
+# Symbol-based perp drops are cheap and do not count against this limit.
+MAX_CANDIDATE_DETAIL_CHECKS = 15
+
+# Safety cap to avoid scanning an enormous candidate list in one run.
+MAX_CANDIDATES_TO_SCAN = 120
+
+# Master list freshness window.
 MAX_LIST_AGE_HOURS = 24
 
-# If a perp symbol appears on at least this many independent venues,
-# treat it as high-confidence and hard-drop.
+# Rotate CoinGecko categories to reduce API pressure.
+CATEGORIES_PER_RUN = 4
+
+# Critical executive fix:
+# If a token symbol already appears in the perp master list, drop it before
+# spending a CoinGecko detail API call.
 #
-# Lower value = more aggressive dropping.
-# Higher value = fewer false drops, more manual review.
-#
-# 3 is a balanced starting point.
-# 999 would effectively disable symbol-based hard drops.
+# Set to False only if you want to preserve possible symbol-collision review leads.
+PRE_FILTER_SYMBOL_HARD_DROP = True
+
+# If pre-filter is disabled, this controls how aggressively symbol-only perp matches
+# are hard-dropped versus routed to manual review.
 PERP_SYMBOL_MIN_SOURCES_FOR_AUTO_DROP = 3
 
+# CoinGecko public/demo API settings.
+COINGECKO_BASE_URL = os.environ.get(
+    "COINGECKO_BASE_URL",
+    "https://api.coingecko.com/api/v3",
+).rstrip("/")
+
+COINGECKO_API_KEY = os.environ.get("COINGECKO_API_KEY", "").strip()
+COINGECKO_API_HEADER = os.environ.get("COINGECKO_API_HEADER", "x-cg-demo-api-key").strip()
+
+# Strict CoinGecko rate limiting.
+COINGECKO_MIN_INTERVAL_SECONDS = 3.0
+COINGECKO_MAX_RETRIES = 3
+COINGECKO_429_BASE_SLEEP_SECONDS = 60
+COINGECKO_MAX_SLEEP_SECONDS = 180
+
+_coingecko_last_call = 0.0
+
 # CCXT exchange IDs.
-# [NEEDS VERIFICATION] Confirm these IDs exist in your installed CCXT version.
-# Unknown IDs are caught and skipped safely.
 CEX_EXCHANGE_IDS = [
     "binance",
     "binanceusdm",
@@ -83,16 +110,15 @@ CHAIN_DISPLAY = {
 }
 
 # CoinGecko category slugs.
-# [NEEDS VERIFICATION] CoinGecko category slugs can change.
-# Invalid categories are skipped safely if the API returns non-200.
+# Updated per executive instruction.
 CATEGORIES = [
     "decentralized-exchange",
     "yield-farming",
-    "real-world-assets",
+    "real-world-assets-rwa",
     "gaming",
     "layer-1",
     "layer-2",
-    "ai",
+    "artificial-intelligence",
     "prediction-markets",
     "launchpad",
     "derivatives",
@@ -306,6 +332,143 @@ def strip_html_tags(value):
 
 
 # ============================================================
+# COINGECKO RATE LIMITER
+# ============================================================
+
+def coingecko_headers():
+    headers = {
+        "User-Agent": USER_AGENT,
+        "Accept": "application/json",
+    }
+
+    if COINGECKO_API_KEY and COINGECKO_API_HEADER:
+        headers[COINGECKO_API_HEADER] = COINGECKO_API_KEY
+
+    return headers
+
+
+def coingecko_get(path, params=None):
+    """
+    Conservative CoinGecko GET wrapper.
+
+    Enforces:
+    - minimum 3-second delay before every CoinGecko request
+    - 429 retry with 60s / 120s / 180s backoff
+    - graceful 404 handling for invalid category slugs
+    """
+    global _coingecko_last_call
+
+    url = path if str(path).startswith("http") else f"{COINGECKO_BASE_URL}{path}"
+    last_status = None
+
+    for attempt in range(COINGECKO_MAX_RETRIES):
+        # Mandatory delay before every CoinGecko request.
+        time.sleep(COINGECKO_MIN_INTERVAL_SECONDS)
+
+        try:
+            resp = requests.get(
+                url,
+                headers=coingecko_headers(),
+                params=params,
+                timeout=20,
+            )
+        except Exception as e:
+            last_status = "exception"
+            print(f"    [COINGECKO EXCEPTION] {e}")
+
+            if attempt < COINGECKO_MAX_RETRIES - 1:
+                time.sleep(5 * (attempt + 1))
+                continue
+
+            return None, last_status
+
+        _coingecko_last_call = time.monotonic()
+        last_status = resp.status_code
+
+        if resp.status_code == 200:
+            try:
+                return resp.json(), 200
+            except Exception as e:
+                print(f"    [COINGECKO JSON PARSE ERROR] {e}")
+                return None, 200
+
+        if resp.status_code == 429:
+            wait_time = min(
+                COINGECKO_429_BASE_SLEEP_SECONDS * (attempt + 1),
+                COINGECKO_MAX_SLEEP_SECONDS,
+            )
+            print(f"    [COINGECKO 429] Rate limited. Sleeping {wait_time}s before retry.")
+
+            if attempt < COINGECKO_MAX_RETRIES - 1:
+                time.sleep(wait_time)
+                continue
+
+            return None, 429
+
+        if resp.status_code == 404:
+            return None, 404
+
+        # Other HTTP errors.
+        if attempt < COINGECKO_MAX_RETRIES - 1:
+            print(f"    [COINGECKO {resp.status_code}] Retrying after transient error.")
+            time.sleep(5 * (attempt + 1))
+            continue
+
+        return None, resp.status_code
+
+    return None, last_status
+
+
+# ============================================================
+# CATEGORY ROTATION
+# ============================================================
+
+def load_category_cursor():
+    data = load_json(CATEGORY_CURSOR_FILE)
+
+    if isinstance(data, dict):
+        try:
+            cursor = int(data.get("cursor", 0))
+            if cursor < 0:
+                return 0
+            return cursor
+        except Exception:
+            return 0
+
+    return 0
+
+
+def save_category_cursor(cursor):
+    save_json(
+        CATEGORY_CURSOR_FILE,
+        {
+            "generated_at": now_utc().isoformat(),
+            "cursor": int(cursor),
+            "categories": CATEGORIES,
+        },
+    )
+
+
+def select_categories():
+    """
+    Select a rotating subset of CoinGecko categories to reduce API pressure.
+    """
+    if not CATEGORIES:
+        return [], 0
+
+    cursor = load_category_cursor() % len(CATEGORIES)
+    count = min(CATEGORIES_PER_RUN, len(CATEGORIES))
+
+    selected = [
+        CATEGORIES[(cursor + i) % len(CATEGORIES)]
+        for i in range(count)
+    ]
+
+    next_cursor = (cursor + count) % len(CATEGORIES)
+    return selected, next_cursor
+
+
+# ============================================================
 # BEST-EFFORT DEX PERP EXTRAS
 # ============================================================
 
@@ -313,7 +476,6 @@ def fetch_hyperliquid_perps():
     """
     Best-effort Hyperliquid perp symbol fetch.
 
-    [NEEDS VERIFICATION]
     Expected endpoint:
       POST https://api.hyperliquid.xyz/info
       {"type": "metaAndAssetCtxs"}
@@ -335,11 +497,6 @@ def fetch_hyperliquid_perps():
         resp.raise_for_status()
         data = resp.json()
 
-        # Expected rough shape:
-        # [
-        #   { "universe": [ {"name": "SOL"}, ... ] },
-        #   [ ... asset contexts ... ]
-        # ]
         if isinstance(data, list) and data:
             meta = data[0]
             if isinstance(meta, dict):
@@ -363,7 +520,6 @@ def fetch_dydx_perps():
     """
     Best-effort dYdX v4 perp symbol fetch.
 
-    [NEEDS VERIFICATION]
     Expected endpoint:
       GET https://indexer.dydx.trade/v4/perpetualMarkets
 
@@ -383,9 +539,6 @@ def fetch_dydx_perps():
         markets = data.get("markets", {})
         if isinstance(markets, dict):
             for market_key in markets.keys():
-                # Market keys are commonly formatted like:
-                # SOL-USD
-                # BTC-USD
                 base = norm(str(market_key).split("-")[0])
                 if base and base not in NON_TARGET_BASES:
                     symbols.add(base)
@@ -407,8 +560,6 @@ def build_master_lists():
     - master_perp_list.json: base symbols with existing perp/derivative markets
 
     Also tracks how many independent venues list each perp symbol.
-    This allows us to distinguish high-confidence perp existence from
-    possible symbol collisions.
     """
     if ccxt is None:
         raise RuntimeError("ccxt is not installed. The GitHub workflow must install it.")
@@ -446,7 +597,6 @@ def build_master_lists():
                 if not isinstance(market, dict):
                     continue
 
-                # CCXT normally normalizes active status.
                 if market.get("active") is False:
                     continue
 
@@ -486,7 +636,6 @@ def build_master_lists():
 
         time.sleep(1)
 
-    # Best-effort DEX perp coverage.
     print("  [DEX PERPS] Fetching Hyperliquid and dYdX best-effort...")
 
     hyperliquid_symbols = fetch_hyperliquid_perps()
@@ -543,7 +692,6 @@ def load_perp_symbol_counts(perp_data):
     if isinstance(counts, dict) and counts:
         return {norm(k): int(v) for k, v in counts.items() if norm(k)}
 
-    # Fallback for older master_perp_list.json files.
     symbols = perp_data.get("symbols", [])
     return {norm(s): 1 for s in symbols if norm(s)}
 
@@ -579,7 +727,6 @@ def ensure_master_lists():
     except Exception as e:
         print(f"[ERROR] Failed to build master lists: {e}")
 
-    # Fallback to stale lists if they exist.
     if perp_data and perp_data.get("symbols"):
         print("[WARNING] Falling back to stale master lists.")
         spot_symbols = set(spot_data.get("symbols", [])) if spot_data else set()
@@ -621,11 +768,9 @@ def classify_perp_risk(symbol, contract, perp_symbols, perp_symbol_counts, perp_
     """
     perp_contracts = perp_contracts or set()
 
-    # Highest confidence: contract-level perp exists.
     if contract and norm(contract) in perp_contracts:
         return "hard_drop", "Contract-level perp market exists."
 
-    # Symbol-level perp exists.
     if symbol in perp_symbols:
         source_count = perp_symbol_counts.get(symbol, 1)
 
@@ -652,103 +797,108 @@ def classify_perp_risk(symbol, contract, perp_symbols, perp_symbol_counts, perp_
 def fetch_coingecko_candidates():
     """
     Discovery layer:
-    Find mid-cap tokens with meaningful spot volume in relevant categories.
+    Find mid-cap tokens with meaningful spot volume in rotating categories.
+
+    Returns:
+        (candidates, rate_limited)
     """
     print("\n=== MODULE 1: COINGECKO DISCOVERY ===")
 
+    selected_categories, next_cursor = select_categories()
+    save_category_cursor(next_cursor)
+
+    print(f"  Using category batch: {selected_categories}")
+    print(f"  Next category cursor: {next_cursor}")
+
     candidates = []
     seen_ids = set()
-    headers = {"User-Agent": USER_AGENT}
+    rate_limited = False
 
-    for category in CATEGORIES:
+    for category in selected_categories:
         print(f"  Fetching category: {category}...")
 
-        url = (
-            "https://api.coingecko.com/api/v3/coins/markets"
-            f"?vs_currency=usd&category={category}"
-            "&order=volume_desc&per_page=100&page=1&sparkline=false"
+        data, status = coingecko_get(
+            "/coins/markets",
+            params={
+                "vs_currency": "usd",
+                "category": category,
+                "order": "volume_desc",
+                "per_page": "100",
+                "page": "1",
+                "sparkline": "false",
+            },
         )
 
-        try:
-            resp = requests.get(url, headers=headers, timeout=20)
+        if status == 429:
+            print("    [COINGECKO RATE LIMITED] Stopping category discovery for this run.")
+            rate_limited = True
+            break
 
-            if resp.status_code != 200:
-                print(f"    [ERROR] CoinGecko returned status {resp.status_code}")
-                time.sleep(5)
+        if status == 404:
+            print(f"    [INVALID CATEGORY] {category} returned 404. Skipping.")
+            continue
+
+        if status != 200 or not data:
+            print(f"    [SKIP] Category returned status {status}.")
+            continue
+
+        if not isinstance(data, list):
+            continue
+
+        for coin in data:
+            if not isinstance(coin, dict):
                 continue
 
-            coins = resp.json()
-            if not isinstance(coins, list):
+            coin_id = coin.get("id")
+            if not coin_id or coin_id in seen_ids:
                 continue
 
-            for coin in coins:
-                if not isinstance(coin, dict):
-                    continue
+            name = coin.get("name", "")
+            symbol = norm(coin.get("symbol"))
 
-                coin_id = coin.get("id")
-                if not coin_id or coin_id in seen_ids:
-                    continue
+            if not name or not symbol:
+                continue
 
-                name = coin.get("name", "")
-                symbol = norm(coin.get("symbol"))
+            if symbol in NON_TARGET_BASES:
+                continue
 
-                if not name or not symbol:
-                    continue
+            if symbol in MAJOR_AMBIGUOUS_SYMBOLS:
+                continue
 
-                if symbol in NON_TARGET_BASES:
-                    continue
+            if any(blocked in name.lower() for blocked in ZOMBIE_BLOCKLIST):
+                continue
 
-                if symbol in MAJOR_AMBIGUOUS_SYMBOLS:
-                    continue
+            try:
+                mcap = float(coin.get("market_cap", 0) or 0)
+                volume = float(coin.get("total_volume", 0) or 0)
+            except Exception:
+                continue
 
-                if any(blocked in name.lower() for blocked in ZOMBIE_BLOCKLIST):
-                    continue
-
-                try:
-                    mcap = float(coin.get("market_cap", 0) or 0)
-                    volume = float(coin.get("total_volume", 0) or 0)
-                except Exception:
-                    continue
-
-                if MCAP_MIN <= mcap <= MCAP_MAX and volume >= CG_VOLUME_MIN:
-                    seen_ids.add(coin_id)
-                    candidates.append(
-                        {
-                            "id": coin_id,
-                            "name": name,
-                            "symbol": symbol,
-                            "market_cap": mcap,
-                            "cg_volume_24h": volume,
-                        }
-                    )
-
-            time.sleep(4)
-
-        except Exception as e:
-            print(f"    [EXCEPTION] {e}")
+            if MCAP_MIN <= mcap <= MCAP_MAX and volume >= CG_VOLUME_MIN:
+                seen_ids.add(coin_id)
+                candidates.append(
+                    {
+                        "id": coin_id,
+                        "name": name,
+                        "symbol": symbol,
+                        "market_cap": mcap,
+                        "cg_volume_24h": volume,
+                    }
+                )
 
     print(f"    Found {len(candidates)} baseline CoinGecko candidates.")
-    return candidates
+    return candidates, rate_limited
 
 
 def get_coin_details(coin_id):
     """
     Enrichment layer:
     Fetch website, Twitter, and contract addresses from CoinGecko.
+
+    Returns:
+        (details_or_none, status)
     """
-    url = f"https://api.coingecko.com/api/v3/coins/{coin_id}"
-    headers = {"User-Agent": USER_AGENT}
-
-    try:
-        resp = requests.get(url, headers=headers, timeout=20)
-        if resp.status_code == 200:
-            return resp.json()
-
-        print(f"    [ERROR] CoinGecko detail returned {resp.status_code}")
-    except Exception as e:
-        print(f"    [ERROR] CoinGecko detail fetch failed: {e}")
-
-    return None
+    return coingecko_get(f"/coins/{coin_id}")
 
 
 # ============================================================
@@ -760,21 +910,6 @@ def fetch_dexscreener_best_pair(contract_address):
     Validation layer:
     Use DexScreener to verify the token contract has real liquidity and volume
     on Solana, Base, or BSC.
-
-    [NEEDS VERIFICATION]
-    DexScreener public endpoint shape can change. Before production deployment,
-    test:
-      GET https://api.dexscreener.com/latest/dex/tokens/{contract_address}
-
-    Expected response contains:
-      pairs[].chainId
-      pairs[].dexId
-      pairs[].baseToken.address
-      pairs[].baseToken.symbol
-      pairs[].liquidity.usd
-      pairs[].volume.h24
-      pairs[].priceChange.h24
-      pairs[].url
     """
     url = f"https://api.dexscreener.com/latest/dex/tokens/{contract_address}"
     headers = {"User-Agent": USER_AGENT}
@@ -800,7 +935,6 @@ def fetch_dexscreener_best_pair(contract_address):
             if chain_id not in TARGET_CHAINS_DS:
                 continue
 
-            # Extra safety: confirm the pair's base token address matches our contract.
             base_token = pair.get("baseToken", {})
             if not isinstance(base_token, dict):
                 continue
@@ -818,7 +952,6 @@ def fetch_dexscreener_best_pair(contract_address):
             if liquidity < DEX_LIQUIDITY_MIN_USD or volume < DEX_VOLUME_24H_MIN_USD:
                 continue
 
-            # Score primarily by volume, with liquidity as a secondary signal.
             score = volume + (liquidity * 0.25)
 
             if score > best_score:
@@ -859,33 +992,36 @@ def find_perp_gap_leads(
     """
     Core strategic filter:
     1. Skip already processed tokens.
-    2. Resolve candidate by contract address.
-    3. Validate live DEX liquidity/volume by contract.
-    4. Classify perp risk:
-       - hard drop if contract-level perp exists
-       - hard drop if symbol appears on multiple perp venues
-       - manual review if symbol appears on only one venue
-       - auto-send if no perp detected
-    5. Prioritize tokens already listed on CEX spot.
+    2. Pre-drop tokens whose symbol already exists in the perp master list.
+    3. Only then spend a CoinGecko detail API call.
+    4. Resolve candidate by contract address.
+    5. Validate live DEX liquidity/volume by contract.
+    6. Classify remaining perp risk.
+    7. Prioritize tokens already listed on CEX spot.
+
+    Returns:
+        (auto_leads, review_leads, rate_limited)
     """
-    print("\n=== MODULE 2: CONTRACT-FIRST PERP-GAP FILTERING ===")
+    print("\n=== MODULE 2: RATE-LIMITED PERP-GAP FILTERING ===")
 
     auto_leads = []
     review_leads = []
+    rate_limited = False
 
     perp_contracts = perp_contracts or set()
 
     random.shuffle(candidates)
 
-    checked = 0
+    scanned = 0
+    detail_checks = 0
 
     for coin in candidates:
         if len(auto_leads) >= TARGET_QUOTA and len(review_leads) >= TARGET_QUOTA:
             print("  [QUOTA MET] Found enough auto and review leads.")
             break
 
-        if checked >= MAX_CANDIDATES_TO_PROCESS:
-            print(f"  [LIMIT MET] Checked {MAX_CANDIDATES_TO_PROCESS} candidates this run.")
+        if scanned >= MAX_CANDIDATES_TO_SCAN:
+            print(f"  [SCAN LIMIT MET] Scanned {scanned} candidates this run.")
             break
 
         coin_id = coin["id"]
@@ -894,27 +1030,43 @@ def find_perp_gap_leads(
         if coin_id in processed_ids:
             continue
 
-        checked += 1
+        scanned += 1
 
-        # Early hard-drop optimization:
-        # If the symbol appears on multiple perp venues, we can drop before
-        # spending CoinGecko/DexScreener calls.
-        early_source_count = perp_symbol_counts.get(symbol, 0)
-        if symbol in perp_symbols and early_source_count >= PERP_SYMBOL_MIN_SOURCES_FOR_AUTO_DROP:
-            print(
-                f"  [DROP] {coin['name']} ({symbol}) | "
-                f"Reason: Perp symbol appears on {early_source_count} venues."
-            )
+        # Critical API-saving fix:
+        # Drop immediately if symbol already has a perp market.
+        if PRE_FILTER_SYMBOL_HARD_DROP and symbol in perp_symbols:
+            print(f"  [DROP] {coin['name']} ({symbol}) | Reason: Already has perp market.")
             processed_ids.add(coin_id)
             continue
 
+        # If pre-filter is disabled, still avoid wasting detail calls on
+        # high-confidence multi-venue perp symbols.
+        if not PRE_FILTER_SYMBOL_HARD_DROP:
+            early_source_count = perp_symbol_counts.get(symbol, 0)
+            if symbol in perp_symbols and early_source_count >= PERP_SYMBOL_MIN_SOURCES_FOR_AUTO_DROP:
+                print(
+                    f"  [DROP] {coin['name']} ({symbol}) | "
+                    f"Reason: Perp symbol appears on {early_source_count} venues."
+                )
+                processed_ids.add(coin_id)
+                continue
+
+        if detail_checks >= MAX_CANDIDATE_DETAIL_CHECKS:
+            print(f"  [DETAIL LIMIT MET] Used {detail_checks} CoinGecko detail calls.")
+            break
+
+        detail_checks += 1
         print(f"  Processing candidate: {coin['name']} ({symbol})...")
 
-        details = get_coin_details(coin_id)
-        time.sleep(4)
+        details, status = get_coin_details(coin_id)
 
-        if not details:
-            print("    [TRANSIENT] No CoinGecko details returned. Not marking processed.")
+        if status == 429:
+            print("    [COINGECKO RATE LIMITED] Stopping candidate enrichment for this run.")
+            rate_limited = True
+            break
+
+        if status != 200 or not details:
+            print(f"    [TRANSIENT/SKIP] CoinGecko detail status={status}. Not marking processed.")
             continue
 
         links = details.get("links", {})
@@ -995,9 +1147,6 @@ def find_perp_gap_leads(
         if risk == "manual_review":
             print(f"    [REVIEW] {reason}")
             review_leads.append(lead)
-
-            # Mark processed to avoid repeated review spam.
-            # If you want the pipeline to re-evaluate these later, remove this line.
             processed_ids.add(coin_id)
             continue
 
@@ -1017,7 +1166,7 @@ def find_perp_gap_leads(
         f"{len(review_leads)} review leads."
     )
 
-    return auto_leads, review_leads
+    return auto_leads, review_leads, rate_limited
 
 
 def save_review_leads(review_leads):
@@ -1139,7 +1288,6 @@ def send_telegram_message(html_text):
 
     url = f"https://api.telegram.org/bot{token}/sendMessage"
 
-    # First try HTML formatting.
     payload = {
         "chat_id": chat_id,
         "text": html_text,
@@ -1156,7 +1304,6 @@ def send_telegram_message(html_text):
     except Exception as e:
         print(f"    [TELEGRAM EXCEPTION] {e}")
 
-    # Fallback to plain text if HTML fails.
     plain_text = strip_html_tags(html_text)
     fallback_payload = {
         "chat_id": chat_id,
@@ -1195,7 +1342,6 @@ def deliver_leads(leads, processed_ids):
         else:
             print(f"  [TELEGRAM] ❌ Failed to send lead for {lead['name']}")
 
-        # Small delay between Telegram messages.
         time.sleep(2)
 
     print(f"\nDelivery Complete: {delivered}/{len(leads)} leads sent.")
@@ -1207,9 +1353,11 @@ def deliver_leads(leads, processed_ids):
 # ============================================================
 
 def main():
-    print("=== STARTING CONTRACT-FIRST PERP-GAP PIPELINE ===")
+    print("=== STARTING RATE-LIMITED PERP-GAP PIPELINE ===")
 
     processed_ids = load_processed_ids()
+    save_processed_ids(processed_ids)
+
     print(f"Loaded {len(processed_ids)} previously processed CoinGecko IDs.")
 
     spot_symbols, perp_symbols, perp_symbol_counts = ensure_master_lists()
@@ -1221,14 +1369,19 @@ def main():
         save_processed_ids(processed_ids)
         return
 
-    candidates = fetch_coingecko_candidates()
+    candidates, discovery_rate_limited = fetch_coingecko_candidates()
 
     if not candidates:
         print("\nNo baseline candidates found from CoinGecko.")
+
+        if discovery_rate_limited:
+            print("[WARNING] CoinGecko was rate-limited during discovery.")
+            print("[ACTION] Consider adding COINGECKO_API_KEY or reducing CATEGORIES_PER_RUN.")
+
         save_processed_ids(processed_ids)
         return
 
-    auto_leads, review_leads = find_perp_gap_leads(
+    auto_leads, review_leads, validation_rate_limited = find_perp_gap_leads(
         candidates=candidates,
         processed_ids=processed_ids,
         perp_symbols=perp_symbols,
@@ -1246,6 +1399,10 @@ def main():
         print("\nNo auto-send perp-gap leads passed validation this run.")
 
     save_processed_ids(processed_ids)
+
+    if discovery_rate_limited or validation_rate_limited:
+        print("\n[WARNING] CoinGecko rate limiting affected this run.")
+        print("[ACTION] If this repeats, add a CoinGecko API key or reduce run frequency.")
 
     print("\n=== PIPELINE COMPLETE ===")
 
