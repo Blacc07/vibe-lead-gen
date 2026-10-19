@@ -1471,13 +1471,13 @@ def main():
         print(f"[REASON] {MASTER_LISTS_HEALTH.get('reason', 'No details available.')}")
         print("[ACTION] Aborting before discovery to avoid false perp-gap claims.")
         save_processed_ids(processed_ids)
-        return
+        return 1
 
     if not perp_symbols:
         print("\n[ERROR] Could not build or load a perp master list.")
         print("[ACTION] Aborting to avoid pitching tokens that may already have perps.")
         save_processed_ids(processed_ids)
-        return
+        return 1
 
     candidates, discovery_rate_limited = fetch_coingecko_candidates()
 
@@ -1518,4 +1518,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main() or 0)
