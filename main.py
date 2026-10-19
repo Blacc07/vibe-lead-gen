@@ -46,6 +46,16 @@ MAX_CANDIDATES_TO_SCAN = 120
 # Master list freshness window.
 MAX_LIST_AGE_HOURS = 24
 
+# Minimum number of configured CEX market endpoints required for a refresh.
+MIN_SUCCESSFUL_CEX_SOURCES = 4
+
+# Set by ensure_master_lists(); automatic qualification is blocked unless healthy.
+MASTER_LISTS_HEALTH = {
+    "usable_for_auto_qualification": False,
+    "status": "uninitialized",
+    "reason": "Master lists have not been validated.",
+}
+
 # Rotate CoinGecko categories to reduce API pressure.
 CATEGORIES_PER_RUN = 4
 
@@ -570,6 +580,8 @@ def build_master_lists():
     perp_symbols = set()
     perp_symbol_counts = Counter()
     stats = {}
+    successful_cex_sources = 0
+    failed_cex_sources = []
 
     for exchange_id in CEX_EXCHANGE_IDS:
         print(f"  [CEX] {exchange_id}: fetching markets...")
@@ -587,8 +599,12 @@ def build_master_lists():
 
             if isinstance(markets, dict):
                 market_list = list(markets.values())
-            else:
+            elif isinstance(markets, list):
                 market_list = markets
+            else:
+                raise ValueError(
+                    f"Unexpected market payload type: {type(markets).__name__}"
+                )
 
             spot_count = 0
             perp_count = 0
@@ -623,18 +639,48 @@ def build_master_lists():
                         perp_symbol_counts[base] += 1
 
             stats[exchange_id] = {
+                "status": "success",
                 "spot_markets": spot_count,
                 "perp_markets": perp_count,
                 "total_markets": len(market_list),
             }
-
+            successful_cex_sources += 1
             print(f"  [CEX] {exchange_id}: spot={spot_count}, perp={perp_count}")
 
         except Exception as e:
-            stats[exchange_id] = {"error": str(e)}
+            failed_cex_sources.append(exchange_id)
+            stats[exchange_id] = {"status": "failed", "error": str(e)}
             print(f"  [CEX] {exchange_id}: ERROR: {e}")
 
         time.sleep(1)
+
+    print(
+        f"  [CEX HEALTH] Successful sources: {successful_cex_sources}/"
+        f"{len(CEX_EXCHANGE_IDS)}; required minimum: {MIN_SUCCESSFUL_CEX_SOURCES}"
+    )
+
+    # Preserve existing files when too few CEX sources respond successfully.
+    if successful_cex_sources < MIN_SUCCESSFUL_CEX_SOURCES:
+        raise RuntimeError(
+            "CEX master-list refresh rejected: only "
+            f"{successful_cex_sources} source(s) succeeded; "
+            f"minimum required is {MIN_SUCCESSFUL_CEX_SOURCES}. "
+            "Existing master files were preserved."
+        )
+
+    health_status = (
+        "healthy"
+        if successful_cex_sources == len(CEX_EXCHANGE_IDS)
+        else "degraded"
+    )
+    source_health = {
+        "status": health_status,
+        "successful_cex_sources": successful_cex_sources,
+        "configured_cex_sources": len(CEX_EXCHANGE_IDS),
+        "minimum_required_cex_sources": MIN_SUCCESSFUL_CEX_SOURCES,
+        "failed_cex_sources": failed_cex_sources,
+        "generated_at": now_utc().isoformat(),
+    }
 
     print("  [DEX PERPS] Fetching Hyperliquid and dYdX best-effort...")
 
@@ -657,6 +703,7 @@ def build_master_lists():
         "generated_at": now_utc().isoformat(),
         "source": "ccxt_cex_spot",
         "stats": stats,
+        "source_health": source_health,
         "total_unique_spot_base_symbols": len(spot_symbols),
         "symbols": sorted(list(spot_symbols)),
     }
@@ -665,6 +712,7 @@ def build_master_lists():
         "generated_at": now_utc().isoformat(),
         "source": "ccxt_cex_perp_plus_best_effort_dex_perp",
         "stats": stats,
+        "source_health": source_health,
         "total_unique_perp_base_symbols": len(perp_symbols),
         "symbols": sorted(list(perp_symbols)),
         "symbol_source_counts": dict(perp_symbol_counts),
@@ -698,42 +746,96 @@ def load_perp_symbol_counts(perp_data):
 
 def ensure_master_lists():
     """
-    Loads fresh master lists if available.
-    Otherwise rebuilds them.
-    Falls back to stale lists if rebuild fails.
+    Load validated master lists or rebuild them.
+
+    Degraded/legacy lists are not safe for automatic qualification. If refresh
+    fails, stale lists may be returned for diagnostics, but main() will abort.
     """
+    global MASTER_LISTS_HEALTH
+
     spot_data = load_json(SPOT_FILE)
     perp_data = load_json(PERP_FILE)
 
-    if is_fresh(spot_data) and is_fresh(perp_data):
-        spot_symbols = set(spot_data.get("symbols", []))
-        perp_symbols = set(perp_data.get("symbols", []))
-        perp_symbol_counts = load_perp_symbol_counts(perp_data)
+    spot_health = spot_data.get("source_health", {}) if isinstance(spot_data, dict) else {}
+    perp_health = perp_data.get("source_health", {}) if isinstance(perp_data, dict) else {}
 
-        print("=== LOADED FRESH MASTER LISTS ===")
+    try:
+        healthy_cached_lists = (
+            is_fresh(spot_data)
+            and is_fresh(perp_data)
+            and spot_health.get("status") == "healthy"
+            and perp_health.get("status") == "healthy"
+            and int(spot_health.get("successful_cex_sources", 0) or 0)
+                >= MIN_SUCCESSFUL_CEX_SOURCES
+            and int(perp_health.get("successful_cex_sources", 0) or 0)
+                >= MIN_SUCCESSFUL_CEX_SOURCES
+        )
+    except (TypeError, ValueError):
+        healthy_cached_lists = False
+
+    if healthy_cached_lists:
+        spot_symbols = {norm(s) for s in spot_data.get("symbols", []) if norm(s)}
+        perp_symbols = {norm(s) for s in perp_data.get("symbols", []) if norm(s)}
+        perp_symbol_counts = load_perp_symbol_counts(perp_data)
+        MASTER_LISTS_HEALTH = {
+            "usable_for_auto_qualification": True,
+            "status": "healthy",
+            "reason": "Both master lists are fresh and all configured CEX sources succeeded.",
+        }
+        print("=== LOADED FRESH, HEALTHY MASTER LISTS ===")
         print(f"  Spot symbols: {len(spot_symbols)}")
         print(f"  Perp symbols: {len(perp_symbols)}")
         print(f"  Perp symbol count entries: {len(perp_symbol_counts)}")
-
         return spot_symbols, perp_symbols, perp_symbol_counts
 
-    print("=== MASTER LISTS MISSING OR STALE ===")
-
+    print("=== MASTER LISTS MISSING, LEGACY, STALE, OR DEGRADED ===")
     try:
         spot_symbols, perp_symbols, perp_symbol_counts = build_master_lists()
-        if perp_symbols:
-            return spot_symbols, perp_symbols, perp_symbol_counts
-        print("[WARNING] Built perp list is empty.")
+        new_spot_data = load_json(SPOT_FILE)
+        new_perp_data = load_json(PERP_FILE)
+        new_spot_health = new_spot_data.get("source_health", {}) if isinstance(new_spot_data, dict) else {}
+        new_perp_health = new_perp_data.get("source_health", {}) if isinstance(new_perp_data, dict) else {}
+
+        healthy = (
+            bool(perp_symbols)
+            and new_spot_health.get("status") == "healthy"
+            and new_perp_health.get("status") == "healthy"
+        )
+        MASTER_LISTS_HEALTH = {
+            "usable_for_auto_qualification": healthy,
+            "status": "healthy" if healthy else "degraded",
+            "reason": (
+                "Refresh passed source-health checks."
+                if healthy
+                else "One or more CEX sources failed; automatic lead qualification is disabled."
+            ),
+        }
+        if not healthy:
+            print("[WARNING] Master lists are degraded; lead qualification must stop.")
+        return spot_symbols, perp_symbols, perp_symbol_counts
     except Exception as e:
         print(f"[ERROR] Failed to build master lists: {e}")
 
-    if perp_data and perp_data.get("symbols"):
-        print("[WARNING] Falling back to stale master lists.")
-        spot_symbols = set(spot_data.get("symbols", [])) if spot_data else set()
-        perp_symbols = set(perp_data.get("symbols", []))
+    if isinstance(perp_data, dict) and perp_data.get("symbols"):
+        print("[WARNING] Falling back to previous master lists for diagnostics only.")
+        spot_symbols = {
+            norm(s) for s in (spot_data.get("symbols", []) if isinstance(spot_data, dict) else [])
+            if norm(s)
+        }
+        perp_symbols = {norm(s) for s in perp_data.get("symbols", []) if norm(s)}
         perp_symbol_counts = load_perp_symbol_counts(perp_data)
+        MASTER_LISTS_HEALTH = {
+            "usable_for_auto_qualification": False,
+            "status": "stale",
+            "reason": "Refresh failed; previous master lists are not safe for automatic qualification.",
+        }
         return spot_symbols, perp_symbols, perp_symbol_counts
 
+    MASTER_LISTS_HEALTH = {
+        "usable_for_auto_qualification": False,
+        "status": "unavailable",
+        "reason": "No validated master lists are available.",
+    }
     return set(), set(), {}
 
 
@@ -1362,6 +1464,14 @@ def main():
 
     spot_symbols, perp_symbols, perp_symbol_counts = ensure_master_lists()
     perp_contracts = load_perp_contracts()
+
+    if not MASTER_LISTS_HEALTH.get("usable_for_auto_qualification", False):
+        print("\\n[ERROR] Master-list health check failed.")
+        print(f"[STATUS] {MASTER_LISTS_HEALTH.get('status', 'unknown')}")
+        print(f"[REASON] {MASTER_LISTS_HEALTH.get('reason', 'No details available.')}")
+        print("[ACTION] Aborting before discovery to avoid false perp-gap claims.")
+        save_processed_ids(processed_ids)
+        return
 
     if not perp_symbols:
         print("\n[ERROR] Could not build or load a perp master list.")
