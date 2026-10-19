@@ -41,6 +41,11 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+          # Optional. If not set, the script uses the public CoinGecko endpoint.
+          COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+          COINGECKO_API_HEADER: ${{ secrets.COINGECKO_API_HEADER }}
+
         run: python main.py
 
       - name: Commit state and master lists
@@ -51,12 +56,17 @@ jobs:
           # Reduce push conflicts if another run or manual commit changed the repo.
           git pull --rebase --autostash origin "${GITHUB_REF_NAME}" || true
 
-          touch processed_leads.json
-
-          git add processed_leads.json || true
-          git add master_spot_list.json || true
-          git add master_perp_list.json || true
-          git add review_leads.json || true
+          for f in \
+            processed_leads.json \
+            master_spot_list.json \
+            master_perp_list.json \
+            review_leads.json \
+            category_cursor.json
+          do
+            if [ -f "$f" ]; then
+              git add "$f"
+            fi
+          done
 
           git diff --staged --quiet || git commit -m "Update perp-gap pipeline state"
           git push
