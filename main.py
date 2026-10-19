@@ -7,7 +7,7 @@ import html
 import requests
 from pathlib import Path
 from datetime import datetime, timezone
-from collections import Counter
+from collections import Counter, defaultdict
 
 try:
     import ccxt
@@ -46,8 +46,9 @@ MAX_CANDIDATES_TO_SCAN = 120
 # Master list freshness window.
 MAX_LIST_AGE_HOURS = 24
 
-# Minimum number of configured CEX market endpoints required for a refresh.
-MIN_SUCCESSFUL_CEX_SOURCES = 4
+# Minimum number of independent CEX venues required for a trusted refresh.
+# Multiple CCXT market endpoints belonging to the same company count as one venue.
+MIN_SUCCESSFUL_CEX_VENUES = 4
 
 # Set by ensure_master_lists(); automatic qualification is blocked unless healthy.
 MASTER_LISTS_HEALTH = {
@@ -87,16 +88,34 @@ COINGECKO_MAX_SLEEP_SECONDS = 180
 
 _coingecko_last_call = 0.0
 
-# CCXT exchange IDs.
+# CCXT exchange IDs used for public market data.
+# Binance and Bybit are omitted because GitHub-hosted runners returned explicit
+# regional-access denials (HTTP 451/403). Additional venues provide redundancy.
 CEX_EXCHANGE_IDS = [
-    "binance",
-    "binanceusdm",
-    "binancecoinm",
     "okx",
-    "bybit",
     "mexc",
     "gate",
+    "bitget",
+    "kucoin",
+    "kucoinfutures",
+    "phemex",
+    "bingx",
+    "coinex",
 ]
+
+# Group related CCXT endpoints under the actual exchange venue. In particular,
+# KuCoin spot and KuCoin Futures are one venue, not two independent sources.
+CEX_VENUE_BY_EXCHANGE_ID = {
+    "okx": "okx",
+    "mexc": "mexc",
+    "gate": "gate",
+    "bitget": "bitget",
+    "kucoin": "kucoin",
+    "kucoinfutures": "kucoin",
+    "phemex": "phemex",
+    "bingx": "bingx",
+    "coinex": "coinex",
+}
 
 # CoinGecko chain IDs.
 TARGET_CHAINS_CG = [
@@ -581,10 +600,14 @@ def build_master_lists():
     perp_symbol_counts = Counter()
     stats = {}
     successful_cex_sources = 0
+    successful_spot_venues = set()
+    successful_perp_venues = set()
+    perp_symbols_by_venue = defaultdict(set)
     failed_cex_sources = []
 
     for exchange_id in CEX_EXCHANGE_IDS:
-        print(f"  [CEX] {exchange_id}: fetching markets...")
+        venue_id = CEX_VENUE_BY_EXCHANGE_ID.get(exchange_id, exchange_id)
+        print(f"  [CEX] {exchange_id} (venue={venue_id}): fetching markets...")
 
         try:
             exchange_cls = getattr(ccxt, exchange_id)
@@ -605,6 +628,9 @@ def build_master_lists():
                 raise ValueError(
                     f"Unexpected market payload type: {type(markets).__name__}"
                 )
+
+            if not market_list:
+                raise ValueError("Exchange returned an empty market list")
 
             spot_count = 0
             perp_count = 0
@@ -636,7 +662,12 @@ def build_master_lists():
                     perp_count += 1
                     if base not in NON_TARGET_BASES:
                         perp_symbols.add(base)
-                        perp_symbol_counts[base] += 1
+                        perp_symbols_by_venue[venue_id].add(base)
+
+            if spot_count > 0:
+                successful_spot_venues.add(venue_id)
+            if perp_count > 0:
+                successful_perp_venues.add(venue_id)
 
             stats[exchange_id] = {
                 "status": "success",
@@ -654,30 +685,49 @@ def build_master_lists():
 
         time.sleep(1)
 
+    configured_cex_venues = sorted(set(CEX_VENUE_BY_EXCHANGE_ID.values()))
+    successful_spot_venues_sorted = sorted(successful_spot_venues)
+    successful_perp_venues_sorted = sorted(successful_perp_venues)
+
+    # Count each perp base once per independent venue across all its endpoints.
+    for venue_symbols in perp_symbols_by_venue.values():
+        for symbol in venue_symbols:
+            perp_symbol_counts[symbol] += 1
+
     print(
-        f"  [CEX HEALTH] Successful sources: {successful_cex_sources}/"
-        f"{len(CEX_EXCHANGE_IDS)}; required minimum: {MIN_SUCCESSFUL_CEX_SOURCES}"
+        f"  [CEX HEALTH] Successful endpoints: {successful_cex_sources}/"
+        f"{len(CEX_EXCHANGE_IDS)}; spot venues: "
+        f"{len(successful_spot_venues)}/{len(configured_cex_venues)}; perp venues: "
+        f"{len(successful_perp_venues)}/{len(configured_cex_venues)}; "
+        f"minimum required: {MIN_SUCCESSFUL_CEX_VENUES} venues for each list"
     )
 
-    # Preserve existing files when too few CEX sources respond successfully.
-    if successful_cex_sources < MIN_SUCCESSFUL_CEX_SOURCES:
+    # A venue counts only for the list type it actually returned. This prevents
+    # a spot-only endpoint from making an incomplete perp list appear healthy.
+    if (
+        len(successful_spot_venues) < MIN_SUCCESSFUL_CEX_VENUES
+        or len(successful_perp_venues) < MIN_SUCCESSFUL_CEX_VENUES
+    ):
         raise RuntimeError(
-            "CEX master-list refresh rejected: only "
-            f"{successful_cex_sources} source(s) succeeded; "
-            f"minimum required is {MIN_SUCCESSFUL_CEX_SOURCES}. "
+            "CEX master-list refresh rejected: independent venue coverage was "
+            f"spot={len(successful_spot_venues)}, perp={len(successful_perp_venues)}; "
+            f"minimum required is {MIN_SUCCESSFUL_CEX_VENUES} venues for each list. "
             "Existing master files were preserved."
         )
 
-    health_status = (
-        "healthy"
-        if successful_cex_sources == len(CEX_EXCHANGE_IDS)
-        else "degraded"
-    )
+    # Some endpoints may be region-blocked; this is acceptable when the required
+    # number of independent venues returned actual spot and perp markets.
     source_health = {
-        "status": health_status,
+        "health_schema_version": 2,
+        "status": "healthy",
         "successful_cex_sources": successful_cex_sources,
         "configured_cex_sources": len(CEX_EXCHANGE_IDS),
-        "minimum_required_cex_sources": MIN_SUCCESSFUL_CEX_SOURCES,
+        "successful_spot_venues": len(successful_spot_venues),
+        "successful_spot_venue_ids": successful_spot_venues_sorted,
+        "successful_perp_venues": len(successful_perp_venues),
+        "successful_perp_venue_ids": successful_perp_venues_sorted,
+        "configured_cex_venues": len(configured_cex_venues),
+        "minimum_required_cex_venues": MIN_SUCCESSFUL_CEX_VENUES,
         "failed_cex_sources": failed_cex_sources,
         "generated_at": now_utc().isoformat(),
     }
@@ -763,12 +813,14 @@ def ensure_master_lists():
         healthy_cached_lists = (
             is_fresh(spot_data)
             and is_fresh(perp_data)
+            and spot_health.get("health_schema_version") == 2
+            and perp_health.get("health_schema_version") == 2
             and spot_health.get("status") == "healthy"
             and perp_health.get("status") == "healthy"
-            and int(spot_health.get("successful_cex_sources", 0) or 0)
-                >= MIN_SUCCESSFUL_CEX_SOURCES
-            and int(perp_health.get("successful_cex_sources", 0) or 0)
-                >= MIN_SUCCESSFUL_CEX_SOURCES
+            and int(spot_health.get("successful_spot_venues", 0) or 0)
+                >= MIN_SUCCESSFUL_CEX_VENUES
+            and int(perp_health.get("successful_perp_venues", 0) or 0)
+                >= MIN_SUCCESSFUL_CEX_VENUES
         )
     except (TypeError, ValueError):
         healthy_cached_lists = False
@@ -780,7 +832,10 @@ def ensure_master_lists():
         MASTER_LISTS_HEALTH = {
             "usable_for_auto_qualification": True,
             "status": "healthy",
-            "reason": "Both master lists are fresh and all configured CEX sources succeeded.",
+            "reason": (
+                "Both master lists are fresh and at least "
+                f"{MIN_SUCCESSFUL_CEX_VENUES} independent CEX venues succeeded."
+            ),
         }
         print("=== LOADED FRESH, HEALTHY MASTER LISTS ===")
         print(f"  Spot symbols: {len(spot_symbols)}")
@@ -797,9 +852,16 @@ def ensure_master_lists():
         new_perp_health = new_perp_data.get("source_health", {}) if isinstance(new_perp_data, dict) else {}
 
         healthy = (
-            bool(perp_symbols)
+            bool(spot_symbols)
+            and bool(perp_symbols)
+            and new_spot_health.get("health_schema_version") == 2
+            and new_perp_health.get("health_schema_version") == 2
             and new_spot_health.get("status") == "healthy"
             and new_perp_health.get("status") == "healthy"
+            and int(new_spot_health.get("successful_spot_venues", 0) or 0)
+                >= MIN_SUCCESSFUL_CEX_VENUES
+            and int(new_perp_health.get("successful_perp_venues", 0) or 0)
+                >= MIN_SUCCESSFUL_CEX_VENUES
         )
         MASTER_LISTS_HEALTH = {
             "usable_for_auto_qualification": healthy,
@@ -807,7 +869,10 @@ def ensure_master_lists():
             "reason": (
                 "Refresh passed source-health checks."
                 if healthy
-                else "One or more CEX sources failed; automatic lead qualification is disabled."
+                else (
+                    "The refreshed master lists did not pass independent-venue "
+                    "health checks; automatic lead qualification is disabled."
+                )
             ),
         }
         if not healthy:
