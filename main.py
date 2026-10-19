@@ -7,6 +7,7 @@ import html
 import requests
 from pathlib import Path
 from datetime import datetime, timezone
+from collections import Counter
 
 try:
     import ccxt
@@ -18,30 +19,38 @@ except Exception:
 # CONFIGURATION
 # ============================================================
 
-from collections import Counter
-
+STATE_FILE = Path("processed_leads.json")
+SPOT_FILE = Path("master_spot_list.json")
+PERP_FILE = Path("master_perp_list.json")
 REVIEW_FILE = Path("review_leads.json")
+
+# Optional future contract-level perp list.
+# Expected format:
+# {
+#   "generated_at": "...",
+#   "contracts": ["0x...", "SolanaMint..."]
+# }
+PERP_CONTRACTS_FILE = Path("master_perp_contracts.json")
+
+# Conservative settings for a 2-hour cadence.
+# Increase later only after monitoring API/runtime behavior.
+TARGET_QUOTA = 3
+MAX_CANDIDATES_TO_PROCESS = 15
+MAX_LIST_AGE_HOURS = 24
 
 # If a perp symbol appears on at least this many independent venues,
 # treat it as high-confidence and hard-drop.
 #
-# Set this higher, e.g. 999, if you want almost no symbol-based hard drops.
-PERP_SYMBOL_MIN_SOURCES_FOR_AUTO_DROP = 2
+# Lower value = more aggressive dropping.
+# Higher value = fewer false drops, more manual review.
+#
+# 3 is a balanced starting point.
+# 999 would effectively disable symbol-based hard drops.
+PERP_SYMBOL_MIN_SOURCES_FOR_AUTO_DROP = 3
 
-# Optional future contract-level perp list.
-# For now this will usually be empty unless we add on-chain perp adapters.
-PERP_CONTRACTS_FILE = Path("master_perp_contracts.json")
-
-STATE_FILE = Path("processed_leads.json")
-SPOT_FILE = Path("master_spot_list.json")
-PERP_FILE = Path("master_perp_list.json")
-
-TARGET_QUOTA = 5
-MAX_LIST_AGE_HOURS = 24
-MAX_CANDIDATES_TO_PROCESS = 80
-
-# CEX exchange IDs supported by CCXT.
-# Binance spot and Binance futures are separate in CCXT.
+# CCXT exchange IDs.
+# [NEEDS VERIFICATION] Confirm these IDs exist in your installed CCXT version.
+# Unknown IDs are caught and skipped safely.
 CEX_EXCHANGE_IDS = [
     "binance",
     "binanceusdm",
@@ -52,11 +61,19 @@ CEX_EXCHANGE_IDS = [
     "gate",
 ]
 
-# CoinGecko chain IDs
-TARGET_CHAINS_CG = ["solana", "base", "binance-smart-chain"]
+# CoinGecko chain IDs.
+TARGET_CHAINS_CG = [
+    "solana",
+    "base",
+    "binance-smart-chain",
+]
 
-# DexScreener chain IDs
-TARGET_CHAINS_DS = ["solana", "base", "bsc"]
+# DexScreener chain IDs.
+TARGET_CHAINS_DS = [
+    "solana",
+    "base",
+    "bsc",
+]
 
 CHAIN_DISPLAY = {
     "solana": "Solana",
@@ -65,8 +82,9 @@ CHAIN_DISPLAY = {
     "bsc": "BSC",
 }
 
-# Broad discovery categories.
-# The perp-gap filter is the main qualifier, so discovery can be wider.
+# CoinGecko category slugs.
+# [NEEDS VERIFICATION] CoinGecko category slugs can change.
+# Invalid categories are skipped safely if the API returns non-200.
 CATEGORIES = [
     "decentralized-exchange",
     "yield-farming",
@@ -207,16 +225,20 @@ MAJOR_AMBIGUOUS_SYMBOLS = {
     "BSV",
 }
 
-# Size/volume filters
+# Size/volume filters.
 MCAP_MIN = 300_000
 MCAP_MAX = 30_000_000
 CG_VOLUME_MIN = 50_000
 
-# DexScreener on-chain life filters
+# DexScreener on-chain life filters.
 DEX_LIQUIDITY_MIN_USD = 50_000
 DEX_VOLUME_24H_MIN_USD = 20_000
 
-USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/120.0.0.0 Safari/537.36"
+)
 
 
 # ============================================================
@@ -246,7 +268,10 @@ def load_json(path):
 
 
 def save_json(path, data):
-    Path(path).write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    Path(path).write_text(
+        json.dumps(data, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
 
 
 def load_processed_ids():
@@ -263,9 +288,11 @@ def save_processed_ids(processed_ids):
 def is_fresh(data):
     if not data:
         return False
+
     generated_at = parse_iso(data.get("generated_at", ""))
     if not generated_at:
         return False
+
     age_seconds = (now_utc() - generated_at).total_seconds()
     return age_seconds < MAX_LIST_AGE_HOURS * 3600
 
@@ -285,9 +312,16 @@ def strip_html_tags(value):
 def fetch_hyperliquid_perps():
     """
     Best-effort Hyperliquid perp symbol fetch.
-    If the endpoint changes or is blocked, this safely fails and the pipeline continues.
+
+    [NEEDS VERIFICATION]
+    Expected endpoint:
+      POST https://api.hyperliquid.xyz/info
+      {"type": "metaAndAssetCtxs"}
+
+    If the endpoint or response shape changes, this safely fails.
     """
     symbols = set()
+
     try:
         resp = requests.post(
             "https://api.hyperliquid.xyz/info",
@@ -301,16 +335,24 @@ def fetch_hyperliquid_perps():
         resp.raise_for_status()
         data = resp.json()
 
+        # Expected rough shape:
+        # [
+        #   { "universe": [ {"name": "SOL"}, ... ] },
+        #   [ ... asset contexts ... ]
+        # ]
         if isinstance(data, list) and data:
             meta = data[0]
             if isinstance(meta, dict):
                 universe = meta.get("universe", [])
-                for item in universe:
-                    if not isinstance(item, dict):
-                        continue
-                    name = norm(item.get("name"))
-                    if name and name not in NON_TARGET_BASES:
-                        symbols.add(name)
+                if isinstance(universe, list):
+                    for item in universe:
+                        if not isinstance(item, dict):
+                            continue
+
+                        name = norm(item.get("name"))
+                        if name and name not in NON_TARGET_BASES:
+                            symbols.add(name)
+
     except Exception as e:
         print(f"    [HYPERLIQUID] Best-effort fetch failed: {e}")
 
@@ -320,9 +362,15 @@ def fetch_hyperliquid_perps():
 def fetch_dydx_perps():
     """
     Best-effort dYdX v4 perp symbol fetch.
-    If the endpoint changes or is blocked, this safely fails and the pipeline continues.
+
+    [NEEDS VERIFICATION]
+    Expected endpoint:
+      GET https://indexer.dydx.trade/v4/perpetualMarkets
+
+    If the endpoint or response shape changes, this safely fails.
     """
     symbols = set()
+
     try:
         resp = requests.get(
             "https://indexer.dydx.trade/v4/perpetualMarkets",
@@ -335,9 +383,13 @@ def fetch_dydx_perps():
         markets = data.get("markets", {})
         if isinstance(markets, dict):
             for market_key in markets.keys():
+                # Market keys are commonly formatted like:
+                # SOL-USD
+                # BTC-USD
                 base = norm(str(market_key).split("-")[0])
                 if base and base not in NON_TARGET_BASES:
                     symbols.add(base)
+
     except Exception as e:
         print(f"    [DYDX] Best-effort fetch failed: {e}")
 
@@ -353,6 +405,10 @@ def build_master_lists():
     Builds:
     - master_spot_list.json: base symbols listed on CEX spot markets
     - master_perp_list.json: base symbols with existing perp/derivative markets
+
+    Also tracks how many independent venues list each perp symbol.
+    This allows us to distinguish high-confidence perp existence from
+    possible symbol collisions.
     """
     if ccxt is None:
         raise RuntimeError("ccxt is not installed. The GitHub workflow must install it.")
@@ -361,6 +417,7 @@ def build_master_lists():
 
     spot_symbols = set()
     perp_symbols = set()
+    perp_symbol_counts = Counter()
     stats = {}
 
     for exchange_id in CEX_EXCHANGE_IDS:
@@ -372,7 +429,6 @@ def build_master_lists():
                 {
                     "enableRateLimit": True,
                     "timeout": 20000,
-                    "userAgent": USER_AGENT,
                 }
             )
 
@@ -414,6 +470,7 @@ def build_master_lists():
                     perp_count += 1
                     if base not in NON_TARGET_BASES:
                         perp_symbols.add(base)
+                        perp_symbol_counts[base] += 1
 
             stats[exchange_id] = {
                 "spot_markets": spot_count,
@@ -438,6 +495,12 @@ def build_master_lists():
     perp_symbols.update(hyperliquid_symbols)
     perp_symbols.update(dydx_symbols)
 
+    for symbol in hyperliquid_symbols:
+        perp_symbol_counts[symbol] += 1
+
+    for symbol in dydx_symbols:
+        perp_symbol_counts[symbol] += 1
+
     stats["hyperliquid"] = {"perp_symbols": len(hyperliquid_symbols)}
     stats["dydx"] = {"perp_symbols": len(dydx_symbols)}
 
@@ -455,6 +518,7 @@ def build_master_lists():
         "stats": stats,
         "total_unique_perp_base_symbols": len(perp_symbols),
         "symbols": sorted(list(perp_symbols)),
+        "symbol_source_counts": dict(perp_symbol_counts),
     }
 
     save_json(SPOT_FILE, spot_output)
@@ -462,8 +526,26 @@ def build_master_lists():
 
     print(f"\n[SUCCESS] Master spot symbols: {len(spot_symbols)}")
     print(f"[SUCCESS] Master perp symbols: {len(perp_symbols)}")
+    print(
+        "[SUCCESS] Perp symbols with 2+ sources: "
+        f"{sum(1 for v in perp_symbol_counts.values() if v >= 2)}"
+    )
 
-    return spot_symbols, perp_symbols
+    return spot_symbols, perp_symbols, perp_symbol_counts
+
+
+def load_perp_symbol_counts(perp_data):
+    if not perp_data:
+        return {}
+
+    counts = perp_data.get("symbol_source_counts", {})
+
+    if isinstance(counts, dict) and counts:
+        return {norm(k): int(v) for k, v in counts.items() if norm(k)}
+
+    # Fallback for older master_perp_list.json files.
+    symbols = perp_data.get("symbols", [])
+    return {norm(s): 1 for s in symbols if norm(s)}
 
 
 def ensure_master_lists():
@@ -478,17 +560,21 @@ def ensure_master_lists():
     if is_fresh(spot_data) and is_fresh(perp_data):
         spot_symbols = set(spot_data.get("symbols", []))
         perp_symbols = set(perp_data.get("symbols", []))
-        print(f"=== LOADED FRESH MASTER LISTS ===")
+        perp_symbol_counts = load_perp_symbol_counts(perp_data)
+
+        print("=== LOADED FRESH MASTER LISTS ===")
         print(f"  Spot symbols: {len(spot_symbols)}")
         print(f"  Perp symbols: {len(perp_symbols)}")
-        return spot_symbols, perp_symbols
+        print(f"  Perp symbol count entries: {len(perp_symbol_counts)}")
+
+        return spot_symbols, perp_symbols, perp_symbol_counts
 
     print("=== MASTER LISTS MISSING OR STALE ===")
 
     try:
-        spot_symbols, perp_symbols = build_master_lists()
+        spot_symbols, perp_symbols, perp_symbol_counts = build_master_lists()
         if perp_symbols:
-            return spot_symbols, perp_symbols
+            return spot_symbols, perp_symbols, perp_symbol_counts
         print("[WARNING] Built perp list is empty.")
     except Exception as e:
         print(f"[ERROR] Failed to build master lists: {e}")
@@ -498,9 +584,65 @@ def ensure_master_lists():
         print("[WARNING] Falling back to stale master lists.")
         spot_symbols = set(spot_data.get("symbols", [])) if spot_data else set()
         perp_symbols = set(perp_data.get("symbols", []))
-        return spot_symbols, perp_symbols
+        perp_symbol_counts = load_perp_symbol_counts(perp_data)
+        return spot_symbols, perp_symbols, perp_symbol_counts
 
-    return set(), set()
+    return set(), set(), {}
+
+
+def load_perp_contracts():
+    """
+    Optional future-proofing.
+
+    If we later add on-chain perp venues that expose underlying token contracts,
+    store them in master_perp_contracts.json as:
+
+    {
+      "generated_at": "...",
+      "contracts": ["0x...", "SolanaMint..."]
+    }
+    """
+    data = load_json(PERP_CONTRACTS_FILE)
+    if not data:
+        return set()
+
+    contracts = data.get("contracts", [])
+    if isinstance(contracts, list):
+        return {norm(c) for c in contracts if norm(c)}
+
+    return set()
+
+
+def classify_perp_risk(symbol, contract, perp_symbols, perp_symbol_counts, perp_contracts=None):
+    """
+    Returns:
+      risk: "auto_send" | "manual_review" | "hard_drop"
+      reason: human-readable explanation
+    """
+    perp_contracts = perp_contracts or set()
+
+    # Highest confidence: contract-level perp exists.
+    if contract and norm(contract) in perp_contracts:
+        return "hard_drop", "Contract-level perp market exists."
+
+    # Symbol-level perp exists.
+    if symbol in perp_symbols:
+        source_count = perp_symbol_counts.get(symbol, 1)
+
+        if source_count >= PERP_SYMBOL_MIN_SOURCES_FOR_AUTO_DROP:
+            return (
+                "hard_drop",
+                f"Perp symbol appears on {source_count} independent venues. "
+                "High-confidence existing perp.",
+            )
+
+        return (
+            "manual_review",
+            f"Perp symbol appears on only {source_count} venue. "
+            "Possible symbol collision. Manual review required.",
+        )
+
+    return "auto_send", "No perp market detected."
 
 
 # ============================================================
@@ -536,8 +678,13 @@ def fetch_coingecko_candidates():
                 continue
 
             coins = resp.json()
+            if not isinstance(coins, list):
+                continue
 
             for coin in coins:
+                if not isinstance(coin, dict):
+                    continue
+
                 coin_id = coin.get("id")
                 if not coin_id or coin_id in seen_ids:
                     continue
@@ -596,6 +743,7 @@ def get_coin_details(coin_id):
         resp = requests.get(url, headers=headers, timeout=20)
         if resp.status_code == 200:
             return resp.json()
+
         print(f"    [ERROR] CoinGecko detail returned {resp.status_code}")
     except Exception as e:
         print(f"    [ERROR] CoinGecko detail fetch failed: {e}")
@@ -607,11 +755,26 @@ def get_coin_details(coin_id):
 # DEXSCREENER ON-CHAIN VALIDATION
 # ============================================================
 
-def validate_onchain_life(contract_address):
+def fetch_dexscreener_best_pair(contract_address):
     """
     Validation layer:
-    Use DexScreener to verify the token has real liquidity and volume
+    Use DexScreener to verify the token contract has real liquidity and volume
     on Solana, Base, or BSC.
+
+    [NEEDS VERIFICATION]
+    DexScreener public endpoint shape can change. Before production deployment,
+    test:
+      GET https://api.dexscreener.com/latest/dex/tokens/{contract_address}
+
+    Expected response contains:
+      pairs[].chainId
+      pairs[].dexId
+      pairs[].baseToken.address
+      pairs[].baseToken.symbol
+      pairs[].liquidity.usd
+      pairs[].volume.h24
+      pairs[].priceChange.h24
+      pairs[].url
     """
     url = f"https://api.dexscreener.com/latest/dex/tokens/{contract_address}"
     headers = {"User-Agent": USER_AGENT}
@@ -637,6 +800,15 @@ def validate_onchain_life(contract_address):
             if chain_id not in TARGET_CHAINS_DS:
                 continue
 
+            # Extra safety: confirm the pair's base token address matches our contract.
+            base_token = pair.get("baseToken", {})
+            if not isinstance(base_token, dict):
+                continue
+
+            base_address = base_token.get("address", "")
+            if base_address and norm(base_address) != norm(contract_address):
+                continue
+
             try:
                 liquidity = float(pair.get("liquidity", {}).get("usd", 0) or 0)
                 volume = float(pair.get("volume", {}).get("h24", 0) or 0)
@@ -656,7 +828,8 @@ def validate_onchain_life(contract_address):
                     "chain_display": CHAIN_DISPLAY.get(chain_id, chain_id),
                     "dex": pair.get("dexId", "unknown"),
                     "pair_address": pair.get("pairAddress", ""),
-                    "base_token_symbol": pair.get("baseToken", {}).get("symbol", ""),
+                    "base_token_symbol": base_token.get("symbol", ""),
+                    "base_token_address": base_address,
                     "quote_token_symbol": pair.get("quoteToken", {}).get("symbol", ""),
                     "liquidity_usd": liquidity,
                     "volume_h24": volume,
@@ -675,26 +848,40 @@ def validate_onchain_life(contract_address):
 # PERP-GAP FILTERING
 # ============================================================
 
-def find_perp_gap_leads(candidates, processed_ids, perp_symbols, spot_symbols):
+def find_perp_gap_leads(
+    candidates,
+    processed_ids,
+    perp_symbols,
+    perp_symbol_counts,
+    spot_symbols,
+    perp_contracts=None,
+):
     """
     Core strategic filter:
     1. Skip already processed tokens.
-    2. Drop tokens that already have perp markets.
-    3. Require website.
-    4. Require target-chain contract.
-    5. Require live DEX liquidity/volume.
-    6. Prioritize tokens already listed on CEX spot.
+    2. Resolve candidate by contract address.
+    3. Validate live DEX liquidity/volume by contract.
+    4. Classify perp risk:
+       - hard drop if contract-level perp exists
+       - hard drop if symbol appears on multiple perp venues
+       - manual review if symbol appears on only one venue
+       - auto-send if no perp detected
+    5. Prioritize tokens already listed on CEX spot.
     """
-    print("\n=== MODULE 2: PERP-GAP SUBTRACTION + ON-CHAIN VALIDATION ===")
+    print("\n=== MODULE 2: CONTRACT-FIRST PERP-GAP FILTERING ===")
 
-    verified_leads = []
+    auto_leads = []
+    review_leads = []
+
+    perp_contracts = perp_contracts or set()
+
     random.shuffle(candidates)
 
     checked = 0
 
     for coin in candidates:
-        if len(verified_leads) >= TARGET_QUOTA:
-            print(f"  [QUOTA MET] Found {TARGET_QUOTA} verified perp-gap leads.")
+        if len(auto_leads) >= TARGET_QUOTA and len(review_leads) >= TARGET_QUOTA:
+            print("  [QUOTA MET] Found enough auto and review leads.")
             break
 
         if checked >= MAX_CANDIDATES_TO_PROCESS:
@@ -709,20 +896,25 @@ def find_perp_gap_leads(candidates, processed_ids, perp_symbols, spot_symbols):
 
         checked += 1
 
-        # Primary strategic filter:
-        # Do not pitch tokens that already appear in the perp master list.
-        if symbol in perp_symbols:
-            print(f"  [DROP] {coin['name']} ({symbol}) | Reason: Existing perp market detected.")
+        # Early hard-drop optimization:
+        # If the symbol appears on multiple perp venues, we can drop before
+        # spending CoinGecko/DexScreener calls.
+        early_source_count = perp_symbol_counts.get(symbol, 0)
+        if symbol in perp_symbols and early_source_count >= PERP_SYMBOL_MIN_SOURCES_FOR_AUTO_DROP:
+            print(
+                f"  [DROP] {coin['name']} ({symbol}) | "
+                f"Reason: Perp symbol appears on {early_source_count} venues."
+            )
             processed_ids.add(coin_id)
             continue
 
-        print(f"  Processing perp-gap candidate: {coin['name']} ({symbol})...")
+        print(f"  Processing candidate: {coin['name']} ({symbol})...")
 
         details = get_coin_details(coin_id)
         time.sleep(4)
 
         if not details:
-            print(f"    [TRANSIENT] No CoinGecko details returned. Not marking processed.")
+            print("    [TRANSIENT] No CoinGecko details returned. Not marking processed.")
             continue
 
         links = details.get("links", {})
@@ -735,7 +927,7 @@ def find_perp_gap_leads(candidates, processed_ids, perp_symbols, spot_symbols):
         )
 
         if not website:
-            print(f"    [DROP] No website found.")
+            print("    [DROP] No website found.")
             processed_ids.add(coin_id)
             continue
 
@@ -751,17 +943,25 @@ def find_perp_gap_leads(candidates, processed_ids, perp_symbols, spot_symbols):
                 break
 
         if not target_contract:
-            print(f"    [DROP] No target-chain contract address found.")
+            print("    [DROP] No target-chain contract address found.")
             processed_ids.add(coin_id)
             continue
 
-        dex_pair = validate_onchain_life(target_contract)
+        dex_pair = fetch_dexscreener_best_pair(target_contract)
         time.sleep(1)
 
         if not dex_pair:
-            print(f"    [DROP] No qualifying live DEX pair found on target chains.")
+            print("    [DROP] No qualifying live DEX pair found on target chains.")
             processed_ids.add(coin_id)
             continue
+
+        risk, reason = classify_perp_risk(
+            symbol=symbol,
+            contract=target_contract,
+            perp_symbols=perp_symbols,
+            perp_symbol_counts=perp_symbol_counts,
+            perp_contracts=perp_contracts,
+        )
 
         priority = (
             "CEX_SPOT_NO_PERP"
@@ -769,33 +969,78 @@ def find_perp_gap_leads(candidates, processed_ids, perp_symbols, spot_symbols):
             else "DEX_MOMENTUM_NO_PERP"
         )
 
-        verified_leads.append(
-            {
-                "gecko_id": coin_id,
-                "name": coin["name"],
-                "symbol": symbol,
-                "market_cap": coin["market_cap"],
-                "cg_volume_24h": coin["cg_volume_24h"],
-                "website": website,
-                "twitter": f"@{twitter}" if twitter else "Not Found",
-                "contract": target_contract,
-                "chain": target_chain,
-                "chain_display": CHAIN_DISPLAY.get(target_chain, target_chain),
-                "dex": dex_pair,
-                "priority": priority,
-            }
-        )
+        lead = {
+            "gecko_id": coin_id,
+            "name": coin["name"],
+            "symbol": symbol,
+            "market_cap": coin["market_cap"],
+            "cg_volume_24h": coin["cg_volume_24h"],
+            "website": website,
+            "twitter": f"@{twitter}" if twitter else "Not Found",
+            "contract": target_contract,
+            "chain": target_chain,
+            "chain_display": CHAIN_DISPLAY.get(target_chain, target_chain),
+            "dex": dex_pair,
+            "priority": priority,
+            "perp_risk": risk,
+            "perp_reason": reason,
+            "perp_symbol_source_count": perp_symbol_counts.get(symbol, 0),
+        }
+
+        if risk == "hard_drop":
+            print(f"    [DROP] {reason}")
+            processed_ids.add(coin_id)
+            continue
+
+        if risk == "manual_review":
+            print(f"    [REVIEW] {reason}")
+            review_leads.append(lead)
+
+            # Mark processed to avoid repeated review spam.
+            # If you want the pipeline to re-evaluate these later, remove this line.
+            processed_ids.add(coin_id)
+            continue
 
         print(
-            f"    [PASS] Perp gap confirmed. "
+            f"    [AUTO PASS] {reason} | "
             f"Liq=${dex_pair['liquidity_usd']:,.0f}, "
             f"Vol=${dex_pair['volume_h24']:,.0f}, "
             f"Chain={dex_pair['chain_display']}, "
             f"Priority={priority}"
         )
 
-    print(f"\n    Validation Complete: {len(verified_leads)} perp-gap leads verified.")
-    return verified_leads
+        auto_leads.append(lead)
+
+    print(
+        f"\n    Validation Complete: "
+        f"{len(auto_leads)} auto-send leads, "
+        f"{len(review_leads)} review leads."
+    )
+
+    return auto_leads, review_leads
+
+
+def save_review_leads(review_leads):
+    if not review_leads:
+        return
+
+    existing = load_json(REVIEW_FILE)
+
+    if not isinstance(existing, list):
+        existing = []
+
+    by_id = {}
+
+    for item in existing:
+        if isinstance(item, dict) and item.get("gecko_id"):
+            by_id[item["gecko_id"]] = item
+
+    for lead in review_leads:
+        by_id[lead["gecko_id"]] = lead
+
+    save_json(REVIEW_FILE, list(by_id.values()))
+
+    print(f"\n[REVIEW] Saved {len(review_leads)} symbol-conflict leads to {REVIEW_FILE}")
 
 
 # ============================================================
@@ -834,8 +1079,8 @@ def generate_personalized_dm(lead):
         f"{insight}\n\n"
         f"That usually means derivative demand is either leaking to CEXs or being suppressed entirely.\n\n"
         f"We built Vibe Trading to help protocols capture that value:\n"
-        f"• The Solution: List a native perp on Vibe for $0 USDC. Deposit idle treasury tokens to our vault to back the Open Interest.\n"
-        f"• The Result: You earn perpetual trading fees to fund operations without selling a single token on the spot market.\n\n"
+        f"- The Solution: List a native perp on Vibe for $0 USDC. Deposit idle treasury tokens to our vault to back the Open Interest.\n"
+        f"- The Result: You earn perpetual trading fees to fund operations without selling a single token on the spot market.\n\n"
         f"Mind if I send over a quick 1-pager on how the vault mechanics work?"
     )
 
@@ -852,6 +1097,7 @@ def build_telegram_html_message(lead, dm_text):
 
     price_change = dex.get("price_change_h24")
     price_change_str = "N/A"
+
     if price_change is not None:
         try:
             price_change_str = f"{float(price_change):+.2f}%"
@@ -923,6 +1169,7 @@ def send_telegram_message(html_text):
         if resp.status_code == 200:
             print("    [TELEGRAM] Sent using plain-text fallback.")
             return True
+
         print(f"    [TELEGRAM PLAIN ERROR] {resp.status_code}: {resp.text}")
     except Exception as e:
         print(f"    [TELEGRAM PLAIN EXCEPTION] {e}")
@@ -948,6 +1195,9 @@ def deliver_leads(leads, processed_ids):
         else:
             print(f"  [TELEGRAM] ❌ Failed to send lead for {lead['name']}")
 
+        # Small delay between Telegram messages.
+        time.sleep(2)
+
     print(f"\nDelivery Complete: {delivered}/{len(leads)} leads sent.")
     return delivered
 
@@ -957,12 +1207,13 @@ def deliver_leads(leads, processed_ids):
 # ============================================================
 
 def main():
-    print("=== STARTING PERP-GAP CEX SPOT PIPELINE ===")
+    print("=== STARTING CONTRACT-FIRST PERP-GAP PIPELINE ===")
 
     processed_ids = load_processed_ids()
     print(f"Loaded {len(processed_ids)} previously processed CoinGecko IDs.")
 
-    spot_symbols, perp_symbols = ensure_master_lists()
+    spot_symbols, perp_symbols, perp_symbol_counts = ensure_master_lists()
+    perp_contracts = load_perp_contracts()
 
     if not perp_symbols:
         print("\n[ERROR] Could not build or load a perp master list.")
@@ -977,17 +1228,22 @@ def main():
         save_processed_ids(processed_ids)
         return
 
-    leads = find_perp_gap_leads(
+    auto_leads, review_leads = find_perp_gap_leads(
         candidates=candidates,
         processed_ids=processed_ids,
         perp_symbols=perp_symbols,
+        perp_symbol_counts=perp_symbol_counts,
         spot_symbols=spot_symbols,
+        perp_contracts=perp_contracts,
     )
 
-    if leads:
-        deliver_leads(leads, processed_ids)
+    if review_leads:
+        save_review_leads(review_leads)
+
+    if auto_leads:
+        deliver_leads(auto_leads, processed_ids)
     else:
-        print("\nNo perp-gap leads passed validation this run.")
+        print("\nNo auto-send perp-gap leads passed validation this run.")
 
     save_processed_ids(processed_ids)
 
