@@ -7,7 +7,7 @@ import html
 import requests
 from pathlib import Path
 from datetime import datetime, timezone
-from collections import Counter
+from collections import Counter, defaultdict
 
 try:
     import ccxt
@@ -46,8 +46,19 @@ MAX_CANDIDATES_TO_SCAN = 120
 # Master list freshness window.
 MAX_LIST_AGE_HOURS = 24
 
+# Minimum number of independent CEX venues required for a trusted refresh.
+# Multiple CCXT market endpoints belonging to the same company count as one venue.
+MIN_SUCCESSFUL_CEX_VENUES = 4
+
+# Set by ensure_master_lists(); automatic qualification is blocked unless healthy.
+MASTER_LISTS_HEALTH = {
+    "usable_for_auto_qualification": False,
+    "status": "uninitialized",
+    "reason": "Master lists have not been validated.",
+}
+
 # Rotate CoinGecko categories to reduce API pressure.
-CATEGORIES_PER_RUN = 2
+CATEGORIES_PER_RUN = 4
 
 # Critical executive fix:
 # If a token symbol already appears in the perp master list, drop it before
@@ -71,22 +82,38 @@ COINGECKO_API_HEADER = os.environ.get("COINGECKO_API_HEADER", "x-cg-demo-api-key
 
 # Strict CoinGecko rate limiting.
 COINGECKO_MIN_INTERVAL_SECONDS = 3.0
-COINGECKO_MAX_RETRIES = 2
+COINGECKO_MAX_RETRIES = 3
 COINGECKO_429_BASE_SLEEP_SECONDS = 60
 COINGECKO_MAX_SLEEP_SECONDS = 180
 
 _coingecko_last_call = 0.0
 
-# CCXT exchange IDs.
+# CCXT exchange IDs used for public market data.
+# Binance and Bybit are omitted because GitHub-hosted runners returned explicit
+# regional-access denials (HTTP 451/403). Additional venues provide redundancy.
 CEX_EXCHANGE_IDS = [
-    "binance",
-    "binanceusdm",
-    "binancecoinm",
     "okx",
-    "bybit",
     "mexc",
     "gate",
+    "bitget",
+    "kucoin",
+    "kucoinfutures",
+    "phemex",
+    "bingx",
 ]
+
+# Group related CCXT endpoints under the actual exchange venue. In particular,
+# KuCoin spot and KuCoin Futures are one venue, not two independent sources.
+CEX_VENUE_BY_EXCHANGE_ID = {
+    "okx": "okx",
+    "mexc": "mexc",
+    "gate": "gate",
+    "bitget": "bitget",
+    "kucoin": "kucoin",
+    "kucoinfutures": "kucoin",
+    "phemex": "phemex",
+    "bingx": "bingx",
+}
 
 # CoinGecko chain IDs.
 TARGET_CHAINS_CG = [
@@ -121,7 +148,9 @@ CATEGORIES = [
     "artificial-intelligence",
     "prediction-markets",
     "launchpad",
+    "derivatives",
     "infrastructure",
+    "services",
 ]
 
 ZOMBIE_BLOCKLIST = [
@@ -391,17 +420,14 @@ def coingecko_get(path, params=None):
                 return None, 200
 
         if resp.status_code == 429:
-            retry_after = resp.headers.get("Retry-After", "")
-            try:
-                server_wait = max(0, int(float(retry_after)))
-            except (TypeError, ValueError):
-                server_wait = 0
-            fallback_wait = COINGECKO_429_BASE_SLEEP_SECONDS * (attempt + 1)
-            wait_time = min(max(server_wait, fallback_wait), COINGECKO_MAX_SLEEP_SECONDS)
+            wait_time = min(
+                COINGECKO_429_BASE_SLEEP_SECONDS * (attempt + 1),
+                COINGECKO_MAX_SLEEP_SECONDS,
+            )
             print(f"    [COINGECKO 429] Rate limited. Sleeping {wait_time}s before retry.")
 
             if attempt < COINGECKO_MAX_RETRIES - 1:
-                time.sleep(wait_time + random.uniform(0, 2))
+                time.sleep(wait_time)
                 continue
 
             return None, 429
@@ -430,48 +456,42 @@ def load_category_cursor():
     if isinstance(data, dict):
         try:
             cursor = int(data.get("cursor", 0))
-            return max(cursor, 0)
-        except (TypeError, ValueError):
+            if cursor < 0:
+                return 0
+            return cursor
+        except Exception:
             return 0
 
     return 0
 
 
-def load_invalid_categories():
-    data = load_json(CATEGORY_CURSOR_FILE)
-    if not isinstance(data, dict):
-        return set()
-    values = data.get("invalid_categories", [])
-    if not isinstance(values, list):
-        return set()
-    return {str(value).strip() for value in values if str(value).strip()}
-
-
-def save_category_cursor(cursor, invalid_categories=None):
-    if invalid_categories is None:
-        invalid_categories = load_invalid_categories()
+def save_category_cursor(cursor):
     save_json(
         CATEGORY_CURSOR_FILE,
         {
             "generated_at": now_utc().isoformat(),
             "cursor": int(cursor),
             "categories": CATEGORIES,
-            "invalid_categories": sorted(set(invalid_categories)),
         },
     )
 
 
 def select_categories():
-    """Select a rotating subset, excluding category slugs already confirmed invalid."""
-    invalid_categories = load_invalid_categories()
-    active_categories = [category for category in CATEGORIES if category not in invalid_categories]
-    if not active_categories:
+    """
+    Select a rotating subset of CoinGecko categories to reduce API pressure.
+    """
+    if not CATEGORIES:
         return [], 0
 
-    cursor = load_category_cursor() % len(active_categories)
-    count = min(CATEGORIES_PER_RUN, len(active_categories))
-    selected = [active_categories[(cursor + i) % len(active_categories)] for i in range(count)]
-    next_cursor = (cursor + count) % len(active_categories)
+    cursor = load_category_cursor() % len(CATEGORIES)
+    count = min(CATEGORIES_PER_RUN, len(CATEGORIES))
+
+    selected = [
+        CATEGORIES[(cursor + i) % len(CATEGORIES)]
+        for i in range(count)
+    ]
+
+    next_cursor = (cursor + count) % len(CATEGORIES)
     return selected, next_cursor
 
 
@@ -577,9 +597,15 @@ def build_master_lists():
     perp_symbols = set()
     perp_symbol_counts = Counter()
     stats = {}
+    successful_cex_sources = 0
+    successful_spot_venues = set()
+    successful_perp_venues = set()
+    perp_symbols_by_venue = defaultdict(set)
+    failed_cex_sources = []
 
     for exchange_id in CEX_EXCHANGE_IDS:
-        print(f"  [CEX] {exchange_id}: fetching markets...")
+        venue_id = CEX_VENUE_BY_EXCHANGE_ID.get(exchange_id, exchange_id)
+        print(f"  [CEX] {exchange_id} (venue={venue_id}): fetching markets...")
 
         try:
             exchange_cls = getattr(ccxt, exchange_id)
@@ -594,8 +620,15 @@ def build_master_lists():
 
             if isinstance(markets, dict):
                 market_list = list(markets.values())
-            else:
+            elif isinstance(markets, list):
                 market_list = markets
+            else:
+                raise ValueError(
+                    f"Unexpected market payload type: {type(markets).__name__}"
+                )
+
+            if not market_list:
+                raise ValueError("Exchange returned an empty market list")
 
             spot_count = 0
             perp_count = 0
@@ -627,21 +660,75 @@ def build_master_lists():
                     perp_count += 1
                     if base not in NON_TARGET_BASES:
                         perp_symbols.add(base)
-                        perp_symbol_counts[base] += 1
+                        perp_symbols_by_venue[venue_id].add(base)
+
+            if spot_count > 0:
+                successful_spot_venues.add(venue_id)
+            if perp_count > 0:
+                successful_perp_venues.add(venue_id)
 
             stats[exchange_id] = {
+                "status": "success",
                 "spot_markets": spot_count,
                 "perp_markets": perp_count,
                 "total_markets": len(market_list),
             }
-
+            successful_cex_sources += 1
             print(f"  [CEX] {exchange_id}: spot={spot_count}, perp={perp_count}")
 
         except Exception as e:
-            stats[exchange_id] = {"error": str(e)}
+            failed_cex_sources.append(exchange_id)
+            stats[exchange_id] = {"status": "failed", "error": str(e)}
             print(f"  [CEX] {exchange_id}: ERROR: {e}")
 
         time.sleep(1)
+
+    configured_cex_venues = sorted(set(CEX_VENUE_BY_EXCHANGE_ID.values()))
+    successful_spot_venues_sorted = sorted(successful_spot_venues)
+    successful_perp_venues_sorted = sorted(successful_perp_venues)
+
+    # Count each perp base once per independent venue across all its endpoints.
+    for venue_symbols in perp_symbols_by_venue.values():
+        for symbol in venue_symbols:
+            perp_symbol_counts[symbol] += 1
+
+    print(
+        f"  [CEX HEALTH] Successful endpoints: {successful_cex_sources}/"
+        f"{len(CEX_EXCHANGE_IDS)}; spot venues: "
+        f"{len(successful_spot_venues)}/{len(configured_cex_venues)}; perp venues: "
+        f"{len(successful_perp_venues)}/{len(configured_cex_venues)}; "
+        f"minimum required: {MIN_SUCCESSFUL_CEX_VENUES} venues for each list"
+    )
+
+    # A venue counts only for the list type it actually returned. This prevents
+    # a spot-only endpoint from making an incomplete perp list appear healthy.
+    if (
+        len(successful_spot_venues) < MIN_SUCCESSFUL_CEX_VENUES
+        or len(successful_perp_venues) < MIN_SUCCESSFUL_CEX_VENUES
+    ):
+        raise RuntimeError(
+            "CEX master-list refresh rejected: independent venue coverage was "
+            f"spot={len(successful_spot_venues)}, perp={len(successful_perp_venues)}; "
+            f"minimum required is {MIN_SUCCESSFUL_CEX_VENUES} venues for each list. "
+            "Existing master files were preserved."
+        )
+
+    # Some endpoints may be region-blocked; this is acceptable when the required
+    # number of independent venues returned actual spot and perp markets.
+    source_health = {
+        "health_schema_version": 2,
+        "status": "healthy",
+        "successful_cex_sources": successful_cex_sources,
+        "configured_cex_sources": len(CEX_EXCHANGE_IDS),
+        "successful_spot_venues": len(successful_spot_venues),
+        "successful_spot_venue_ids": successful_spot_venues_sorted,
+        "successful_perp_venues": len(successful_perp_venues),
+        "successful_perp_venue_ids": successful_perp_venues_sorted,
+        "configured_cex_venues": len(configured_cex_venues),
+        "minimum_required_cex_venues": MIN_SUCCESSFUL_CEX_VENUES,
+        "failed_cex_sources": failed_cex_sources,
+        "generated_at": now_utc().isoformat(),
+    }
 
     print("  [DEX PERPS] Fetching Hyperliquid and dYdX best-effort...")
 
@@ -664,6 +751,7 @@ def build_master_lists():
         "generated_at": now_utc().isoformat(),
         "source": "ccxt_cex_spot",
         "stats": stats,
+        "source_health": source_health,
         "total_unique_spot_base_symbols": len(spot_symbols),
         "symbols": sorted(list(spot_symbols)),
     }
@@ -672,6 +760,7 @@ def build_master_lists():
         "generated_at": now_utc().isoformat(),
         "source": "ccxt_cex_perp_plus_best_effort_dex_perp",
         "stats": stats,
+        "source_health": source_health,
         "total_unique_perp_base_symbols": len(perp_symbols),
         "symbols": sorted(list(perp_symbols)),
         "symbol_source_counts": dict(perp_symbol_counts),
@@ -705,42 +794,111 @@ def load_perp_symbol_counts(perp_data):
 
 def ensure_master_lists():
     """
-    Loads fresh master lists if available.
-    Otherwise rebuilds them.
-    Falls back to stale lists if rebuild fails.
+    Load validated master lists or rebuild them.
+
+    Degraded/legacy lists are not safe for automatic qualification. If refresh
+    fails, stale lists may be returned for diagnostics, but main() will abort.
     """
+    global MASTER_LISTS_HEALTH
+
     spot_data = load_json(SPOT_FILE)
     perp_data = load_json(PERP_FILE)
 
-    if is_fresh(spot_data) and is_fresh(perp_data):
-        spot_symbols = set(spot_data.get("symbols", []))
-        perp_symbols = set(perp_data.get("symbols", []))
-        perp_symbol_counts = load_perp_symbol_counts(perp_data)
+    spot_health = spot_data.get("source_health", {}) if isinstance(spot_data, dict) else {}
+    perp_health = perp_data.get("source_health", {}) if isinstance(perp_data, dict) else {}
 
-        print("=== LOADED FRESH MASTER LISTS ===")
+    try:
+        healthy_cached_lists = (
+            is_fresh(spot_data)
+            and is_fresh(perp_data)
+            and spot_health.get("health_schema_version") == 2
+            and perp_health.get("health_schema_version") == 2
+            and spot_health.get("status") == "healthy"
+            and perp_health.get("status") == "healthy"
+            and int(spot_health.get("successful_spot_venues", 0) or 0)
+                >= MIN_SUCCESSFUL_CEX_VENUES
+            and int(perp_health.get("successful_perp_venues", 0) or 0)
+                >= MIN_SUCCESSFUL_CEX_VENUES
+        )
+    except (TypeError, ValueError):
+        healthy_cached_lists = False
+
+    if healthy_cached_lists:
+        spot_symbols = {norm(s) for s in spot_data.get("symbols", []) if norm(s)}
+        perp_symbols = {norm(s) for s in perp_data.get("symbols", []) if norm(s)}
+        perp_symbol_counts = load_perp_symbol_counts(perp_data)
+        MASTER_LISTS_HEALTH = {
+            "usable_for_auto_qualification": True,
+            "status": "healthy",
+            "reason": (
+                "Both master lists are fresh and at least "
+                f"{MIN_SUCCESSFUL_CEX_VENUES} independent CEX venues succeeded."
+            ),
+        }
+        print("=== LOADED FRESH, HEALTHY MASTER LISTS ===")
         print(f"  Spot symbols: {len(spot_symbols)}")
         print(f"  Perp symbols: {len(perp_symbols)}")
         print(f"  Perp symbol count entries: {len(perp_symbol_counts)}")
-
         return spot_symbols, perp_symbols, perp_symbol_counts
 
-    print("=== MASTER LISTS MISSING OR STALE ===")
-
+    print("=== MASTER LISTS MISSING, LEGACY, STALE, OR DEGRADED ===")
     try:
         spot_symbols, perp_symbols, perp_symbol_counts = build_master_lists()
-        if perp_symbols:
-            return spot_symbols, perp_symbols, perp_symbol_counts
-        print("[WARNING] Built perp list is empty.")
+        new_spot_data = load_json(SPOT_FILE)
+        new_perp_data = load_json(PERP_FILE)
+        new_spot_health = new_spot_data.get("source_health", {}) if isinstance(new_spot_data, dict) else {}
+        new_perp_health = new_perp_data.get("source_health", {}) if isinstance(new_perp_data, dict) else {}
+
+        healthy = (
+            bool(spot_symbols)
+            and bool(perp_symbols)
+            and new_spot_health.get("health_schema_version") == 2
+            and new_perp_health.get("health_schema_version") == 2
+            and new_spot_health.get("status") == "healthy"
+            and new_perp_health.get("status") == "healthy"
+            and int(new_spot_health.get("successful_spot_venues", 0) or 0)
+                >= MIN_SUCCESSFUL_CEX_VENUES
+            and int(new_perp_health.get("successful_perp_venues", 0) or 0)
+                >= MIN_SUCCESSFUL_CEX_VENUES
+        )
+        MASTER_LISTS_HEALTH = {
+            "usable_for_auto_qualification": healthy,
+            "status": "healthy" if healthy else "degraded",
+            "reason": (
+                "Refresh passed source-health checks."
+                if healthy
+                else (
+                    "The refreshed master lists did not pass independent-venue "
+                    "health checks; automatic lead qualification is disabled."
+                )
+            ),
+        }
+        if not healthy:
+            print("[WARNING] Master lists are degraded; lead qualification must stop.")
+        return spot_symbols, perp_symbols, perp_symbol_counts
     except Exception as e:
         print(f"[ERROR] Failed to build master lists: {e}")
 
-    if perp_data and perp_data.get("symbols"):
-        print("[WARNING] Falling back to stale master lists.")
-        spot_symbols = set(spot_data.get("symbols", [])) if spot_data else set()
-        perp_symbols = set(perp_data.get("symbols", []))
+    if isinstance(perp_data, dict) and perp_data.get("symbols"):
+        print("[WARNING] Falling back to previous master lists for diagnostics only.")
+        spot_symbols = {
+            norm(s) for s in (spot_data.get("symbols", []) if isinstance(spot_data, dict) else [])
+            if norm(s)
+        }
+        perp_symbols = {norm(s) for s in perp_data.get("symbols", []) if norm(s)}
         perp_symbol_counts = load_perp_symbol_counts(perp_data)
+        MASTER_LISTS_HEALTH = {
+            "usable_for_auto_qualification": False,
+            "status": "stale",
+            "reason": "Refresh failed; previous master lists are not safe for automatic qualification.",
+        }
         return spot_symbols, perp_symbols, perp_symbol_counts
 
+    MASTER_LISTS_HEALTH = {
+        "usable_for_auto_qualification": False,
+        "status": "unavailable",
+        "reason": "No validated master lists are available.",
+    }
     return set(), set(), {}
 
 
@@ -803,20 +961,19 @@ def classify_perp_risk(symbol, contract, perp_symbols, perp_symbol_counts, perp_
 
 def fetch_coingecko_candidates():
     """
-    Discovery layer: find mid-cap tokens with meaningful spot volume in rotating
-    categories. Invalid category slugs are remembered, and the cursor only moves
-    forward after a complete discovery pass (not when a 429 interrupts it).
+    Discovery layer:
+    Find mid-cap tokens with meaningful spot volume in rotating categories.
 
-    Returns (candidates, rate_limited).
+    Returns:
+        (candidates, rate_limited)
     """
     print("\n=== MODULE 1: COINGECKO DISCOVERY ===")
 
-    starting_cursor = load_category_cursor()
-    invalid_categories = load_invalid_categories()
     selected_categories, next_cursor = select_categories()
+    save_category_cursor(next_cursor)
 
     print(f"  Using category batch: {selected_categories}")
-    print(f"  Next category cursor (pending): {next_cursor}")
+    print(f"  Next category cursor: {next_cursor}")
 
     candidates = []
     seen_ids = set()
@@ -838,21 +995,19 @@ def fetch_coingecko_candidates():
         )
 
         if status == 429:
-            print("    [COINGECKO RATE LIMITED] Stopping category discovery; cursor will not advance.")
+            print("    [COINGECKO RATE LIMITED] Stopping category discovery for this run.")
             rate_limited = True
             break
 
         if status == 404:
-            print(f"    [INVALID CATEGORY] {category} returned 404; excluding it from future rotations.")
-            invalid_categories.add(category)
+            print(f"    [INVALID CATEGORY] {category} returned 404. Skipping.")
             continue
 
-        if status != 200 or data is None:
+        if status != 200 or not data:
             print(f"    [SKIP] Category returned status {status}.")
             continue
 
         if not isinstance(data, list):
-            print(f"    [SKIP] Category {category} returned an unexpected payload type.")
             continue
 
         for coin in data:
@@ -868,33 +1023,33 @@ def fetch_coingecko_candidates():
 
             if not name or not symbol:
                 continue
-            if symbol in NON_TARGET_BASES or symbol in MAJOR_AMBIGUOUS_SYMBOLS:
+
+            if symbol in NON_TARGET_BASES:
                 continue
-            if any(blocked in str(name).lower() for blocked in ZOMBIE_BLOCKLIST):
+
+            if symbol in MAJOR_AMBIGUOUS_SYMBOLS:
+                continue
+
+            if any(blocked in name.lower() for blocked in ZOMBIE_BLOCKLIST):
                 continue
 
             try:
                 mcap = float(coin.get("market_cap", 0) or 0)
                 volume = float(coin.get("total_volume", 0) or 0)
-            except (TypeError, ValueError):
+            except Exception:
                 continue
 
             if MCAP_MIN <= mcap <= MCAP_MAX and volume >= CG_VOLUME_MIN:
                 seen_ids.add(coin_id)
-                candidates.append({
-                    "id": coin_id,
-                    "name": name,
-                    "symbol": symbol,
-                    "market_cap": mcap,
-                    "cg_volume_24h": volume,
-                })
-
-    # If discovery was interrupted by a rate limit, retain the starting cursor so
-    # the uncompleted batch is retried next run. Persist newly identified bad slugs.
-    save_category_cursor(
-        starting_cursor if rate_limited else next_cursor,
-        invalid_categories=invalid_categories,
-    )
+                candidates.append(
+                    {
+                        "id": coin_id,
+                        "name": name,
+                        "symbol": symbol,
+                        "market_cap": mcap,
+                        "cg_volume_24h": volume,
+                    }
+                )
 
     print(f"    Found {len(candidates)} baseline CoinGecko candidates.")
     return candidates, rate_limited
@@ -917,9 +1072,13 @@ def get_coin_details(coin_id):
 
 def fetch_dexscreener_best_pair(contract_address):
     """
-    Validation layer:
-    Use DexScreener to verify the token contract has real liquidity and volume
-    on Solana, Base, or BSC.
+    Validate a contract against DexScreener.
+
+    Returns (best_pair, status):
+      - (pair, "ok") when a qualifying pair was found
+      - (None, "ok") when the request succeeded but no qualifying pair exists
+      - (None, "transient") when the API/network response was unusable, so the
+        candidate should remain eligible for a later retry
     """
     url = f"https://api.dexscreener.com/latest/dex/tokens/{contract_address}"
     headers = {"User-Agent": USER_AGENT}
@@ -928,11 +1087,24 @@ def fetch_dexscreener_best_pair(contract_address):
         resp = requests.get(url, headers=headers, timeout=20)
 
         if resp.status_code != 200:
-            print(f"    [ERROR] DexScreener returned {resp.status_code}")
-            return None
+            print(f"    [DEXSCREENER TRANSIENT] HTTP {resp.status_code}; candidate will remain unprocessed.")
+            return None, "transient"
 
-        data = resp.json()
-        pairs = data.get("pairs", [])
+        try:
+            data = resp.json()
+        except (ValueError, requests.exceptions.JSONDecodeError) as e:
+            print(f"    [DEXSCREENER TRANSIENT] Invalid JSON response: {e}")
+            return None, "transient"
+
+        if not isinstance(data, dict):
+            print("    [DEXSCREENER TRANSIENT] Response payload was not an object.")
+            return None, "transient"
+
+        # The API may return {"pairs": null}; treat it as an empty successful result.
+        pairs = data.get("pairs") or []
+        if not isinstance(pairs, list):
+            print("    [DEXSCREENER TRANSIENT] 'pairs' field was not a list.")
+            return None, "transient"
 
         best_pair = None
         best_score = 0
@@ -945,7 +1117,7 @@ def fetch_dexscreener_best_pair(contract_address):
             if chain_id not in TARGET_CHAINS_DS:
                 continue
 
-            base_token = pair.get("baseToken", {})
+            base_token = pair.get("baseToken") or {}
             if not isinstance(base_token, dict):
                 continue
 
@@ -953,10 +1125,17 @@ def fetch_dexscreener_best_pair(contract_address):
             if base_address and norm(base_address) != norm(contract_address):
                 continue
 
+            liquidity_data = pair.get("liquidity") or {}
+            volume_data = pair.get("volume") or {}
+            quote_token = pair.get("quoteToken") or {}
+            price_change = pair.get("priceChange") or {}
+            if not all(isinstance(item, dict) for item in (liquidity_data, volume_data, quote_token, price_change)):
+                continue
+
             try:
-                liquidity = float(pair.get("liquidity", {}).get("usd", 0) or 0)
-                volume = float(pair.get("volume", {}).get("h24", 0) or 0)
-            except Exception:
+                liquidity = float(liquidity_data.get("usd", 0) or 0)
+                volume = float(volume_data.get("h24", 0) or 0)
+            except (TypeError, ValueError):
                 continue
 
             if liquidity < DEX_LIQUIDITY_MIN_USD or volume < DEX_VOLUME_24H_MIN_USD:
@@ -973,18 +1152,18 @@ def fetch_dexscreener_best_pair(contract_address):
                     "pair_address": pair.get("pairAddress", ""),
                     "base_token_symbol": base_token.get("symbol", ""),
                     "base_token_address": base_address,
-                    "quote_token_symbol": pair.get("quoteToken", {}).get("symbol", ""),
+                    "quote_token_symbol": quote_token.get("symbol", ""),
                     "liquidity_usd": liquidity,
                     "volume_h24": volume,
-                    "price_change_h24": pair.get("priceChange", {}).get("h24", None),
+                    "price_change_h24": price_change.get("h24"),
                     "url": pair.get("url", ""),
                 }
 
-        return best_pair
+        return best_pair, "ok"
 
     except Exception as e:
-        print(f"    [ERROR] DexScreener validation failed: {e}")
-        return None
+        print(f"    [DEXSCREENER TRANSIENT] Validation request failed: {e}; candidate will remain unprocessed.")
+        return None, "transient"
 
 
 # ============================================================
@@ -1109,8 +1288,12 @@ def find_perp_gap_leads(
             processed_ids.add(coin_id)
             continue
 
-        dex_pair = fetch_dexscreener_best_pair(target_contract)
+        dex_pair, dex_status = fetch_dexscreener_best_pair(target_contract)
         time.sleep(1)
+
+        if dex_status != "ok":
+            print("    [TRANSIENT/SKIP] DexScreener could not validate this candidate. Not marking processed; it can retry next run.")
+            continue
 
         if not dex_pair:
             print("    [DROP] No qualifying live DEX pair found on target chains.")
@@ -1373,11 +1556,19 @@ def main():
     spot_symbols, perp_symbols, perp_symbol_counts = ensure_master_lists()
     perp_contracts = load_perp_contracts()
 
+    if not MASTER_LISTS_HEALTH.get("usable_for_auto_qualification", False):
+        print("\\n[ERROR] Master-list health check failed.")
+        print(f"[STATUS] {MASTER_LISTS_HEALTH.get('status', 'unknown')}")
+        print(f"[REASON] {MASTER_LISTS_HEALTH.get('reason', 'No details available.')}")
+        print("[ACTION] Aborting before discovery to avoid false perp-gap claims.")
+        save_processed_ids(processed_ids)
+        return 1
+
     if not perp_symbols:
         print("\n[ERROR] Could not build or load a perp master list.")
         print("[ACTION] Aborting to avoid pitching tokens that may already have perps.")
         save_processed_ids(processed_ids)
-        return
+        return 1
 
     candidates, discovery_rate_limited = fetch_coingecko_candidates()
 
@@ -1418,4 +1609,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main() or 0)
