@@ -1,30 +1,30 @@
 {
-  "generated_at": "2026-10-19T14:04:27.265205+00:00",
+  "generated_at": "2026-10-20T15:00:49.644571+00:00",
   "source": "ccxt_cex_spot",
   "stats": {
     "okx": {
       "status": "success",
-      "spot_markets": 1184,
-      "perp_markets": 509,
-      "total_markets": 4539
+      "spot_markets": 1185,
+      "perp_markets": 514,
+      "total_markets": 4496
     },
     "mexc": {
       "status": "success",
-      "spot_markets": 1791,
-      "perp_markets": 1200,
-      "total_markets": 3066
+      "spot_markets": 1792,
+      "perp_markets": 1194,
+      "total_markets": 3063
     },
     "gate": {
       "status": "success",
       "spot_markets": 2203,
-      "perp_markets": 1049,
-      "total_markets": 6430
+      "perp_markets": 1050,
+      "total_markets": 6423
     },
     "bitget": {
       "status": "success",
-      "spot_markets": 3591,
-      "perp_markets": 902,
-      "total_markets": 4503
+      "spot_markets": 3589,
+      "perp_markets": 901,
+      "total_markets": 4502
     },
     "kucoin": {
       "status": "success",
@@ -46,13 +46,9 @@
     },
     "bingx": {
       "status": "success",
-      "spot_markets": 618,
-      "perp_markets": 1137,
-      "total_markets": 3577
-    },
-    "coinex": {
-      "status": "failed",
-      "error": "module 'ccxt' has no attribute 'coinex'"
+      "spot_markets": 612,
+      "perp_markets": 1145,
+      "total_markets": 3585
     },
     "hyperliquid": {
       "perp_symbols": 234
@@ -65,7 +61,7 @@
     "health_schema_version": 2,
     "status": "healthy",
     "successful_cex_sources": 8,
-    "configured_cex_sources": 9,
+    "configured_cex_sources": 8,
     "successful_spot_venues": 7,
     "successful_spot_venue_ids": [
       "bingx",
@@ -86,14 +82,12 @@
       "okx",
       "phemex"
     ],
-    "configured_cex_venues": 8,
+    "configured_cex_venues": 7,
     "minimum_required_cex_venues": 4,
-    "failed_cex_sources": [
-      "coinex"
-    ],
-    "generated_at": "2026-10-19T14:04:25.931590+00:00"
+    "failed_cex_sources": [],
+    "generated_at": "2026-10-20T15:00:49.100686+00:00"
   },
-  "total_unique_spot_base_symbols": 5902,
+  "total_unique_spot_base_symbols": 5901,
   "symbols": [
     "0G",
     "1000BONK",
@@ -788,7 +782,6 @@
     "DESO",
     "DESU",
     "DEUS",
-    "DEVERSE",
     "DEXE",
     "DEXTF",
     "DFDVX",
@@ -1298,6 +1291,7 @@
     "KAITO",
     "KAITO3L",
     "KAITO3S",
+    "KAN",
     "KAS",
     "KAS3L",
     "KAS3S",
@@ -2247,7 +2241,6 @@
     "RATHM",
     "RATI",
     "RATING",
-    "RATKR",
     "RATLC",
     "RATMU",
     "RATO",
