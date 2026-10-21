@@ -1000,7 +1000,7 @@ def fetch_coingecko_candidates():
                 "vs_currency": "usd",
                 "category": category,
                 "order": "volume_desc",
-                "per_page": "100",
+                "per_page": "250",
                 "page": "1",
                 "sparkline": "false",
             },
