@@ -145,6 +145,7 @@ CATEGORIES = [
     "yield-farming",
     "real-world-assets-rwa",
     "gaming",
+    "metaverse",
     "layer-1",
     "layer-2",
     "artificial-intelligence",
@@ -156,7 +157,6 @@ CATEGORIES = [
     "socialfi",
     "depin",
     "privacy-coins",
-    "governance",
 ]
 
 ZOMBIE_BLOCKLIST = [
