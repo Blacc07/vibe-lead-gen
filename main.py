@@ -976,17 +976,23 @@ def fetch_coingecko_candidates():
     print("\n=== MODULE 1: COINGECKO DISCOVERY ===")
 
     selected_categories, next_cursor = select_categories()
-    save_category_cursor(next_cursor)
+    starting_cursor = load_category_cursor() % len(CATEGORIES) if CATEGORIES else 0
 
     print(f"  Using category batch: {selected_categories}")
-    print(f"  Next category cursor: {next_cursor}")
+    print(f"  Proposed next category cursor: {next_cursor}")
 
     candidates = []
     seen_ids = set()
     rate_limited = False
+    category_stats = {}
+    filter_reasons = Counter()
+    completed_categories = 0
 
     for category in selected_categories:
         print(f"  Fetching category: {category}...")
+        category_rows = 0
+        category_qualified = 0
+        category_rejected = Counter()
 
         data, status = coingecko_get(
             "/coins/markets",
@@ -1001,62 +1007,101 @@ def fetch_coingecko_candidates():
         )
 
         if status == 429:
-            print("    [COINGECKO RATE LIMITED] Stopping category discovery for this run.")
+            print("    [COINGECKO RATE LIMITED] Stopping category discovery for this run; cursor will retry this category next run.")
             rate_limited = True
             break
 
         if status == 404:
             print(f"    [INVALID CATEGORY] {category} returned 404. Skipping.")
+            category_stats[category] = {"status": 404, "rows": 0, "qualified": 0, "rejected": {}}
+            completed_categories += 1
             continue
 
         if status != 200 or not data:
             print(f"    [SKIP] Category returned status {status}.")
+            category_stats[category] = {"status": status, "rows": 0, "qualified": 0, "rejected": {}}
+            completed_categories += 1
             continue
 
         if not isinstance(data, list):
+            print(f"    [SKIP] Category returned unexpected payload type: {type(data).__name__}.")
+            category_stats[category] = {"status": "invalid_payload", "rows": 0, "qualified": 0, "rejected": {}}
+            completed_categories += 1
             continue
 
+        category_rows = len(data)
         for coin in data:
             if not isinstance(coin, dict):
                 continue
 
             coin_id = coin.get("id")
             if not coin_id or coin_id in seen_ids:
+                category_rejected["missing_or_duplicate_id"] += 1
                 continue
 
             name = coin.get("name", "")
             symbol = norm(coin.get("symbol"))
 
             if not name or not symbol:
+                category_rejected["missing_name_or_symbol"] += 1
                 continue
 
             if symbol in NON_TARGET_BASES:
+                category_rejected["stablecoin_or_fiat"] += 1
                 continue
 
             if symbol in MAJOR_AMBIGUOUS_SYMBOLS:
+                category_rejected["major_or_ambiguous_symbol"] += 1
                 continue
 
             if any(blocked in name.lower() for blocked in ZOMBIE_BLOCKLIST):
+                category_rejected["blocklisted_name"] += 1
                 continue
 
             try:
                 mcap = float(coin.get("market_cap", 0) or 0)
                 volume = float(coin.get("total_volume", 0) or 0)
             except Exception:
+                category_rejected["invalid_market_metrics"] += 1
                 continue
 
-            if MCAP_MIN <= mcap <= MCAP_MAX and volume >= CG_VOLUME_MIN:
-                seen_ids.add(coin_id)
-                candidates.append(
-                    {
-                        "id": coin_id,
-                        "name": name,
-                        "symbol": symbol,
-                        "market_cap": mcap,
-                        "cg_volume_24h": volume,
-                    }
-                )
+            if not (MCAP_MIN <= mcap <= MCAP_MAX):
+                category_rejected["market_cap_out_of_range"] += 1
+                continue
+            if volume < CG_VOLUME_MIN:
+                category_rejected["volume_below_minimum"] += 1
+                continue
 
+            seen_ids.add(coin_id)
+            category_qualified += 1
+            candidates.append(
+                {
+                    "id": coin_id,
+                    "name": name,
+                    "symbol": symbol,
+                    "market_cap": mcap,
+                    "cg_volume_24h": volume,
+                    "discovered_category": category,
+                }
+            )
+
+        category_stats[category] = {
+            "status": 200,
+            "rows": category_rows,
+            "qualified": category_qualified,
+            "rejected": dict(category_rejected),
+        }
+        filter_reasons.update(category_rejected)
+        completed_categories += 1
+        print(f"    [CATEGORY SUMMARY] {category}: rows={category_rows}, qualified={category_qualified}, rejected={sum(category_rejected.values())}")
+
+    # Resume at the first category that did not finish, so a rate limit does not
+    # silently skip it until the next full rotation.
+    cursor_to_save = (starting_cursor + completed_categories) % len(CATEGORIES) if CATEGORIES else 0
+    save_category_cursor(cursor_to_save)
+    print(f"  Saved category cursor: {cursor_to_save}")
+    print(f"  Discovery rejection totals: {dict(filter_reasons)}")
+    print(f"  Category request statuses: { {k: v['status'] for k, v in category_stats.items()} }")
     print(f"    Found {len(candidates)} baseline CoinGecko candidates.")
     return candidates, rate_limited
 
@@ -1209,6 +1254,7 @@ def find_perp_gap_leads(
 
     scanned = 0
     detail_checks = 0
+    validation_reasons = Counter()
 
     for coin in candidates:
         if len(auto_leads) >= TARGET_QUOTA and len(review_leads) >= TARGET_QUOTA:
@@ -1223,6 +1269,7 @@ def find_perp_gap_leads(
         symbol = coin["symbol"]
 
         if coin_id in processed_ids:
+            validation_reasons["already_processed"] += 1
             continue
 
         scanned += 1
@@ -1231,6 +1278,7 @@ def find_perp_gap_leads(
         # Drop immediately if symbol already has a perp market.
         if PRE_FILTER_SYMBOL_HARD_DROP and symbol in perp_symbols:
             print(f"  [DROP] {coin['name']} ({symbol}) | Reason: Already has perp market.")
+            validation_reasons["symbol_already_has_perp"] += 1
             processed_ids.add(coin_id)
             continue
 
@@ -1257,11 +1305,13 @@ def find_perp_gap_leads(
 
         if status == 429:
             print("    [COINGECKO RATE LIMITED] Stopping candidate enrichment for this run.")
+            validation_reasons["coingecko_429"] += 1
             rate_limited = True
             break
 
         if status != 200 or not details:
             print(f"    [TRANSIENT/SKIP] CoinGecko detail status={status}. Not marking processed.")
+            validation_reasons[f"coingecko_detail_status_{status}"] += 1
             continue
 
         links = details.get("links", {})
@@ -1275,6 +1325,7 @@ def find_perp_gap_leads(
 
         if not website:
             print("    [DROP] No website found.")
+            validation_reasons["missing_website"] += 1
             processed_ids.add(coin_id)
             continue
 
@@ -1291,6 +1342,7 @@ def find_perp_gap_leads(
 
         if not target_contract:
             print("    [DROP] No target-chain contract address found.")
+            validation_reasons["missing_target_chain_contract"] += 1
             processed_ids.add(coin_id)
             continue
 
@@ -1299,10 +1351,12 @@ def find_perp_gap_leads(
 
         if dex_status != "ok":
             print("    [TRANSIENT/SKIP] DexScreener could not validate this candidate. Not marking processed; it can retry next run.")
+            validation_reasons["dexscreener_transient_error"] += 1
             continue
 
         if not dex_pair:
             print("    [DROP] No qualifying live DEX pair found on target chains.")
+            validation_reasons["no_qualifying_dex_pair"] += 1
             processed_ids.add(coin_id)
             continue
 
@@ -1340,11 +1394,13 @@ def find_perp_gap_leads(
 
         if risk == "hard_drop":
             print(f"    [DROP] {reason}")
+            validation_reasons["perp_risk_hard_drop"] += 1
             processed_ids.add(coin_id)
             continue
 
         if risk == "manual_review":
             print(f"    [REVIEW] {reason}")
+            validation_reasons["manual_review"] += 1
             review_leads.append(lead)
             processed_ids.add(coin_id)
             continue
@@ -1364,6 +1420,8 @@ def find_perp_gap_leads(
         f"{len(auto_leads)} auto-send leads, "
         f"{len(review_leads)} review leads."
     )
+    print(f"    Validation rejection/skip totals: {dict(validation_reasons)}")
+    print(f"    Candidates scanned={scanned}; CoinGecko detail calls={detail_checks}; rate_limited={rate_limited}")
 
     return auto_leads, review_leads, rate_limited
 
@@ -1586,7 +1644,7 @@ def main():
             print("[ACTION] Consider adding COINGECKO_API_KEY or reducing CATEGORIES_PER_RUN.")
 
         save_processed_ids(processed_ids)
-        return
+        return 2 if discovery_rate_limited else 0
 
     auto_leads, review_leads, validation_rate_limited = find_perp_gap_leads(
         candidates=candidates,
@@ -1612,6 +1670,10 @@ def main():
         print("[ACTION] If this repeats, add a CoinGecko API key or reduce run frequency.")
 
     print("\n=== PIPELINE COMPLETE ===")
+    if discovery_rate_limited or validation_rate_limited:
+        print("[EXIT] Pipeline completed with API rate limiting; marking this run as a warning/failure so it is not mistaken for a fully evaluated scan.")
+        return 2
+    return 0
 
 
 if __name__ == "__main__":
