@@ -151,12 +151,12 @@ CATEGORIES = [
     "prediction-markets",
     "launchpad",
     "infrastructure",
-    # Additional prospecting sectors from the target profile
+    # Additional target sectors
     "meme-token",
     "socialfi",
     "depin",
     "privacy-coins",
-    "dao",
+    "governance",
 ]
 
 ZOMBIE_BLOCKLIST = [
