@@ -148,9 +148,7 @@ CATEGORIES = [
     "artificial-intelligence",
     "prediction-markets",
     "launchpad",
-    "derivatives",
     "infrastructure",
-    "services",
 ]
 
 ZOMBIE_BLOCKLIST = [
