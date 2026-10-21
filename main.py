@@ -1250,7 +1250,17 @@ def find_perp_gap_leads(
 
     perp_contracts = perp_contracts or set()
 
-    random.shuffle(candidates)
+    # Spend scarce CoinGecko detail calls on the strongest candidates first:
+    # prefer tokens already listed on CEX spot, then higher reported 24h volume,
+    # then market cap as a tie-breaker. Keep the strict validation filters below.
+    candidates.sort(
+        key=lambda coin: (
+            coin.get("symbol", "") in spot_symbols,
+            float(coin.get("cg_volume_24h", 0) or 0),
+            float(coin.get("market_cap", 0) or 0),
+        ),
+        reverse=True,
+    )
 
     scanned = 0
     detail_checks = 0
