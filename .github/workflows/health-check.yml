@@ -1,0 +1,35 @@
+name: BeLiquid Pipeline Health Check
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 8 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: beliquid-pipeline-health-check
+  cancel-in-progress: false
+
+jobs:
+  health-check:
+    name: Validate Python pipeline
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify Python version
+        run: python --version
+      - name: Run pipeline health check
+        env:
+          PYTHONPATH: src
+        run: python -m beliquid.main
+      - name: Record run summary
+        if: always()
+        run: echo "BeLiquid pipeline health check finished with status ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
