@@ -1054,6 +1054,14 @@ def fetch_coingecko_candidates():
                 category_rejected["major_or_ambiguous_symbol"] += 1
                 continue
 
+            # Exclude issuer-branded xStocks (tokenized equities) from protocol
+            # prospecting. Match the name, rather than a trailing "X" symbol,
+            # to avoid incorrectly filtering unrelated crypto assets.
+            normalized_name = name.lower().replace("-", " ").replace("_", " ")
+            if "xstock" in normalized_name.replace(" ", ""):
+                category_rejected["xstock_tokenized_equity"] += 1
+                continue
+
             if any(blocked in name.lower() for blocked in ZOMBIE_BLOCKLIST):
                 category_rejected["blocklisted_name"] += 1
                 continue
