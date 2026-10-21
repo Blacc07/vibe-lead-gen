@@ -139,18 +139,24 @@ CHAIN_DISPLAY = {
 # CoinGecko category slugs.
 # Updated per executive instruction.
 CATEGORIES = [
+    # DeFi and trading infrastructure
+    "decentralized-finance-defi",
     "decentralized-exchange",
     "yield-farming",
     "real-world-assets-rwa",
     "gaming",
+    "metaverse",
     "layer-1",
     "layer-2",
     "artificial-intelligence",
     "prediction-markets",
     "launchpad",
-    "derivatives",
     "infrastructure",
-    "services",
+    # Additional target sectors
+    "meme-token",
+    "socialfi",
+    "depin",
+    "privacy-coins",
 ]
 
 ZOMBIE_BLOCKLIST = [
