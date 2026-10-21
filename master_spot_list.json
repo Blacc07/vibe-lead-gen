@@ -1,54 +1,54 @@
 {
-  "generated_at": "2026-10-20T15:00:49.644571+00:00",
+  "generated_at": "2026-10-21T15:48:05.554861+00:00",
   "source": "ccxt_cex_spot",
   "stats": {
     "okx": {
       "status": "success",
-      "spot_markets": 1185,
-      "perp_markets": 514,
-      "total_markets": 4496
+      "spot_markets": 1183,
+      "perp_markets": 515,
+      "total_markets": 4546
     },
     "mexc": {
       "status": "success",
-      "spot_markets": 1792,
-      "perp_markets": 1194,
-      "total_markets": 3063
+      "spot_markets": 1796,
+      "perp_markets": 1199,
+      "total_markets": 3070
     },
     "gate": {
       "status": "success",
-      "spot_markets": 2203,
-      "perp_markets": 1050,
-      "total_markets": 6423
+      "spot_markets": 2181,
+      "perp_markets": 1056,
+      "total_markets": 6202
     },
     "bitget": {
       "status": "success",
-      "spot_markets": 3589,
-      "perp_markets": 901,
-      "total_markets": 4502
+      "spot_markets": 3590,
+      "perp_markets": 908,
+      "total_markets": 4509
     },
     "kucoin": {
       "status": "success",
       "spot_markets": 968,
-      "perp_markets": 701,
-      "total_markets": 1670
+      "perp_markets": 706,
+      "total_markets": 1675
     },
     "kucoinfutures": {
       "status": "success",
       "spot_markets": 0,
-      "perp_markets": 701,
-      "total_markets": 702
+      "perp_markets": 706,
+      "total_markets": 707
     },
     "phemex": {
       "status": "success",
-      "spot_markets": 176,
+      "spot_markets": 175,
       "perp_markets": 145,
       "total_markets": 2068
     },
     "bingx": {
       "status": "success",
       "spot_markets": 612,
-      "perp_markets": 1145,
-      "total_markets": 3585
+      "perp_markets": 1150,
+      "total_markets": 3591
     },
     "hyperliquid": {
       "perp_symbols": 234
@@ -85,9 +85,9 @@
     "configured_cex_venues": 7,
     "minimum_required_cex_venues": 4,
     "failed_cex_sources": [],
-    "generated_at": "2026-10-20T15:00:49.100686+00:00"
+    "generated_at": "2026-10-21T15:48:05.173108+00:00"
   },
-  "total_unique_spot_base_symbols": 5901,
+  "total_unique_spot_base_symbols": 5884,
   "symbols": [
     "0G",
     "1000BONK",
@@ -356,6 +356,7 @@
     "AVV",
     "AWE",
     "AWS",
+    "AXIS",
     "AXL",
     "AXM",
     "AXPON",
@@ -386,7 +387,6 @@
     "BACG",
     "BACON",
     "BADGER",
-    "BALL",
     "BAN",
     "BANANA",
     "BANANAS31",
@@ -820,7 +820,6 @@
     "DOME",
     "DOOD",
     "DOPE",
-    "DORA",
     "DOS",
     "DOT",
     "DOT3L",
@@ -919,7 +918,6 @@
     "EVA",
     "EVAA",
     "EVER",
-    "EVO",
     "EVT",
     "EWT",
     "EWY3L",
@@ -1030,7 +1028,6 @@
     "GAME",
     "GAME2",
     "GAMES",
-    "GAMEVIRTUAL",
     "GAS",
     "GAT",
     "GATA",
@@ -1146,7 +1143,6 @@
     "HELLO",
     "HEMI",
     "HERO",
-    "HEU",
     "HFT",
     "HGET",
     "HGPT",
@@ -1246,7 +1242,6 @@
     "IQ",
     "IR",
     "IRENON",
-    "IRIS",
     "IRON",
     "IRYS",
     "ISK",
@@ -1312,6 +1307,7 @@
     "KGEN",
     "KII",
     "KILO",
+    "KIMCHI",
     "KIP",
     "KISHU",
     "KITE",
@@ -1445,7 +1441,6 @@
     "MAG7XON",
     "MAGIC",
     "MAGMA",
-    "MAIGA",
     "MAJO",
     "MAJOR",
     "MAK",
@@ -1490,7 +1485,6 @@
     "MDF",
     "MDT",
     "ME",
-    "MED",
     "MEE",
     "MEGA",
     "MELANIA",
@@ -1520,7 +1514,6 @@
     "MF",
     "MGKL",
     "MGO",
-    "MGT",
     "MHA",
     "MICRODUCK",
     "MILADYCULT",
@@ -1542,7 +1535,6 @@
     "MLC",
     "MLK",
     "MLN",
-    "MLP",
     "MMPRO",
     "MMT",
     "MNDE",
@@ -1567,7 +1559,6 @@
     "MOODENGETH",
     "MOODENGSOL",
     "MOONEY",
-    "MOOO",
     "MOOV",
     "MORI",
     "MORPHO",
@@ -1595,6 +1586,7 @@
     "MSTRON",
     "MSTRX",
     "MTL",
+    "MTO",
     "MTOS",
     "MTV",
     "MU3L",
@@ -1867,7 +1859,6 @@
     "PIPPIN",
     "PIPPIN3L",
     "PIPPIN3S",
-    "PIRATE",
     "PIT",
     "PIVX",
     "PIXEL",
@@ -1913,7 +1904,6 @@
     "PORT",
     "PORT3",
     "PORTAL",
-    "PORTALS",
     "PORTO",
     "PORTUMA",
     "POWER",
@@ -5125,7 +5115,6 @@
     "SAUBER",
     "SAUCE",
     "SBETON",
-    "SBR",
     "SBTC",
     "SBUXON",
     "SC",
@@ -5252,7 +5241,6 @@
     "SONIC",
     "SOON",
     "SOPH",
-    "SOPHIA",
     "SOSO",
     "SOUL",
     "SOUNON",
@@ -5414,7 +5402,6 @@
     "TIA3L",
     "TIA3S",
     "TIBBIR",
-    "TICO",
     "TICS",
     "TINA",
     "TITN",
@@ -5491,7 +5478,6 @@
     "TST",
     "TSTBSC",
     "TT",
-    "TTD",
     "TTMION",
     "TTN",
     "TTS",
@@ -5761,7 +5747,6 @@
     "XEWT",
     "XEWY",
     "XEWZ",
-    "XFI",
     "XFLNC",
     "XFLY",
     "XFWDI",
@@ -5892,7 +5877,6 @@
     "XT",
     "XTAG",
     "XTER",
-    "XTESTA",
     "XTM",
     "XTMF",
     "XTQQQ",
@@ -5923,7 +5907,6 @@
     "XXLE",
     "XYM",
     "XYO",
-    "XZK",
     "XZM",
     "Y8U",
     "YB",
