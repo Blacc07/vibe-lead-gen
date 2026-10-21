@@ -49,6 +49,7 @@ jobs:
         run: python main.py
 
       - name: Commit state and master lists
+        if: always() && !cancelled()
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
