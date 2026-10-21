@@ -1,18 +1,22 @@
 {
-  "generated_at": "2026-10-21T10:00:25.869326+00:00",
-  "cursor": 4,
+  "generated_at": "2026-10-21T10:14:01.950654+00:00",
+  "cursor": 8,
   "categories": [
+    "decentralized-finance-defi",
     "decentralized-exchange",
     "yield-farming",
     "real-world-assets-rwa",
     "gaming",
+    "metaverse",
     "layer-1",
     "layer-2",
     "artificial-intelligence",
     "prediction-markets",
     "launchpad",
-    "derivatives",
     "infrastructure",
-    "services"
+    "meme-token",
+    "socialfi",
+    "depin",
+    "privacy-coins"
   ]
 }
