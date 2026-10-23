@@ -1,54 +1,54 @@
 {
-  "generated_at": "2026-10-22T16:00:53.155167+00:00",
+  "generated_at": "2026-10-23T17:00:49.403714+00:00",
   "source": "ccxt_cex_spot",
   "stats": {
     "okx": {
       "status": "success",
-      "spot_markets": 1184,
+      "spot_markets": 1195,
       "perp_markets": 522,
-      "total_markets": 4610
+      "total_markets": 4577
     },
     "mexc": {
       "status": "success",
-      "spot_markets": 1792,
-      "perp_markets": 1206,
-      "total_markets": 3073
+      "spot_markets": 1783,
+      "perp_markets": 1189,
+      "total_markets": 3043
     },
     "gate": {
       "status": "success",
-      "spot_markets": 2180,
-      "perp_markets": 1057,
-      "total_markets": 7000
+      "spot_markets": 2181,
+      "perp_markets": 1062,
+      "total_markets": 6699
     },
     "bitget": {
       "status": "success",
-      "spot_markets": 3591,
-      "perp_markets": 910,
-      "total_markets": 4512
+      "spot_markets": 3586,
+      "perp_markets": 913,
+      "total_markets": 4507
     },
     "kucoin": {
       "status": "success",
       "spot_markets": 969,
-      "perp_markets": 707,
-      "total_markets": 1677
+      "perp_markets": 705,
+      "total_markets": 1675
     },
     "kucoinfutures": {
       "status": "success",
       "spot_markets": 0,
-      "perp_markets": 707,
-      "total_markets": 708
+      "perp_markets": 705,
+      "total_markets": 706
     },
     "phemex": {
       "status": "success",
       "spot_markets": 176,
       "perp_markets": 145,
-      "total_markets": 2069
+      "total_markets": 2068
     },
     "bingx": {
       "status": "success",
-      "spot_markets": 613,
+      "spot_markets": 614,
       "perp_markets": 1151,
-      "total_markets": 3592
+      "total_markets": 3593
     },
     "hyperliquid": {
       "perp_symbols": 234
@@ -85,9 +85,9 @@
     "configured_cex_venues": 7,
     "minimum_required_cex_venues": 4,
     "failed_cex_sources": [],
-    "generated_at": "2026-10-22T16:00:52.789344+00:00"
+    "generated_at": "2026-10-23T17:00:48.077402+00:00"
   },
-  "total_unique_spot_base_symbols": 5882,
+  "total_unique_spot_base_symbols": 5888,
   "symbols": [
     "0G",
     "1000BONK",
@@ -298,7 +298,6 @@
     "ART",
     "ARTFI",
     "ARTX",
-    "ARTY",
     "ARW",
     "ARX",
     "ASE",
@@ -349,7 +348,6 @@
     "AVGOG",
     "AVGOON",
     "AVGOX",
-    "AVICI",
     "AVL",
     "AVNT",
     "AVT",
@@ -1206,7 +1204,6 @@
     "ICP",
     "ICP3L",
     "ICP3S",
-    "ICX",
     "ID",
     "IDEX",
     "IDOL",
@@ -1261,6 +1258,7 @@
     "JEANPHIL",
     "JELLYJELLY",
     "JFI",
+    "JGGL",
     "JIMOTHY",
     "JITOSOL",
     "JMDT",
@@ -1316,7 +1314,6 @@
     "KLV",
     "KMNO",
     "KNC",
-    "KNOTS",
     "KOG",
     "KOM",
     "KOMA",
@@ -1727,6 +1724,7 @@
     "OG",
     "OGN",
     "OGPU",
+    "OGY",
     "OIL(USOON)",
     "OKAI",
     "OKB",
@@ -1782,7 +1780,6 @@
     "OTK",
     "OVL",
     "OVO",
-    "OVPP",
     "OVR",
     "OWL",
     "OWN",
@@ -1813,6 +1810,7 @@
     "PCI",
     "PDDON",
     "PEAQ",
+    "PEARL",
     "PEIPEI",
     "PELL",
     "PENDLE",
@@ -4759,7 +4757,6 @@
     "RTWFG",
     "RTWLO",
     "RTWST",
-    "RTX",
     "RTXG",
     "RTXN",
     "RTXNM",
@@ -5200,7 +5197,6 @@
     "SMB",
     "SMCION",
     "SMHG",
-    "SMT",
     "SMX",
     "SN51",
     "SN64",
@@ -5388,6 +5384,7 @@
     "TEL",
     "TENCENTG",
     "TENDIES",
+    "TEST002",
     "TET",
     "TEVA",
     "TFUEL",
@@ -5546,6 +5543,7 @@
     "USDY",
     "USECORN",
     "USELESS",
+    "USST",
     "USTC",
     "USUAL",
     "UXLINK",
@@ -5674,6 +5672,7 @@
     "WZRD",
     "XAAOI",
     "XAAPL",
+    "XACN",
     "XADBE",
     "XAEHR",
     "XAG3L",
@@ -5704,6 +5703,7 @@
     "XAUT3S",
     "XAVA",
     "XAVGO",
+    "XAXTI",
     "XBB",
     "XBE",
     "XBMNR",
@@ -5718,6 +5718,7 @@
     "XCN",
     "XCOHR",
     "XCOIN",
+    "XCOST",
     "XCRCL",
     "XCRDO",
     "XCRM",
@@ -5730,6 +5731,7 @@
     "XCX",
     "XDB",
     "XDC",
+    "XDDOG",
     "XDELL",
     "XDKNG",
     "XDP",
@@ -5754,12 +5756,14 @@
     "XGN",
     "XGOOGL",
     "XGPRO",
+    "XGS",
+    "XGTLB",
     "XGZ",
     "XHIMS",
     "XHOOD",
     "XHPE",
+    "XHUT",
     "XIBM",
-    "XIN",
     "XINFQ",
     "XINTC",
     "XINTW",
@@ -5768,6 +5772,7 @@
     "XISRG",
     "XIWM",
     "XJNJ",
+    "XJPM",
     "XKLAC",
     "XKO",
     "XKORU",
@@ -5875,6 +5880,7 @@
     "XT",
     "XTAG",
     "XTER",
+    "XTESTA",
     "XTM",
     "XTMF",
     "XTQQQ",
