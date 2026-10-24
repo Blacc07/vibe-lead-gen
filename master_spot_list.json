@@ -1,24 +1,24 @@
 {
-  "generated_at": "2026-10-23T17:00:49.403714+00:00",
+  "generated_at": "2026-10-24T18:00:52.832233+00:00",
   "source": "ccxt_cex_spot",
   "stats": {
     "okx": {
       "status": "success",
       "spot_markets": 1195,
       "perp_markets": 522,
-      "total_markets": 4577
+      "total_markets": 4817
     },
     "mexc": {
       "status": "success",
-      "spot_markets": 1783,
-      "perp_markets": 1189,
-      "total_markets": 3043
+      "spot_markets": 1777,
+      "perp_markets": 1180,
+      "total_markets": 3028
     },
     "gate": {
       "status": "success",
       "spot_markets": 2181,
       "perp_markets": 1062,
-      "total_markets": 6699
+      "total_markets": 6720
     },
     "bitget": {
       "status": "success",
@@ -47,8 +47,8 @@
     "bingx": {
       "status": "success",
       "spot_markets": 614,
-      "perp_markets": 1151,
-      "total_markets": 3593
+      "perp_markets": 1149,
+      "total_markets": 3591
     },
     "hyperliquid": {
       "perp_symbols": 234
@@ -85,9 +85,9 @@
     "configured_cex_venues": 7,
     "minimum_required_cex_venues": 4,
     "failed_cex_sources": [],
-    "generated_at": "2026-10-23T17:00:48.077402+00:00"
+    "generated_at": "2026-10-24T18:00:52.203998+00:00"
   },
-  "total_unique_spot_base_symbols": 5888,
+  "total_unique_spot_base_symbols": 5886,
   "symbols": [
     "0G",
     "1000BONK",
@@ -1521,7 +1521,6 @@
     "MINIMAX3L",
     "MINIMAX3S",
     "MINIMAXG",
-    "MINT",
     "MIRA",
     "MIRAI",
     "MIRANETWORK",
@@ -1541,7 +1540,6 @@
     "MOCA",
     "MOCHI",
     "MODE",
-    "MOE",
     "MOEW",
     "MOG",
     "MON",
@@ -1640,7 +1638,6 @@
     "NEAR3S",
     "NEAR5L",
     "NEAR5S",
-    "NEARLY",
     "NEIRO",
     "NEIROCTO",
     "NEKO",
@@ -1837,6 +1834,7 @@
     "PERP",
     "PGG",
     "PGON",
+    "PGPT",
     "PGX",
     "PHA",
     "PHNIX",
