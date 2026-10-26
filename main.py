@@ -1474,19 +1474,19 @@ def save_review_leads(review_leads):
 
 OUTREACH_TEMPLATES = [
     {"id": "VIBE_DM_01", "angle": "perp_opportunity",
-     "message": "Hey {{name}} — has {{project}} considered a perp market for \${{token}}? I'm with Vibe Trading, where projects can bring their tokens to perpetual markets. Thought it could be worth exploring for you guys."},
+     "message": "Hey {{name}} — has {{project}} considered a perp market for ${{token}}? I'm with Vibe Trading, where projects can bring their tokens to perpetual markets. Thought it could be worth exploring for you guys."},
     {"id": "VIBE_DM_02", "angle": "market_gap", "requires_no_existing_perp": True,
-     "message": "Hey {{name}} — \${{token}} doesn't appear to have a perp market on the venues we checked. Vibe Trading helps projects explore launching one. Is this something your team has looked into?"},
+     "message": "Hey {{name}} — ${{token}} doesn't appear to have a perp market on the venues we checked. Vibe Trading helps projects explore launching one. Is this something your team has looked into?"},
     {"id": "VIBE_DM_03", "angle": "momentum", "requires_signal": True,
-     "message": "Hey {{name}} — noticed {{project}} is showing about \${{volume}} in 24h DEX volume and \${{liquidity}} in pool liquidity. Thought it could be a good time to explore a perp market for \${{token}} with Vibe Trading. Open to a quick chat?"},
+     "message": "Hey {{name}} — noticed {{project}} is showing about ${{volume}} in 24h DEX volume and ${{liquidity}} in pool liquidity. Thought it could be a good time to explore a perp market for ${{token}} with Vibe Trading. Open to a quick chat?"},
     {"id": "VIBE_DM_04", "angle": "vault", "requires_vault_potential": True,
      "message": "Hey {{name}} — we're exploring token-vault partnerships at Vibe Trading that connect project token deposits with a perp market. Would you be open to seeing if this could fit {{project}}?"},
     {"id": "VIBE_DM_05", "angle": "community", "requires_community_signal": True,
-     "message": "Hey {{name}} — noticed {{community_signal}} around {{project}}. Have you considered a perp market for \${{token}}? Thought it could be worth exploring with Vibe Trading."},
+     "message": "Hey {{name}} — noticed {{community_signal}} around {{project}}. Have you considered a perp market for ${{token}}? Thought it could be worth exploring with Vibe Trading."},
     {"id": "VIBE_DM_06", "angle": "ultra_short",
-     "message": "Hey {{name}} — quick one: would a perp market for \${{token}} be relevant to {{project}}? I'm with Vibe Trading. Happy to share more if it's on your radar."},
+     "message": "Hey {{name}} — quick one: would a perp market for ${{token}} be relevant to {{project}}? I'm with Vibe Trading. Happy to share more if it's on your radar."},
     {"id": "VIBE_DM_07", "angle": "curiosity",
-     "message": "Hey {{name}} — curious, does {{project}} have plans for a perp market for \${{token}}? I'm with Vibe Trading and thought there might be an interesting fit. Open to exploring it?"},
+     "message": "Hey {{name}} — curious, does {{project}} have plans for a perp market for ${{token}}? I'm with Vibe Trading and thought there might be an interesting fit. Open to exploring it?"},
 ]
 
 
