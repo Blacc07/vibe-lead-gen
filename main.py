@@ -23,6 +23,7 @@ STATE_FILE = Path("processed_leads.json")
 SPOT_FILE = Path("master_spot_list.json")
 PERP_FILE = Path("master_perp_list.json")
 REVIEW_FILE = Path("review_leads.json")
+OUTREACH_STATE_FILE = Path("outreach_state.json")
 CATEGORY_CURSOR_FILE = Path("category_cursor.json")
 
 # Optional future contract-level perp list.
@@ -1471,47 +1472,120 @@ def save_review_leads(review_leads):
 # OUTREACH GENERATION
 # ============================================================
 
-def generate_personalized_dm(lead):
-    name = lead["name"]
-    symbol = lead["symbol"]
+OUTREACH_TEMPLATES = [
+    {"id": "VIBE_DM_01", "angle": "perp_opportunity",
+     "message": "Hey {{name}} — has {{project}} considered a perp market for \${{token}}? I'm with Vibe Trading, where projects can bring their tokens to perpetual markets. Thought it could be worth exploring for you guys."},
+    {"id": "VIBE_DM_02", "angle": "market_gap", "requires_no_existing_perp": True,
+     "message": "Hey {{name}} — \${{token}} doesn't appear to have a perp market on the venues we checked. Vibe Trading helps projects explore launching one. Is this something your team has looked into?"},
+    {"id": "VIBE_DM_03", "angle": "momentum", "requires_signal": True,
+     "message": "Hey {{name}} — noticed {{project}} is showing about \${{volume}} in 24h DEX volume and \${{liquidity}} in pool liquidity. Thought it could be a good time to explore a perp market for \${{token}} with Vibe Trading. Open to a quick chat?"},
+    {"id": "VIBE_DM_04", "angle": "vault", "requires_vault_potential": True,
+     "message": "Hey {{name}} — we're exploring token-vault partnerships at Vibe Trading that connect project token deposits with a perp market. Would you be open to seeing if this could fit {{project}}?"},
+    {"id": "VIBE_DM_05", "angle": "community", "requires_community_signal": True,
+     "message": "Hey {{name}} — noticed {{community_signal}} around {{project}}. Have you considered a perp market for \${{token}}? Thought it could be worth exploring with Vibe Trading."},
+    {"id": "VIBE_DM_06", "angle": "ultra_short",
+     "message": "Hey {{name}} — quick one: would a perp market for \${{token}} be relevant to {{project}}? I'm with Vibe Trading. Happy to share more if it's on your radar."},
+    {"id": "VIBE_DM_07", "angle": "curiosity",
+     "message": "Hey {{name}} — curious, does {{project}} have plans for a perp market for \${{token}}? I'm with Vibe Trading and thought there might be an interesting fit. Open to exploring it?"},
+]
+
+
+def load_outreach_state():
+    data = load_json(OUTREACH_STATE_FILE)
+    if not isinstance(data, dict):
+        data = {}
+    assignments = data.get("assignments", {})
+    if not isinstance(assignments, dict):
+        assignments = {}
+    recent = data.get("recent_template_ids", [])
+    if not isinstance(recent, list):
+        recent = []
+    return {"assignments": assignments, "recent_template_ids": recent[-6:]}
+
+
+def save_outreach_state(state):
+    save_json(OUTREACH_STATE_FILE, {
+        "generated_at": now_utc().isoformat(),
+        "assignments": state["assignments"],
+        "recent_template_ids": state["recent_template_ids"][-6:],
+    })
+
+
+def _has_value(value):
+    return value is not None and str(value).strip() not in ("", "Not Found", "N/A")
+
+
+def _render_outreach_template(template, lead):
+    dex = lead.get("dex", {})
     twitter = lead.get("twitter", "")
-    chain = lead["chain_display"]
-    dex = lead["dex"]
-
-    volume = dex["volume_h24"]
-    liquidity = dex["liquidity_usd"]
-
-    if twitter and twitter != "Not Found":
-        greeting = f"Hey {twitter}, been tracking {name} ({symbol}) on {chain}."
-    else:
-        greeting = f"Hey {name} team, been tracking {symbol} on {chain}."
-
-    if lead["priority"] == "CEX_SPOT_NO_PERP":
-        insight = (
-            f"You’re already listed on CEX spot markets and doing ${volume:,.0f} in 24h DEX volume "
-            f"with ${liquidity:,.0f} liquidity, but I don’t see an active perp market for {symbol} "
-            f"on the major venues I track."
-        )
-    else:
-        insight = (
-            f"You’re doing ${volume:,.0f} in 24h DEX volume with ${liquidity:,.0f} liquidity, "
-            f"but I don’t see an active perp market for {symbol} on the major venues I track."
-        )
-
-    template = (
-        f"{greeting}\n\n"
-        f"{insight}\n\n"
-        f"That usually means derivative demand is either leaking to CEXs or being suppressed entirely.\n\n"
-        f"We built Vibe Trading to help protocols capture that value:\n"
-        f"- The Solution: List a native perp on Vibe for $0 USDC. Deposit idle treasury tokens to our vault to back the Open Interest.\n"
-        f"- The Result: You earn perpetual trading fees to fund operations without selling a single token on the spot market.\n\n"
-        f"Mind if I send over a quick 1-pager on how the vault mechanics work?"
-    )
-
-    return template
+    name = str(twitter).strip().lstrip("@") if _has_value(twitter) else "team"
+    replacements = {
+        "name": name,
+        "project": str(lead.get("name", "")).strip(),
+        "token": str(lead.get("symbol", "")).strip(),
+        "volume": f"{float(dex.get('volume_h24') or 0):,.0f}",
+        "liquidity": f"{float(dex.get('liquidity_usd') or 0):,.0f}",
+        "community_signal": str(lead.get("verified_community_signal", "")).strip(),
+    }
+    message = template["message"]
+    for key, value in replacements.items():
+        message = message.replace("{{" + key + "}}", value)
+    return message.strip()
 
 
-def build_telegram_html_message(lead, dm_text):
+def assign_outreach_template(lead, state):
+    """Assign one eligible template and persist it for retry-safe reuse."""
+    lead_id = str(lead.get("gecko_id", "")).strip()
+    assignments = state["assignments"]
+    existing = assignments.get(lead_id)
+    if isinstance(existing, dict) and existing.get("outreach_message"):
+        return existing
+
+    dex = lead.get("dex", {})
+    has_signal = _has_value(dex.get("volume_h24")) and _has_value(dex.get("liquidity_usd"))
+    vault_potential = str(lead.get("vault_potential", "")).lower() in ("high", "medium", "true")
+    has_community_signal = _has_value(lead.get("verified_community_signal"))
+
+    eligible = []
+    for template in OUTREACH_TEMPLATES:
+        if template.get("requires_no_existing_perp") and lead.get("perp_risk") != "auto_send":
+            continue
+        if template.get("requires_signal") and not has_signal:
+            continue
+        if template.get("requires_vault_potential") and not vault_potential:
+            continue
+        if template.get("requires_community_signal") and not has_community_signal:
+            continue
+        eligible.append(template)
+
+    recent = set(state["recent_template_ids"][-6:])
+    alternatives = [t for t in eligible if t["id"] not in recent]
+    pool = alternatives or eligible
+    if not pool:
+        raise RuntimeError("No eligible outreach template for lead " + (lead_id or "(missing id)"))
+
+    selected = random.choice(pool)
+    assigned = {
+        "outreach_template_id": selected["id"],
+        "outreach_angle": selected["angle"],
+        "outreach_message": _render_outreach_template(selected, lead),
+        "outreach_assigned_at": now_utc().isoformat(),
+        "outreach_status": "assigned",
+    }
+    if lead_id:
+        assignments[lead_id] = assigned
+    state["recent_template_ids"].append(selected["id"])
+    state["recent_template_ids"] = state["recent_template_ids"][-6:]
+    save_outreach_state(state)
+    return assigned
+
+
+def generate_personalized_dm(lead, state=None):
+    state = state if state is not None else load_outreach_state()
+    return assign_outreach_template(lead, state)["outreach_message"]
+
+
+def build_telegram_html_message(lead, dm_text, outreach=None):
     dex = lead["dex"]
 
     if lead["priority"] == "CEX_SPOT_NO_PERP":
@@ -1528,11 +1602,14 @@ def build_telegram_html_message(lead, dm_text):
         except Exception:
             price_change_str = str(price_change)
 
+    outreach = outreach or {}
     message = (
         "🎯 <b>NEW PERP-GAP LEAD</b>\n\n"
         f"📛 <b>Project:</b> {escape_html(lead['name'])} ({escape_html(lead['symbol'])})\n"
         f"⛓️ <b>Chain:</b> {escape_html(lead['chain_display'])}\n"
-        f"🧠 <b>Signal:</b> {escape_html(signal_label)}\n\n"
+        f"🧠 <b>Signal:</b> {escape_html(signal_label)}\n"
+        f"🧭 <b>Outreach Angle:</b> {escape_html(outreach.get('outreach_angle', 'perp_opportunity'))}\n"
+        f"🏷️ <b>Template ID:</b> {escape_html(outreach.get('outreach_template_id', 'VIBE_DM_01'))}\n\n"
         f"📂 <b>Market Cap:</b> ${lead['market_cap']:,.0f}\n"
         f"📊 <b>CoinGecko 24h Volume:</b> ${lead['cg_volume_24h']:,.0f}\n"
         f"💧 <b>DEX Liquidity:</b> ${dex['liquidity_usd']:,.0f}\n"
@@ -1603,10 +1680,12 @@ def deliver_leads(leads, processed_ids):
     print("\n=== MODULE 3: DELIVERY ===")
 
     delivered = 0
+    outreach_state = load_outreach_state()
 
     for lead in leads:
-        dm_text = generate_personalized_dm(lead)
-        message = build_telegram_html_message(lead, dm_text)
+        outreach = assign_outreach_template(lead, outreach_state)
+        dm_text = outreach["outreach_message"]
+        message = build_telegram_html_message(lead, dm_text, outreach)
 
         success = send_telegram_message(message)
 
