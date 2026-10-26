@@ -1,54 +1,54 @@
 {
-  "generated_at": "2026-10-25T19:00:48.760201+00:00",
+  "generated_at": "2026-10-26T20:01:03.094757+00:00",
   "source": "ccxt_cex_spot",
   "stats": {
     "okx": {
       "status": "success",
-      "spot_markets": 1195,
+      "spot_markets": 1203,
       "perp_markets": 522,
-      "total_markets": 4705
+      "total_markets": 4599
     },
     "mexc": {
       "status": "success",
-      "spot_markets": 1773,
-      "perp_markets": 1171,
-      "total_markets": 3015
+      "spot_markets": 1769,
+      "perp_markets": 1179,
+      "total_markets": 3019
     },
     "gate": {
       "status": "success",
       "spot_markets": 2181,
       "perp_markets": 1062,
-      "total_markets": 6696
+      "total_markets": 6642
     },
     "bitget": {
       "status": "success",
-      "spot_markets": 3586,
-      "perp_markets": 913,
-      "total_markets": 4507
+      "spot_markets": 3584,
+      "perp_markets": 916,
+      "total_markets": 4509
     },
     "kucoin": {
       "status": "success",
       "spot_markets": 969,
-      "perp_markets": 705,
-      "total_markets": 1675
+      "perp_markets": 706,
+      "total_markets": 1676
     },
     "kucoinfutures": {
       "status": "success",
       "spot_markets": 0,
-      "perp_markets": 705,
-      "total_markets": 706
+      "perp_markets": 706,
+      "total_markets": 707
     },
     "phemex": {
       "status": "success",
       "spot_markets": 176,
-      "perp_markets": 145,
-      "total_markets": 2068
+      "perp_markets": 146,
+      "total_markets": 2069
     },
     "bingx": {
       "status": "success",
       "spot_markets": 614,
-      "perp_markets": 1149,
-      "total_markets": 3591
+      "perp_markets": 1164,
+      "total_markets": 3607
     },
     "hyperliquid": {
       "perp_symbols": 234
@@ -85,9 +85,9 @@
     "configured_cex_venues": 7,
     "minimum_required_cex_venues": 4,
     "failed_cex_sources": [],
-    "generated_at": "2026-10-25T19:00:48.062294+00:00"
+    "generated_at": "2026-10-26T20:01:00.441676+00:00"
   },
-  "total_unique_spot_base_symbols": 5884,
+  "total_unique_spot_base_symbols": 5891,
   "symbols": [
     "0G",
     "1000BONK",
@@ -109,6 +109,7 @@
     "AALON",
     "AAOI3L",
     "AAOI3S",
+    "AAOION",
     "AAPL3L",
     "AAPL3S",
     "AAPLG",
@@ -1026,6 +1027,7 @@
     "GAME",
     "GAME2",
     "GAMES",
+    "GANG",
     "GAS",
     "GAT",
     "GATA",
@@ -1284,6 +1286,7 @@
     "KAITO",
     "KAITO3L",
     "KAITO3S",
+    "KAMIRAI",
     "KAN",
     "KAS",
     "KAS3L",
@@ -1348,6 +1351,7 @@
     "LALA",
     "LAPTOP",
     "LAT",
+    "LAUNCH",
     "LAVA",
     "LAYER",
     "LAZIO",
@@ -1773,7 +1777,6 @@
     "ORNG",
     "ORO",
     "OSMO",
-    "OTC",
     "OTK",
     "OVL",
     "OVO",
@@ -2432,7 +2435,6 @@
     "RBULZ",
     "RBURL",
     "RBUSE",
-    "RBUUU",
     "RBV",
     "RBVN",
     "RBVS",
@@ -2644,7 +2646,6 @@
     "RCRM",
     "RCRON",
     "RCROX",
-    "RCRPJY",
     "RCRS",
     "RCRSP",
     "RCRSR",
@@ -3420,6 +3421,7 @@
     "RITRI",
     "RITRN",
     "RITT",
+    "RITUAL",
     "RITW",
     "RIUSB",
     "RIUSG",
@@ -5103,7 +5105,6 @@
     "SAND3S",
     "SANTOS",
     "SAPIEN",
-    "SAPLING",
     "SAROS",
     "SATS",
     "SAUBER",
@@ -5219,7 +5220,6 @@
     "SNXX3L",
     "SNXX3S",
     "SNXXG",
-    "SOCK",
     "SOFION",
     "SOIL",
     "SOL",
@@ -5625,7 +5625,6 @@
     "WEN",
     "WENSOL",
     "WET",
-    "WEXO",
     "WFI",
     "WHITEWHALE",
     "WHUF",
@@ -5782,9 +5781,13 @@
     "XLRCX",
     "XLUNR",
     "XLYTE",
+    "XMARA",
+    "XMCD",
     "XMETA",
     "XMN",
     "XMR",
+    "XMRK",
+    "XMRNA",
     "XMRVL",
     "XMSFT",
     "XMSTR",
@@ -5793,15 +5796,18 @@
     "XMVLL",
     "XNA",
     "XNBIS",
+    "XNET",
     "XNFLX",
     "XNI3L",
     "XNI3S",
+    "XNKE",
     "XNL",
     "XNO",
     "XNOW",
     "XNT",
     "XNVDA",
     "XNY",
+    "XOKLO",
     "XOKTA",
     "XOMG",
     "XOMON",
@@ -5833,6 +5839,7 @@
     "XPT3S",
     "XPURR",
     "XPX",
+    "XPYPL",
     "XQCOM",
     "XQNT",
     "XQQQ",
