@@ -62,7 +62,8 @@ jobs:
             master_spot_list.json \
             master_perp_list.json \
             review_leads.json \
-            category_cursor.json
+            category_cursor.json \
+            outreach_state.json
           do
             if [ -f "$f" ]; then
               git add "$f"
