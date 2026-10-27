@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-27T16:00:52.059585+00:00",
+  "generated_at": "2026-10-27T17:00:49.228442+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -56,14 +56,21 @@
       "outreach_message": "Hey gangdotfun — quick one: would a perp market for $GANG be relevant to Gang? I'm with Vibe Trading. Happy to share more if it's on your radar.",
       "outreach_assigned_at": "2026-10-27T16:00:52.059567+00:00",
       "outreach_status": "assigned"
+    },
+    "xd-3": {
+      "outreach_template_id": "VIBE_DM_03",
+      "outreach_angle": "momentum",
+      "outreach_message": "Hey xdmemesol — noticed XD is showing about $594,536 in 24h DEX volume and $67,575 in pool liquidity. Thought it could be a good time to explore a perp market for $XD with Vibe Trading. Open to a quick chat?",
+      "outreach_assigned_at": "2026-10-27T17:00:49.228423+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_07",
     "VIBE_DM_02",
     "VIBE_DM_01",
     "VIBE_DM_02",
     "VIBE_DM_01",
-    "VIBE_DM_06"
+    "VIBE_DM_06",
+    "VIBE_DM_03"
   ]
 }
