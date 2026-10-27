@@ -1,42 +1,42 @@
 {
-  "generated_at": "2026-10-26T20:01:03.094757+00:00",
+  "generated_at": "2026-10-27T20:45:26.412387+00:00",
   "source": "ccxt_cex_spot",
   "stats": {
     "okx": {
       "status": "success",
-      "spot_markets": 1203,
-      "perp_markets": 522,
-      "total_markets": 4599
+      "spot_markets": 1211,
+      "perp_markets": 526,
+      "total_markets": 4522
     },
     "mexc": {
       "status": "success",
-      "spot_markets": 1769,
-      "perp_markets": 1179,
-      "total_markets": 3019
+      "spot_markets": 1768,
+      "perp_markets": 1184,
+      "total_markets": 3024
     },
     "gate": {
       "status": "success",
-      "spot_markets": 2181,
-      "perp_markets": 1062,
-      "total_markets": 6642
+      "spot_markets": 2182,
+      "perp_markets": 1067,
+      "total_markets": 6644
     },
     "bitget": {
       "status": "success",
-      "spot_markets": 3584,
-      "perp_markets": 916,
-      "total_markets": 4509
+      "spot_markets": 3585,
+      "perp_markets": 918,
+      "total_markets": 4511
     },
     "kucoin": {
       "status": "success",
-      "spot_markets": 969,
-      "perp_markets": 706,
-      "total_markets": 1676
+      "spot_markets": 970,
+      "perp_markets": 711,
+      "total_markets": 1682
     },
     "kucoinfutures": {
       "status": "success",
       "spot_markets": 0,
-      "perp_markets": 706,
-      "total_markets": 707
+      "perp_markets": 711,
+      "total_markets": 712
     },
     "phemex": {
       "status": "success",
@@ -46,12 +46,12 @@
     },
     "bingx": {
       "status": "success",
-      "spot_markets": 614,
-      "perp_markets": 1164,
-      "total_markets": 3607
+      "spot_markets": 615,
+      "perp_markets": 1174,
+      "total_markets": 3618
     },
     "hyperliquid": {
-      "perp_symbols": 234
+      "perp_symbols": 235
     },
     "dydx": {
       "perp_symbols": 291
@@ -85,9 +85,9 @@
     "configured_cex_venues": 7,
     "minimum_required_cex_venues": 4,
     "failed_cex_sources": [],
-    "generated_at": "2026-10-26T20:01:00.441676+00:00"
+    "generated_at": "2026-10-27T20:45:25.135478+00:00"
   },
-  "total_unique_spot_base_symbols": 5891,
+  "total_unique_spot_base_symbols": 5898,
   "symbols": [
     "0G",
     "1000BONK",
@@ -197,7 +197,6 @@
     "AKE",
     "AKITA",
     "AKT",
-    "AL",
     "ALA",
     "ALABON",
     "ALCH",
@@ -1687,6 +1686,7 @@
     "NOKON",
     "NOM",
     "NOMINA",
+    "NOMO",
     "NOON",
     "NOOT",
     "NOS",
@@ -2435,6 +2435,7 @@
     "RBULZ",
     "RBURL",
     "RBUSE",
+    "RBUUU",
     "RBV",
     "RBVN",
     "RBVS",
@@ -3800,7 +3801,7 @@
     "RMSFT",
     "RMSFU",
     "RMSGE",
-    "RMSGS",
+    "RMSGK",
     "RMSI",
     "RMSM",
     "RMSTR",
@@ -5209,7 +5210,6 @@
     "SNDKG",
     "SNDKON",
     "SNEK",
-    "SNFT",
     "SNFT1",
     "SNOWON",
     "SNPT",
@@ -5381,7 +5381,6 @@
     "TEL",
     "TENCENTG",
     "TENDIES",
-    "TEST002",
     "TET",
     "TEVA",
     "TFUEL",
@@ -5472,7 +5471,6 @@
     "TT",
     "TTMION",
     "TTN",
-    "TTS",
     "TUNE",
     "TURBO",
     "TURBO3L",
@@ -5850,6 +5848,7 @@
     "XRDDT",
     "XRDW",
     "XREATORS",
+    "XRIOT",
     "XRIVN",
     "XRKLB",
     "XROK",
@@ -5872,6 +5871,7 @@
     "XSNDK",
     "XSNOW",
     "XSNXX",
+    "XSOFI",
     "XSONY",
     "XSOXL",
     "XSOXS",
@@ -5883,6 +5883,8 @@
     "XSWAP",
     "XT",
     "XTAG",
+    "XTEAM",
+    "XTEM",
     "XTER",
     "XTESTA",
     "XTM",
@@ -5896,6 +5898,7 @@
     "XTTMI",
     "XTTWO",
     "XTWLO",
+    "XTXN",
     "XTZ",
     "XU3O8",
     "XUNH",
@@ -5904,15 +5907,19 @@
     "XUSD",
     "XUSO",
     "XUVXY",
+    "XV",
     "XVG",
+    "XVICR",
     "XVRT",
     "XVS",
     "XWDC",
     "XWEN",
+    "XWMT",
     "XX",
     "XXBI",
     "XXIAOMI",
     "XXLE",
+    "XXOM",
     "XYM",
     "XYO",
     "XZM",
