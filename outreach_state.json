@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-26T17:02:06.223200+00:00",
+  "generated_at": "2026-10-27T03:01:57.041540+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -21,11 +21,19 @@
       "outreach_message": "Hey zhao_cai_mao_ — curious, does Zhao Cai Mao have plans for a perp market for $招财猫? I'm with Vibe Trading and thought there might be an interesting fit. Open to exploring it?",
       "outreach_assigned_at": "2026-10-26T17:02:06.223177+00:00",
       "outreach_status": "assigned"
+    },
+    "pwease": {
+      "outreach_template_id": "VIBE_DM_02",
+      "outreach_angle": "market_gap",
+      "outreach_message": "Hey pweaseman — $PWEASE doesn't appear to have a perp market on the venues we checked. Vibe Trading helps projects explore launching one. Is this something your team has looked into?",
+      "outreach_assigned_at": "2026-10-27T03:01:57.041520+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
     "VIBE_DM_06",
     "VIBE_DM_03",
-    "VIBE_DM_07"
+    "VIBE_DM_07",
+    "VIBE_DM_02"
   ]
 }
