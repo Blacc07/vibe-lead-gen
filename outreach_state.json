@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-27T18:00:46.406846+00:00",
+  "generated_at": "2026-10-27T20:01:53.431420+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -70,14 +70,21 @@
       "outreach_message": "Hey solomon_labs — curious, does Solomon have plans for a perp market for $SOLO? I'm with Vibe Trading and thought there might be an interesting fit. Open to exploring it?",
       "outreach_assigned_at": "2026-10-27T18:00:46.406827+00:00",
       "outreach_status": "assigned"
+    },
+    "bankercoin-2": {
+      "outreach_template_id": "VIBE_DM_02",
+      "outreach_angle": "market_gap",
+      "outreach_message": "Hey bankrbot — $BNKR doesn't appear to have a perp market on the venues we checked. Vibe Trading helps projects explore launching one. Is this something your team has looked into?",
+      "outreach_assigned_at": "2026-10-27T20:01:53.431407+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_01",
     "VIBE_DM_02",
     "VIBE_DM_01",
     "VIBE_DM_06",
     "VIBE_DM_03",
-    "VIBE_DM_07"
+    "VIBE_DM_07",
+    "VIBE_DM_02"
   ]
 }
