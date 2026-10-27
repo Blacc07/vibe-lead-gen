@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-27T03:01:57.041540+00:00",
+  "generated_at": "2026-10-27T14:02:04.898097+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -28,12 +28,28 @@
       "outreach_message": "Hey pweaseman — $PWEASE doesn't appear to have a perp market on the venues we checked. Vibe Trading helps projects explore launching one. Is this something your team has looked into?",
       "outreach_assigned_at": "2026-10-27T03:01:57.041520+00:00",
       "outreach_status": "assigned"
+    },
+    "one-life-its-worth-an-attempt-4": {
+      "outreach_template_id": "VIBE_DM_01",
+      "outreach_angle": "perp_opportunity",
+      "outreach_message": "Hey WorthOnBase — has one life, its worth an attempt considered a perp market for $WORTH? I'm with Vibe Trading, where projects can bring their tokens to perpetual markets. Thought it could be worth exploring for you guys.",
+      "outreach_assigned_at": "2026-10-27T14:02:02.281550+00:00",
+      "outreach_status": "assigned"
+    },
+    "ginnan-the-cat": {
+      "outreach_template_id": "VIBE_DM_02",
+      "outreach_angle": "market_gap",
+      "outreach_message": "Hey Ginnanthecat — $GINNAN doesn't appear to have a perp market on the venues we checked. Vibe Trading helps projects explore launching one. Is this something your team has looked into?",
+      "outreach_assigned_at": "2026-10-27T14:02:04.898072+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
     "VIBE_DM_06",
     "VIBE_DM_03",
     "VIBE_DM_07",
+    "VIBE_DM_02",
+    "VIBE_DM_01",
     "VIBE_DM_02"
   ]
 }
