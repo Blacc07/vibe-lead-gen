@@ -1,30 +1,30 @@
 {
-  "generated_at": "2026-10-27T20:45:26.412387+00:00",
+  "generated_at": "2026-10-28T21:01:01.624998+00:00",
   "source": "ccxt_cex_spot",
   "stats": {
     "okx": {
       "status": "success",
       "spot_markets": 1211,
       "perp_markets": 526,
-      "total_markets": 4522
+      "total_markets": 4555
     },
     "mexc": {
       "status": "success",
-      "spot_markets": 1768,
+      "spot_markets": 1766,
       "perp_markets": 1184,
-      "total_markets": 3024
+      "total_markets": 3021
     },
     "gate": {
       "status": "success",
       "spot_markets": 2182,
-      "perp_markets": 1067,
-      "total_markets": 6644
+      "perp_markets": 1066,
+      "total_markets": 6435
     },
     "bitget": {
       "status": "success",
-      "spot_markets": 3585,
-      "perp_markets": 918,
-      "total_markets": 4511
+      "spot_markets": 3586,
+      "perp_markets": 922,
+      "total_markets": 4516
     },
     "kucoin": {
       "status": "success",
@@ -42,13 +42,13 @@
       "status": "success",
       "spot_markets": 176,
       "perp_markets": 146,
-      "total_markets": 2069
+      "total_markets": 2068
     },
     "bingx": {
       "status": "success",
       "spot_markets": 615,
-      "perp_markets": 1174,
-      "total_markets": 3618
+      "perp_markets": 1175,
+      "total_markets": 3619
     },
     "hyperliquid": {
       "perp_symbols": 235
@@ -85,9 +85,9 @@
     "configured_cex_venues": 7,
     "minimum_required_cex_venues": 4,
     "failed_cex_sources": [],
-    "generated_at": "2026-10-27T20:45:25.135478+00:00"
+    "generated_at": "2026-10-28T21:01:00.119030+00:00"
   },
-  "total_unique_spot_base_symbols": 5898,
+  "total_unique_spot_base_symbols": 5897,
   "symbols": [
     "0G",
     "1000BONK",
@@ -1326,7 +1326,6 @@
     "KORUG",
     "KOX",
     "KPOL",
-    "KRAFT",
     "KRL",
     "KSKD",
     "KSM",
@@ -1470,7 +1469,6 @@
     "MAXEXCHANGE",
     "MAY",
     "MBG",
-    "MBK",
     "MBL",
     "MBOOM",
     "MBSR",
@@ -1915,7 +1913,6 @@
     "PRIORS",
     "PRL",
     "PRO",
-    "PROLOGUE",
     "PROM",
     "PROMPT",
     "PROPC",
@@ -1924,6 +1921,7 @@
     "PROSFINANCE",
     "PROSPER",
     "PROVE",
+    "PRSM",
     "PSG",
     "PSI",
     "PSRMM",
@@ -2241,6 +2239,7 @@
     "RAUGO",
     "RAUPH",
     "RAUR",
+    "RAURE",
     "RAVA",
     "RAVAH",
     "RAVAL",

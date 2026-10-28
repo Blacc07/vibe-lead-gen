@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-28T13:00:49.897464+00:00",
+  "generated_at": "2026-10-28T21:01:20.501454+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -112,14 +112,21 @@
       "outreach_message": "Hey Zyfai_ — noticed Zyfai is showing about $93,672 in 24h DEX volume and $290,442 in pool liquidity. Thought it could be a good time to explore a perp market for $ZFI with Vibe Trading. Open to a quick chat?",
       "outreach_assigned_at": "2026-10-28T13:00:49.897443+00:00",
       "outreach_status": "assigned"
+    },
+    "auki-labs": {
+      "outreach_template_id": "VIBE_DM_06",
+      "outreach_angle": "ultra_short",
+      "outreach_message": "Hey Auki — quick one: would a perp market for $AUKI be relevant to Auki? I'm with Vibe Trading. Happy to share more if it's on your radar.",
+      "outreach_assigned_at": "2026-10-28T21:01:20.501439+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_02",
     "VIBE_DM_01",
     "VIBE_DM_06",
     "VIBE_DM_07",
     "VIBE_DM_06",
-    "VIBE_DM_03"
+    "VIBE_DM_03",
+    "VIBE_DM_06"
   ]
 }
