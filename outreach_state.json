@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-27T20:46:54.689148+00:00",
+  "generated_at": "2026-10-28T10:01:59.324197+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -91,14 +91,28 @@
       "outreach_message": "Hey team — quick one: would a perp market for $MONEROCHAN be relevant to Monero-Chan? I'm with Vibe Trading. Happy to share more if it's on your radar.",
       "outreach_assigned_at": "2026-10-27T20:46:54.689123+00:00",
       "outreach_status": "assigned"
+    },
+    "dogwifjob": {
+      "outreach_template_id": "VIBE_DM_07",
+      "outreach_angle": "curiosity",
+      "outreach_message": "Hey dogwifjob_sol — curious, does DogWifJob have plans for a perp market for $JOB? I'm with Vibe Trading and thought there might be an interesting fit. Open to exploring it?",
+      "outreach_assigned_at": "2026-10-28T10:01:56.619683+00:00",
+      "outreach_status": "assigned"
+    },
+    "backed-by-belief": {
+      "outreach_template_id": "VIBE_DM_06",
+      "outreach_angle": "ultra_short",
+      "outreach_message": "Hey team — quick one: would a perp market for $NOTHING be relevant to Backed By Belief? I'm with Vibe Trading. Happy to share more if it's on your radar.",
+      "outreach_assigned_at": "2026-10-28T10:01:59.324175+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_06",
-    "VIBE_DM_03",
     "VIBE_DM_07",
     "VIBE_DM_02",
     "VIBE_DM_01",
+    "VIBE_DM_06",
+    "VIBE_DM_07",
     "VIBE_DM_06"
   ]
 }
