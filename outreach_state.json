@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-29T19:00:43.961323+00:00",
+  "generated_at": "2026-10-29T21:00:42.503054+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -168,14 +168,21 @@
       "outreach_message": "Hey SoSoValueCrypto — has DEFI.ssi considered a perp market for $DEFI.SSI? I'm with Vibe Trading, where projects can bring their tokens to perpetual markets. Thought it could be worth exploring for you guys.",
       "outreach_assigned_at": "2026-10-29T19:00:43.961311+00:00",
       "outreach_status": "assigned"
+    },
+    "hodl-7": {
+      "outreach_template_id": "VIBE_DM_02",
+      "outreach_angle": "market_gap",
+      "outreach_message": "Hey hodl2013 — $HODL doesn't appear to have a perp market on the venues we checked. Vibe Trading helps projects explore launching one. Is this something your team has looked into?",
+      "outreach_assigned_at": "2026-10-29T21:00:42.503032+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
     "VIBE_DM_01",
-    "VIBE_DM_01",
     "VIBE_DM_07",
     "VIBE_DM_03",
     "VIBE_DM_06",
-    "VIBE_DM_01"
+    "VIBE_DM_01",
+    "VIBE_DM_02"
   ]
 }
