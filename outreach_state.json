@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-28T21:01:20.501454+00:00",
+  "generated_at": "2026-10-29T07:02:01.912041+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -119,14 +119,28 @@
       "outreach_message": "Hey Auki — quick one: would a perp market for $AUKI be relevant to Auki? I'm with Vibe Trading. Happy to share more if it's on your radar.",
       "outreach_assigned_at": "2026-10-28T21:01:20.501439+00:00",
       "outreach_status": "assigned"
+    },
+    "paws-at-you": {
+      "outreach_template_id": "VIBE_DM_02",
+      "outreach_angle": "market_gap",
+      "outreach_message": "Hey team — $PAWS doesn't appear to have a perp market on the venues we checked. Vibe Trading helps projects explore launching one. Is this something your team has looked into?",
+      "outreach_assigned_at": "2026-10-29T07:01:55.246135+00:00",
+      "outreach_status": "assigned"
+    },
+    "liang-jian-chu-ji": {
+      "outreach_template_id": "VIBE_DM_01",
+      "outreach_angle": "perp_opportunity",
+      "outreach_message": "Hey team — has 亮剑出击 considered a perp market for $亮剑出击? I'm with Vibe Trading, where projects can bring their tokens to perpetual markets. Thought it could be worth exploring for you guys.",
+      "outreach_assigned_at": "2026-10-29T07:02:01.912018+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_01",
-    "VIBE_DM_06",
     "VIBE_DM_07",
     "VIBE_DM_06",
     "VIBE_DM_03",
-    "VIBE_DM_06"
+    "VIBE_DM_06",
+    "VIBE_DM_02",
+    "VIBE_DM_01"
   ]
 }
