@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-29T11:01:53.662036+00:00",
+  "generated_at": "2026-10-29T18:01:58.799125+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -154,14 +154,21 @@
       "outreach_message": "Hey Sogni_Protocol — noticed Sogni AI is showing about $57,224 in 24h DEX volume and $274,997 in pool liquidity. Thought it could be a good time to explore a perp market for $SOGNI with Vibe Trading. Open to a quick chat?",
       "outreach_assigned_at": "2026-10-29T11:01:53.662013+00:00",
       "outreach_status": "assigned"
+    },
+    "toby-toadgod": {
+      "outreach_template_id": "VIBE_DM_06",
+      "outreach_angle": "ultra_short",
+      "outreach_message": "Hey toadgod1017 — quick one: would a perp market for $TOBY be relevant to Toby ToadGod? I'm with Vibe Trading. Happy to share more if it's on your radar.",
+      "outreach_assigned_at": "2026-10-29T18:01:58.799108+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_06",
     "VIBE_DM_02",
     "VIBE_DM_01",
     "VIBE_DM_01",
     "VIBE_DM_07",
-    "VIBE_DM_03"
+    "VIBE_DM_03",
+    "VIBE_DM_06"
   ]
 }
