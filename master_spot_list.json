@@ -1,54 +1,54 @@
 {
-  "generated_at": "2026-10-28T21:01:01.624998+00:00",
+  "generated_at": "2026-10-29T22:01:03.490651+00:00",
   "source": "ccxt_cex_spot",
   "stats": {
     "okx": {
       "status": "success",
-      "spot_markets": 1211,
+      "spot_markets": 1213,
       "perp_markets": 526,
-      "total_markets": 4555
+      "total_markets": 4656
     },
     "mexc": {
       "status": "success",
       "spot_markets": 1766,
-      "perp_markets": 1184,
-      "total_markets": 3021
+      "perp_markets": 1187,
+      "total_markets": 3027
     },
     "gate": {
       "status": "success",
-      "spot_markets": 2182,
+      "spot_markets": 2186,
       "perp_markets": 1066,
-      "total_markets": 6435
+      "total_markets": 7053
     },
     "bitget": {
       "status": "success",
       "spot_markets": 3586,
-      "perp_markets": 922,
-      "total_markets": 4516
+      "perp_markets": 925,
+      "total_markets": 4519
     },
     "kucoin": {
       "status": "success",
-      "spot_markets": 970,
-      "perp_markets": 711,
-      "total_markets": 1682
+      "spot_markets": 972,
+      "perp_markets": 712,
+      "total_markets": 1685
     },
     "kucoinfutures": {
       "status": "success",
       "spot_markets": 0,
-      "perp_markets": 711,
-      "total_markets": 712
+      "perp_markets": 712,
+      "total_markets": 713
     },
     "phemex": {
       "status": "success",
       "spot_markets": 176,
-      "perp_markets": 146,
-      "total_markets": 2068
+      "perp_markets": 147,
+      "total_markets": 2069
     },
     "bingx": {
       "status": "success",
       "spot_markets": 615,
-      "perp_markets": 1175,
-      "total_markets": 3619
+      "perp_markets": 1179,
+      "total_markets": 3623
     },
     "hyperliquid": {
       "perp_symbols": 235
@@ -85,9 +85,9 @@
     "configured_cex_venues": 7,
     "minimum_required_cex_venues": 4,
     "failed_cex_sources": [],
-    "generated_at": "2026-10-28T21:01:00.119030+00:00"
+    "generated_at": "2026-10-29T22:00:59.793768+00:00"
   },
-  "total_unique_spot_base_symbols": 5897,
+  "total_unique_spot_base_symbols": 5901,
   "symbols": [
     "0G",
     "1000BONK",
@@ -585,6 +585,8 @@
     "CATON",
     "CAW",
     "CBK",
+    "CBRS3L",
+    "CBRS3S",
     "CBRSG",
     "CC",
     "CC3L",
@@ -1725,7 +1727,6 @@
     "OGPU",
     "OGY",
     "OIL(USOON)",
-    "OKAI",
     "OKB",
     "OKB3L",
     "OKB3S",
@@ -4398,6 +4399,7 @@
     "RSGML",
     "RSGOL",
     "RSGOV",
+    "RSGP",
     "RSGRY",
     "RSH",
     "RSHAK",
@@ -5241,6 +5243,8 @@
     "SOXLB",
     "SOXLG",
     "SOXLON",
+    "SOXS3L",
+    "SOXS3S",
     "SOXSG",
     "SOXSON",
     "SOXXON",
