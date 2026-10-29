@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-29T07:02:01.912041+00:00",
+  "generated_at": "2026-10-29T10:01:47.526525+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -133,14 +133,21 @@
       "outreach_message": "Hey team — has 亮剑出击 considered a perp market for $亮剑出击? I'm with Vibe Trading, where projects can bring their tokens to perpetual markets. Thought it could be worth exploring for you guys.",
       "outreach_assigned_at": "2026-10-29T07:02:01.912018+00:00",
       "outreach_status": "assigned"
+    },
+    "dubble": {
+      "outreach_template_id": "VIBE_DM_01",
+      "outreach_angle": "perp_opportunity",
+      "outreach_message": "Hey DubblePadX — has Dubble considered a perp market for $DUBBLE? I'm with Vibe Trading, where projects can bring their tokens to perpetual markets. Thought it could be worth exploring for you guys.",
+      "outreach_assigned_at": "2026-10-29T10:01:47.526504+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_07",
     "VIBE_DM_06",
     "VIBE_DM_03",
     "VIBE_DM_06",
     "VIBE_DM_02",
+    "VIBE_DM_01",
     "VIBE_DM_01"
   ]
 }
