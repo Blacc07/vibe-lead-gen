@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-30T05:00:42.387823+00:00",
+  "generated_at": "2026-10-30T14:00:47.569157+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -182,14 +182,21 @@
       "outreach_message": "Hey PreStocksFi — curious, does Neuralink PreStocks have plans for a perp market for $NEURAL? I'm with Vibe Trading and thought there might be an interesting fit. Open to exploring it?",
       "outreach_assigned_at": "2026-10-30T05:00:42.387805+00:00",
       "outreach_status": "assigned"
+    },
+    "pepecat-2": {
+      "outreach_template_id": "VIBE_DM_02",
+      "outreach_angle": "market_gap",
+      "outreach_message": "Hey pepecattoken — $PEPECAT doesn't appear to have a perp market on the venues we checked. Vibe Trading helps projects explore launching one. Is this something your team has looked into?",
+      "outreach_assigned_at": "2026-10-30T14:00:47.569141+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_07",
     "VIBE_DM_03",
     "VIBE_DM_06",
     "VIBE_DM_01",
     "VIBE_DM_02",
-    "VIBE_DM_07"
+    "VIBE_DM_07",
+    "VIBE_DM_02"
   ]
 }
