@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-30T15:01:52.342632+00:00",
+  "generated_at": "2026-10-30T18:01:58.393370+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -196,14 +196,21 @@
       "outreach_message": "Hey ElephantStatus — quick one: would a perp market for $ELEPHANT be relevant to Elephant Money? I'm with Vibe Trading. Happy to share more if it's on your radar.",
       "outreach_assigned_at": "2026-10-30T15:01:52.342586+00:00",
       "outreach_status": "assigned"
+    },
+    "keyboard-cat-base": {
+      "outreach_template_id": "VIBE_DM_03",
+      "outreach_angle": "momentum",
+      "outreach_message": "Hey KeyboardCatBase — noticed Keyboard Cat (Base) is showing about $40,143 in 24h DEX volume and $724,534 in pool liquidity. Thought it could be a good time to explore a perp market for $KEYCAT with Vibe Trading. Open to a quick chat?",
+      "outreach_assigned_at": "2026-10-30T18:01:58.393352+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_06",
     "VIBE_DM_01",
     "VIBE_DM_02",
     "VIBE_DM_07",
     "VIBE_DM_02",
-    "VIBE_DM_06"
+    "VIBE_DM_06",
+    "VIBE_DM_03"
   ]
 }
