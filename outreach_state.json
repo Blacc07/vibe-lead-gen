@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-30T14:00:47.569157+00:00",
+  "generated_at": "2026-10-30T15:01:52.342632+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -189,14 +189,21 @@
       "outreach_message": "Hey pepecattoken — $PEPECAT doesn't appear to have a perp market on the venues we checked. Vibe Trading helps projects explore launching one. Is this something your team has looked into?",
       "outreach_assigned_at": "2026-10-30T14:00:47.569141+00:00",
       "outreach_status": "assigned"
+    },
+    "elephant-money": {
+      "outreach_template_id": "VIBE_DM_06",
+      "outreach_angle": "ultra_short",
+      "outreach_message": "Hey ElephantStatus — quick one: would a perp market for $ELEPHANT be relevant to Elephant Money? I'm with Vibe Trading. Happy to share more if it's on your radar.",
+      "outreach_assigned_at": "2026-10-30T15:01:52.342586+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_03",
     "VIBE_DM_06",
     "VIBE_DM_01",
     "VIBE_DM_02",
     "VIBE_DM_07",
-    "VIBE_DM_02"
+    "VIBE_DM_02",
+    "VIBE_DM_06"
   ]
 }
