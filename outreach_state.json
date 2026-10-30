@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-30T18:01:58.393370+00:00",
+  "generated_at": "2026-10-30T21:00:44.798898+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -203,14 +203,21 @@
       "outreach_message": "Hey KeyboardCatBase — noticed Keyboard Cat (Base) is showing about $40,143 in 24h DEX volume and $724,534 in pool liquidity. Thought it could be a good time to explore a perp market for $KEYCAT with Vibe Trading. Open to a quick chat?",
       "outreach_assigned_at": "2026-10-30T18:01:58.393352+00:00",
       "outreach_status": "assigned"
+    },
+    "red-kitten-crew": {
+      "outreach_template_id": "VIBE_DM_03",
+      "outreach_angle": "momentum",
+      "outreach_message": "Hey RKCcoin — noticed Red Kitten Crew is showing about $99,050 in 24h DEX volume and $164,402 in pool liquidity. Thought it could be a good time to explore a perp market for $RKC with Vibe Trading. Open to a quick chat?",
+      "outreach_assigned_at": "2026-10-30T21:00:44.798882+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_01",
     "VIBE_DM_02",
     "VIBE_DM_07",
     "VIBE_DM_02",
     "VIBE_DM_06",
+    "VIBE_DM_03",
     "VIBE_DM_03"
   ]
 }
