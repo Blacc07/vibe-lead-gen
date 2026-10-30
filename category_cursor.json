@@ -1,10 +1,6 @@
 {
-<<<<<<< Updated upstream
-  "generated_at": "2026-10-29T23:58:52.030100+00:00",
-=======
-  "generated_at": "2026-10-30T00:00:55.017553+00:00",
->>>>>>> Stashed changes
-  "cursor": 12,
+  "generated_at": "2026-10-30T01:00:44.670386+00:00",
+  "cursor": 4,
   "categories": [
     "decentralized-finance-defi",
     "decentralized-exchange",
