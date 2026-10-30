@@ -1,42 +1,42 @@
 {
-  "generated_at": "2026-10-29T22:01:03.490651+00:00",
+  "generated_at": "2026-10-30T23:00:55.776525+00:00",
   "source": "ccxt_cex_spot",
   "stats": {
     "okx": {
       "status": "success",
-      "spot_markets": 1213,
-      "perp_markets": 526,
-      "total_markets": 4656
+      "spot_markets": 1211,
+      "perp_markets": 532,
+      "total_markets": 4628
     },
     "mexc": {
       "status": "success",
-      "spot_markets": 1766,
-      "perp_markets": 1187,
-      "total_markets": 3027
+      "spot_markets": 1758,
+      "perp_markets": 1191,
+      "total_markets": 3020
     },
     "gate": {
       "status": "success",
-      "spot_markets": 2186,
-      "perp_markets": 1066,
-      "total_markets": 7053
+      "spot_markets": 2187,
+      "perp_markets": 1071,
+      "total_markets": 6783
     },
     "bitget": {
       "status": "success",
-      "spot_markets": 3586,
-      "perp_markets": 925,
-      "total_markets": 4519
+      "spot_markets": 3583,
+      "perp_markets": 924,
+      "total_markets": 4515
     },
     "kucoin": {
       "status": "success",
       "spot_markets": 972,
-      "perp_markets": 712,
-      "total_markets": 1685
+      "perp_markets": 716,
+      "total_markets": 1689
     },
     "kucoinfutures": {
       "status": "success",
       "spot_markets": 0,
-      "perp_markets": 712,
-      "total_markets": 713
+      "perp_markets": 716,
+      "total_markets": 717
     },
     "phemex": {
       "status": "success",
@@ -46,9 +46,9 @@
     },
     "bingx": {
       "status": "success",
-      "spot_markets": 615,
-      "perp_markets": 1179,
-      "total_markets": 3623
+      "spot_markets": 614,
+      "perp_markets": 1181,
+      "total_markets": 3627
     },
     "hyperliquid": {
       "perp_symbols": 235
@@ -85,9 +85,9 @@
     "configured_cex_venues": 7,
     "minimum_required_cex_venues": 4,
     "failed_cex_sources": [],
-    "generated_at": "2026-10-29T22:00:59.793768+00:00"
+    "generated_at": "2026-10-30T23:00:55.147583+00:00"
   },
-  "total_unique_spot_base_symbols": 5901,
+  "total_unique_spot_base_symbols": 5897,
   "symbols": [
     "0G",
     "1000BONK",
@@ -356,7 +356,6 @@
     "AWS",
     "AXIS",
     "AXL",
-    "AXM",
     "AXPON",
     "AXS",
     "AXS5L",
@@ -431,7 +430,6 @@
     "BELLS",
     "BELONG",
     "BELUGA",
-    "BEM",
     "BEN",
     "BENJI",
     "BENQI",
@@ -758,7 +756,6 @@
     "DBC",
     "DBR",
     "DCR",
-    "DCT",
     "DDMT",
     "DEB",
     "DEBIT",
@@ -1090,7 +1087,6 @@
     "GOOGLG",
     "GOOGLON",
     "GOOGLX",
-    "GP",
     "GPS",
     "GRAM",
     "GRAM3L",
@@ -1115,6 +1111,7 @@
     "GTBTC",
     "GTC",
     "GTETH",
+    "GTSOL",
     "GTT",
     "GUA",
     "GUN",
@@ -1253,6 +1250,7 @@
     "IVVG",
     "IXS",
     "IZI",
+    "JAGENT",
     "JANET",
     "JASMY",
     "JCT",
@@ -5152,7 +5150,6 @@
     "SHOPON",
     "SHPING",
     "SHR",
-    "SHROOM",
     "SHX",
     "SI",
     "SIGMAETH",
@@ -5521,7 +5518,6 @@
     "UOS",
     "UP",
     "UPC",
-    "UPROBINHOOD",
     "UQC",
     "URANUS",
     "URAON",
