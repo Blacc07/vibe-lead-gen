@@ -1,24 +1,24 @@
 {
-  "generated_at": "2026-10-30T23:00:55.776525+00:00",
+  "generated_at": "2026-10-31T23:26:45.826303+00:00",
   "source": "ccxt_cex_spot",
   "stats": {
     "okx": {
       "status": "success",
       "spot_markets": 1211,
       "perp_markets": 532,
-      "total_markets": 4628
+      "total_markets": 4546
     },
     "mexc": {
       "status": "success",
-      "spot_markets": 1758,
-      "perp_markets": 1191,
-      "total_markets": 3020
+      "spot_markets": 1750,
+      "perp_markets": 1190,
+      "total_markets": 3008
     },
     "gate": {
       "status": "success",
       "spot_markets": 2187,
       "perp_markets": 1071,
-      "total_markets": 6783
+      "total_markets": 6709
     },
     "bitget": {
       "status": "success",
@@ -46,7 +46,7 @@
     },
     "bingx": {
       "status": "success",
-      "spot_markets": 614,
+      "spot_markets": 613,
       "perp_markets": 1181,
       "total_markets": 3627
     },
@@ -85,9 +85,9 @@
     "configured_cex_venues": 7,
     "minimum_required_cex_venues": 4,
     "failed_cex_sources": [],
-    "generated_at": "2026-10-30T23:00:55.147583+00:00"
+    "generated_at": "2026-10-31T23:26:44.888440+00:00"
   },
-  "total_unique_spot_base_symbols": 5897,
+  "total_unique_spot_base_symbols": 5892,
   "symbols": [
     "0G",
     "1000BONK",
@@ -847,7 +847,6 @@
     "DYDX3S",
     "DYM",
     "DYOR",
-    "EACC",
     "EAT",
     "ECHO",
     "EDEL",
@@ -1056,7 +1055,6 @@
     "GLQ",
     "GLWG",
     "GLWON",
-    "GM",
     "GME",
     "GMEE",
     "GMEON",
@@ -1683,6 +1681,7 @@
     "NOK3S",
     "NOKON",
     "NOM",
+    "NOMA",
     "NOMINA",
     "NOMO",
     "NOON",
@@ -1878,7 +1877,6 @@
     "PNUT",
     "PNUT3L",
     "PNUT3S",
-    "POD",
     "POKT",
     "POL",
     "POL3L",
@@ -1903,7 +1901,6 @@
     "POWER",
     "POWR",
     "PPC",
-    "PPOLY",
     "PRAI",
     "PRCL",
     "PREOPAI",
@@ -1956,7 +1953,6 @@
     "QCOM3S",
     "QCOMG",
     "QCOMON",
-    "QFI",
     "QI",
     "QIE",
     "QKA",
@@ -5380,7 +5376,6 @@
     "TED",
     "TEL",
     "TENCENTG",
-    "TENDIES",
     "TET",
     "TEVA",
     "TFUEL",
