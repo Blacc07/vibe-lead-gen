@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-30T21:00:44.798898+00:00",
+  "generated_at": "2026-10-31T04:01:59.790193+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -210,14 +210,21 @@
       "outreach_message": "Hey RKCcoin — noticed Red Kitten Crew is showing about $99,050 in 24h DEX volume and $164,402 in pool liquidity. Thought it could be a good time to explore a perp market for $RKC with Vibe Trading. Open to a quick chat?",
       "outreach_assigned_at": "2026-10-30T21:00:44.798882+00:00",
       "outreach_status": "assigned"
+    },
+    "qenis": {
+      "outreach_template_id": "VIBE_DM_01",
+      "outreach_angle": "perp_opportunity",
+      "outreach_message": "Hey team — has Qenis considered a perp market for $QENIS? I'm with Vibe Trading, where projects can bring their tokens to perpetual markets. Thought it could be worth exploring for you guys.",
+      "outreach_assigned_at": "2026-10-31T04:01:59.790174+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_02",
     "VIBE_DM_07",
     "VIBE_DM_02",
     "VIBE_DM_06",
     "VIBE_DM_03",
-    "VIBE_DM_03"
+    "VIBE_DM_03",
+    "VIBE_DM_01"
   ]
 }
