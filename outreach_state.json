@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-31T23:00:45.576237+00:00",
+  "generated_at": "2026-11-01T04:00:49.680398+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -224,14 +224,21 @@
       "outreach_message": "Hey tessera_pe — curious, does Kalshi (Tessera Pre-IPO) have plans for a perp market for $TKALSHI? I'm with Vibe Trading and thought there might be an interesting fit. Open to exploring it?",
       "outreach_assigned_at": "2026-10-31T23:00:45.576219+00:00",
       "outreach_status": "assigned"
+    },
+    "float": {
+      "outreach_template_id": "VIBE_DM_02",
+      "outreach_angle": "market_gap",
+      "outreach_message": "Hey floatdotxyz — $FLOAT doesn't appear to have a perp market on the venues we checked. Vibe Trading helps projects explore launching one. Is this something your team has looked into?",
+      "outreach_assigned_at": "2026-11-01T04:00:49.680381+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_02",
     "VIBE_DM_06",
     "VIBE_DM_03",
     "VIBE_DM_03",
     "VIBE_DM_01",
-    "VIBE_DM_07"
+    "VIBE_DM_07",
+    "VIBE_DM_02"
   ]
 }
