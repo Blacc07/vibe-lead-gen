@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-01T08:01:54.567311+00:00",
+  "generated_at": "2026-11-01T12:01:59.031380+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -245,14 +245,35 @@
       "outreach_message": "Hey bitcoincolor — quick one: would a perp market for $BITCOIN be relevant to F7931A? I'm with Vibe Trading. Happy to share more if it's on your radar.",
       "outreach_assigned_at": "2026-11-01T08:01:54.567300+00:00",
       "outreach_status": "assigned"
+    },
+    "dessa": {
+      "outreach_template_id": "VIBE_DM_06",
+      "outreach_angle": "ultra_short",
+      "outreach_message": "Hey DessaOnSOL — quick one: would a perp market for $DESSA be relevant to Dessa? I'm with Vibe Trading. Happy to share more if it's on your radar.",
+      "outreach_assigned_at": "2026-11-01T12:01:54.253560+00:00",
+      "outreach_status": "assigned"
+    },
+    "the-bitcoin-bull": {
+      "outreach_template_id": "VIBE_DM_03",
+      "outreach_angle": "momentum",
+      "outreach_message": "Hey goingparabolic — noticed The Bitcoin Bull is showing about $106,992 in 24h DEX volume and $198,123 in pool liquidity. Thought it could be a good time to explore a perp market for $TBB with Vibe Trading. Open to a quick chat?",
+      "outreach_assigned_at": "2026-11-01T12:01:56.645031+00:00",
+      "outreach_status": "assigned"
+    },
+    "unstable-coin": {
+      "outreach_template_id": "VIBE_DM_07",
+      "outreach_angle": "curiosity",
+      "outreach_message": "Hey usduc_official — curious, does Unstable Coin have plans for a perp market for $USDUC? I'm with Vibe Trading and thought there might be an interesting fit. Open to exploring it?",
+      "outreach_assigned_at": "2026-11-01T12:01:59.031357+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_03",
-    "VIBE_DM_01",
-    "VIBE_DM_07",
     "VIBE_DM_02",
     "VIBE_DM_01",
-    "VIBE_DM_06"
+    "VIBE_DM_06",
+    "VIBE_DM_06",
+    "VIBE_DM_03",
+    "VIBE_DM_07"
   ]
 }
