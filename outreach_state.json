@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-02T04:01:54.309311+00:00",
+  "generated_at": "2026-11-02T05:02:01.515062+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -308,14 +308,21 @@
       "outreach_message": "Hey CloudBank_to — $COD doesn't appear to have a perp market on the venues we checked. Vibe Trading helps projects explore launching one. Is this something your team has looked into?",
       "outreach_assigned_at": "2026-11-02T04:01:54.309287+00:00",
       "outreach_status": "assigned"
+    },
+    "wiki-cat": {
+      "outreach_template_id": "VIBE_DM_07",
+      "outreach_angle": "curiosity",
+      "outreach_message": "Hey WikiCatCoin — curious, does Wiki Cat have plans for a perp market for $WKC? I'm with Vibe Trading and thought there might be an interesting fit. Open to exploring it?",
+      "outreach_assigned_at": "2026-11-02T05:02:01.515046+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_02",
     "VIBE_DM_06",
     "VIBE_DM_01",
     "VIBE_DM_06",
     "VIBE_DM_03",
-    "VIBE_DM_02"
+    "VIBE_DM_02",
+    "VIBE_DM_07"
   ]
 }
