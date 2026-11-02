@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-02T18:00:47.887490+00:00",
+  "generated_at": "2026-11-02T22:00:49.190211+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -336,14 +336,21 @@
       "outreach_message": "Hey Metahero_io — has Metahero considered a perp market for $HERO? I'm with Vibe Trading, where projects can bring their tokens to perpetual markets. Thought it could be worth exploring for you guys.",
       "outreach_assigned_at": "2026-11-02T18:00:47.887473+00:00",
       "outreach_status": "assigned"
+    },
+    "nockchain": {
+      "outreach_template_id": "VIBE_DM_06",
+      "outreach_angle": "ultra_short",
+      "outreach_message": "Hey nockchain — quick one: would a perp market for $NOCK be relevant to Nockchain? I'm with Vibe Trading. Happy to share more if it's on your radar.",
+      "outreach_assigned_at": "2026-11-02T22:00:49.190194+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_03",
     "VIBE_DM_02",
     "VIBE_DM_07",
     "VIBE_DM_03",
     "VIBE_DM_03",
-    "VIBE_DM_01"
+    "VIBE_DM_01",
+    "VIBE_DM_06"
   ]
 }
