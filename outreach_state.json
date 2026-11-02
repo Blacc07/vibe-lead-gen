@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-02T03:00:50.693848+00:00",
+  "generated_at": "2026-11-02T04:01:54.309311+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -294,14 +294,28 @@
       "outreach_message": "Hey genesis_L1 — quick one: would a perp market for $L1 be relevant to GenesisL1? I'm with Vibe Trading. Happy to share more if it's on your radar.",
       "outreach_assigned_at": "2026-11-02T03:00:50.693832+00:00",
       "outreach_status": "assigned"
+    },
+    "effective-accelerationism-3": {
+      "outreach_template_id": "VIBE_DM_03",
+      "outreach_angle": "momentum",
+      "outreach_message": "Hey 2103593870189858971 — noticed Effective Accelerationism is showing about $61,829 in 24h DEX volume and $115,968 in pool liquidity. Thought it could be a good time to explore a perp market for $E/ACC with Vibe Trading. Open to a quick chat?",
+      "outreach_assigned_at": "2026-11-02T04:01:51.765831+00:00",
+      "outreach_status": "assigned"
+    },
+    "cloudbank": {
+      "outreach_template_id": "VIBE_DM_02",
+      "outreach_angle": "market_gap",
+      "outreach_message": "Hey CloudBank_to — $COD doesn't appear to have a perp market on the venues we checked. Vibe Trading helps projects explore launching one. Is this something your team has looked into?",
+      "outreach_assigned_at": "2026-11-02T04:01:54.309287+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_03",
-    "VIBE_DM_07",
     "VIBE_DM_02",
     "VIBE_DM_06",
     "VIBE_DM_01",
-    "VIBE_DM_06"
+    "VIBE_DM_06",
+    "VIBE_DM_03",
+    "VIBE_DM_02"
   ]
 }
