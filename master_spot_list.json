@@ -1,24 +1,24 @@
 {
-  "generated_at": "2026-10-31T23:26:45.826303+00:00",
+  "generated_at": "2026-11-02T00:00:54.322553+00:00",
   "source": "ccxt_cex_spot",
   "stats": {
     "okx": {
       "status": "success",
       "spot_markets": 1211,
       "perp_markets": 532,
-      "total_markets": 4546
+      "total_markets": 4422
     },
     "mexc": {
       "status": "success",
-      "spot_markets": 1750,
-      "perp_markets": 1190,
-      "total_markets": 3008
+      "spot_markets": 1740,
+      "perp_markets": 1189,
+      "total_markets": 2996
     },
     "gate": {
       "status": "success",
-      "spot_markets": 2187,
+      "spot_markets": 2186,
       "perp_markets": 1071,
-      "total_markets": 6709
+      "total_markets": 6670
     },
     "bitget": {
       "status": "success",
@@ -85,9 +85,9 @@
     "configured_cex_venues": 7,
     "minimum_required_cex_venues": 4,
     "failed_cex_sources": [],
-    "generated_at": "2026-10-31T23:26:44.888440+00:00"
+    "generated_at": "2026-11-02T00:00:53.762667+00:00"
   },
-  "total_unique_spot_base_symbols": 5892,
+  "total_unique_spot_base_symbols": 5886,
   "symbols": [
     "0G",
     "1000BONK",
@@ -193,7 +193,6 @@
     "AIX9",
     "AIXBT",
     "AIXDROP",
-    "AIXPLAY",
     "AKE",
     "AKITA",
     "AKT",
@@ -914,7 +913,6 @@
     "EVA",
     "EVAA",
     "EVER",
-    "EVT",
     "EWT",
     "EWY3L",
     "EWY3S",
@@ -958,7 +956,6 @@
     "FIRO",
     "FIS",
     "FISHW",
-    "FIT",
     "FIWA",
     "FLIP",
     "FLNCG",
@@ -982,6 +979,7 @@
     "FOLKS",
     "FONE",
     "FOREST",
+    "FOREVER",
     "FOREX",
     "FORM",
     "FORT",
@@ -990,7 +988,6 @@
     "FOXSY",
     "FOXY",
     "FRAX",
-    "FRC",
     "FROGGIE",
     "FRONG",
     "FRTS",
@@ -1143,7 +1140,6 @@
     "HGET",
     "HGPT",
     "HIBS",
-    "HIGGS",
     "HIGH",
     "HIMSON",
     "HINT",
@@ -1416,7 +1412,6 @@
     "LTC3S",
     "LTC5L",
     "LTC5S",
-    "LTT",
     "LUCIC",
     "LUCKY",
     "LUFC",
@@ -1780,7 +1775,6 @@
     "OWL",
     "OWN",
     "OXT",
-    "OXY",
     "P",
     "P00LS",
     "P2P",
@@ -5130,7 +5124,6 @@
     "SENT3S",
     "SERV",
     "SFP",
-    "SGB",
     "SGR",
     "SHARE",
     "SHELL",
@@ -5575,6 +5568,7 @@
     "VPR",
     "VR",
     "VRA",
+    "VRAX",
     "VRTON",
     "VSN",
     "VSTON",
