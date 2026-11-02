@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-02T15:01:54.584225+00:00",
+  "generated_at": "2026-11-02T18:00:47.887490+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -329,14 +329,21 @@
       "outreach_message": "Hey loadoutprotocol — noticed Loadout is showing about $47,480 in 24h DEX volume and $159,152 in pool liquidity. Thought it could be a good time to explore a perp market for $LOAD with Vibe Trading. Open to a quick chat?",
       "outreach_assigned_at": "2026-11-02T15:01:54.584200+00:00",
       "outreach_status": "assigned"
+    },
+    "metahero": {
+      "outreach_template_id": "VIBE_DM_01",
+      "outreach_angle": "perp_opportunity",
+      "outreach_message": "Hey Metahero_io — has Metahero considered a perp market for $HERO? I'm with Vibe Trading, where projects can bring their tokens to perpetual markets. Thought it could be worth exploring for you guys.",
+      "outreach_assigned_at": "2026-11-02T18:00:47.887473+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_06",
     "VIBE_DM_03",
     "VIBE_DM_02",
     "VIBE_DM_07",
     "VIBE_DM_03",
-    "VIBE_DM_03"
+    "VIBE_DM_03",
+    "VIBE_DM_01"
   ]
 }
