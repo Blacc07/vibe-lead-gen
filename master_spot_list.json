@@ -1,36 +1,36 @@
 {
-  "generated_at": "2026-11-02T00:00:54.322553+00:00",
+  "generated_at": "2026-11-03T01:01:02.835895+00:00",
   "source": "ccxt_cex_spot",
   "stats": {
     "okx": {
       "status": "success",
       "spot_markets": 1211,
-      "perp_markets": 532,
-      "total_markets": 4422
+      "perp_markets": 537,
+      "total_markets": 4327
     },
     "mexc": {
       "status": "success",
-      "spot_markets": 1740,
-      "perp_markets": 1189,
-      "total_markets": 2996
+      "spot_markets": 1744,
+      "perp_markets": 1194,
+      "total_markets": 3004
     },
     "gate": {
       "status": "success",
       "spot_markets": 2186,
       "perp_markets": 1071,
-      "total_markets": 6670
+      "total_markets": 6612
     },
     "bitget": {
       "status": "success",
       "spot_markets": 3583,
-      "perp_markets": 924,
-      "total_markets": 4515
+      "perp_markets": 926,
+      "total_markets": 4517
     },
     "kucoin": {
       "status": "success",
-      "spot_markets": 972,
+      "spot_markets": 977,
       "perp_markets": 716,
-      "total_markets": 1689
+      "total_markets": 1694
     },
     "kucoinfutures": {
       "status": "success",
@@ -46,9 +46,9 @@
     },
     "bingx": {
       "status": "success",
-      "spot_markets": 613,
-      "perp_markets": 1181,
-      "total_markets": 3627
+      "spot_markets": 614,
+      "perp_markets": 1190,
+      "total_markets": 3636
     },
     "hyperliquid": {
       "perp_symbols": 235
@@ -85,9 +85,9 @@
     "configured_cex_venues": 7,
     "minimum_required_cex_venues": 4,
     "failed_cex_sources": [],
-    "generated_at": "2026-11-02T00:00:53.762667+00:00"
+    "generated_at": "2026-11-03T01:01:02.183683+00:00"
   },
-  "total_unique_spot_base_symbols": 5886,
+  "total_unique_spot_base_symbols": 5891,
   "symbols": [
     "0G",
     "1000BONK",
@@ -234,6 +234,7 @@
     "AMZNG",
     "AMZNON",
     "AMZNX",
+    "ANAKIN",
     "ANAVI",
     "ANDYETH",
     "ANETON",
@@ -873,6 +874,7 @@
     "EMBLEM",
     "EMC",
     "EMT",
+    "EMYA",
     "ENA",
     "ENA3L",
     "ENA3S",
@@ -1026,6 +1028,7 @@
     "GAT",
     "GATA",
     "GCOIN",
+    "GEC",
     "GEG",
     "GEMS",
     "GENIUS",
@@ -1220,6 +1223,7 @@
     "INTCB",
     "INTCG",
     "INTCON",
+    "INTCX",
     "INTER",
     "INTUON",
     "INTWG",
@@ -1309,6 +1313,7 @@
     "KLV",
     "KMNO",
     "KNC",
+    "KNTQ",
     "KOG",
     "KOM",
     "KOMA",
