@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-02T22:00:49.190211+00:00",
+  "generated_at": "2026-11-03T16:02:15.881313+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -343,14 +343,35 @@
       "outreach_message": "Hey nockchain — quick one: would a perp market for $NOCK be relevant to Nockchain? I'm with Vibe Trading. Happy to share more if it's on your radar.",
       "outreach_assigned_at": "2026-11-02T22:00:49.190194+00:00",
       "outreach_status": "assigned"
+    },
+    "capycoin-2": {
+      "outreach_template_id": "VIBE_DM_03",
+      "outreach_angle": "momentum",
+      "outreach_message": "Hey capycoinx — noticed Capycoin is showing about $3,227,238 in 24h DEX volume and $164,182 in pool liquidity. Thought it could be a good time to explore a perp market for $CAPY with Vibe Trading. Open to a quick chat?",
+      "outreach_assigned_at": "2026-11-03T16:02:02.956155+00:00",
+      "outreach_status": "assigned"
+    },
+    "choo-choo": {
+      "outreach_template_id": "VIBE_DM_02",
+      "outreach_angle": "market_gap",
+      "outreach_message": "Hey ChooTheRescue — $CHOO doesn't appear to have a perp market on the venues we checked. Vibe Trading helps projects explore launching one. Is this something your team has looked into?",
+      "outreach_assigned_at": "2026-11-03T16:02:13.480453+00:00",
+      "outreach_status": "assigned"
+    },
+    "fei-die-qi-yuan": {
+      "outreach_template_id": "VIBE_DM_07",
+      "outreach_angle": "curiosity",
+      "outreach_message": "Hey team — curious, does 飞蝶启元 have plans for a perp market for $飞蝶启元? I'm with Vibe Trading and thought there might be an interesting fit. Open to exploring it?",
+      "outreach_assigned_at": "2026-11-03T16:02:15.881289+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_02",
-    "VIBE_DM_07",
-    "VIBE_DM_03",
     "VIBE_DM_03",
     "VIBE_DM_01",
-    "VIBE_DM_06"
+    "VIBE_DM_06",
+    "VIBE_DM_03",
+    "VIBE_DM_02",
+    "VIBE_DM_07"
   ]
 }
