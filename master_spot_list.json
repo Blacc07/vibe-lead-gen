@@ -1,36 +1,36 @@
 {
-  "generated_at": "2026-11-03T01:01:02.835895+00:00",
+  "generated_at": "2026-11-04T02:01:04.847218+00:00",
   "source": "ccxt_cex_spot",
   "stats": {
     "okx": {
       "status": "success",
-      "spot_markets": 1211,
+      "spot_markets": 1210,
       "perp_markets": 537,
-      "total_markets": 4327
+      "total_markets": 4260
     },
     "mexc": {
       "status": "success",
       "spot_markets": 1744,
-      "perp_markets": 1194,
-      "total_markets": 3004
+      "perp_markets": 1185,
+      "total_markets": 2996
     },
     "gate": {
       "status": "success",
-      "spot_markets": 2186,
+      "spot_markets": 2185,
       "perp_markets": 1071,
-      "total_markets": 6612
+      "total_markets": 6639
     },
     "bitget": {
       "status": "success",
       "spot_markets": 3583,
-      "perp_markets": 926,
-      "total_markets": 4517
+      "perp_markets": 927,
+      "total_markets": 4518
     },
     "kucoin": {
       "status": "success",
-      "spot_markets": 977,
+      "spot_markets": 978,
       "perp_markets": 716,
-      "total_markets": 1694
+      "total_markets": 1696
     },
     "kucoinfutures": {
       "status": "success",
@@ -46,9 +46,9 @@
     },
     "bingx": {
       "status": "success",
-      "spot_markets": 614,
-      "perp_markets": 1190,
-      "total_markets": 3636
+      "spot_markets": 615,
+      "perp_markets": 1199,
+      "total_markets": 3644
     },
     "hyperliquid": {
       "perp_symbols": 235
@@ -85,9 +85,9 @@
     "configured_cex_venues": 7,
     "minimum_required_cex_venues": 4,
     "failed_cex_sources": [],
-    "generated_at": "2026-11-03T01:01:02.183683+00:00"
+    "generated_at": "2026-11-04T02:01:01.443190+00:00"
   },
-  "total_unique_spot_base_symbols": 5891,
+  "total_unique_spot_base_symbols": 5889,
   "symbols": [
     "0G",
     "1000BONK",
@@ -961,6 +961,7 @@
     "FIWA",
     "FLIP",
     "FLNCG",
+    "FLOAT",
     "FLOCK",
     "FLOCK3L",
     "FLOCK3S",
@@ -1052,7 +1053,6 @@
     "GLDX",
     "GLM",
     "GLMR",
-    "GLQ",
     "GLWG",
     "GLWON",
     "GME",
@@ -5543,7 +5543,6 @@
     "VC",
     "VDR",
     "VELO",
-    "VELODROME",
     "VELVET",
     "VEMP",
     "VEREM",
@@ -5829,7 +5828,6 @@
     "XPT3L",
     "XPT3S",
     "XPURR",
-    "XPX",
     "XPYPL",
     "XQCOM",
     "XQNT",

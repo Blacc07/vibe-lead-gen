@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-03T16:02:15.881313+00:00",
+  "generated_at": "2026-11-04T02:01:22.415084+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -364,14 +364,21 @@
       "outreach_message": "Hey team — curious, does 飞蝶启元 have plans for a perp market for $飞蝶启元? I'm with Vibe Trading and thought there might be an interesting fit. Open to exploring it?",
       "outreach_assigned_at": "2026-11-03T16:02:15.881289+00:00",
       "outreach_status": "assigned"
+    },
+    "pumpstop": {
+      "outreach_template_id": "VIBE_DM_01",
+      "outreach_angle": "perp_opportunity",
+      "outreach_message": "Hey XCAT_on_Xtrends — has PUMPSTOP considered a perp market for $XCAT? I'm with Vibe Trading, where projects can bring their tokens to perpetual markets. Thought it could be worth exploring for you guys.",
+      "outreach_assigned_at": "2026-11-04T02:01:22.415068+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_03",
     "VIBE_DM_01",
     "VIBE_DM_06",
     "VIBE_DM_03",
     "VIBE_DM_02",
-    "VIBE_DM_07"
+    "VIBE_DM_07",
+    "VIBE_DM_01"
   ]
 }
