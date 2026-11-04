@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-04T06:00:49.986564+00:00",
+  "generated_at": "2026-11-04T15:02:00.827377+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -378,14 +378,21 @@
       "outreach_message": "Hey Agentic_coin — curious, does Agentic Coin have plans for a perp market for $AGC? I'm with Vibe Trading and thought there might be an interesting fit. Open to exploring it?",
       "outreach_assigned_at": "2026-11-04T06:00:49.986547+00:00",
       "outreach_status": "assigned"
+    },
+    "rage-guy": {
+      "outreach_template_id": "VIBE_DM_07",
+      "outreach_angle": "curiosity",
+      "outreach_message": "Hey RAGEGUYFU — curious, does Rage Guy have plans for a perp market for $RAGEGUY? I'm with Vibe Trading and thought there might be an interesting fit. Open to exploring it?",
+      "outreach_assigned_at": "2026-11-04T15:02:00.827362+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_06",
     "VIBE_DM_03",
     "VIBE_DM_02",
     "VIBE_DM_07",
     "VIBE_DM_01",
+    "VIBE_DM_07",
     "VIBE_DM_07"
   ]
 }
