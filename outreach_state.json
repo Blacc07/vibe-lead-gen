@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-05T11:00:48.619284+00:00",
+  "generated_at": "2026-11-05T16:01:58.442810+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -392,14 +392,21 @@
       "outreach_message": "Hey team — quick one: would a perp market for $HIGH be relevant to higher.fun? I'm with Vibe Trading. Happy to share more if it's on your radar.",
       "outreach_assigned_at": "2026-11-05T11:00:48.619267+00:00",
       "outreach_status": "assigned"
+    },
+    "memestock-3": {
+      "outreach_template_id": "VIBE_DM_03",
+      "outreach_angle": "momentum",
+      "outreach_message": "Hey MemeStockbnb — noticed memestock is showing about $109,057 in 24h DEX volume and $175,483 in pool liquidity. Thought it could be a good time to explore a perp market for $MEMESTOCK with Vibe Trading. Open to a quick chat?",
+      "outreach_assigned_at": "2026-11-05T16:01:58.442792+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_02",
     "VIBE_DM_07",
     "VIBE_DM_01",
     "VIBE_DM_07",
     "VIBE_DM_07",
-    "VIBE_DM_06"
+    "VIBE_DM_06",
+    "VIBE_DM_03"
   ]
 }
