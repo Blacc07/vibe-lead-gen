@@ -1,36 +1,36 @@
 {
-  "generated_at": "2026-11-05T03:01:03.376478+00:00",
+  "generated_at": "2026-11-06T04:01:00.313748+00:00",
   "source": "ccxt_cex_spot",
   "stats": {
     "okx": {
       "status": "success",
       "spot_markets": 1210,
       "perp_markets": 540,
-      "total_markets": 4441
+      "total_markets": 4505
     },
     "mexc": {
       "status": "success",
-      "spot_markets": 1749,
-      "perp_markets": 1179,
-      "total_markets": 2994
+      "spot_markets": 1742,
+      "perp_markets": 1185,
+      "total_markets": 2993
     },
     "gate": {
       "status": "success",
       "spot_markets": 2186,
-      "perp_markets": 1070,
-      "total_markets": 6465
+      "perp_markets": 1081,
+      "total_markets": 7029
     },
     "bitget": {
       "status": "success",
-      "spot_markets": 3664,
-      "perp_markets": 928,
-      "total_markets": 4605
+      "spot_markets": 3665,
+      "perp_markets": 940,
+      "total_markets": 4613
     },
     "kucoin": {
       "status": "success",
-      "spot_markets": 979,
+      "spot_markets": 955,
       "perp_markets": 716,
-      "total_markets": 1696
+      "total_markets": 1672
     },
     "kucoinfutures": {
       "status": "success",
@@ -46,9 +46,9 @@
     },
     "bingx": {
       "status": "success",
-      "spot_markets": 612,
-      "perp_markets": 1198,
-      "total_markets": 3642
+      "spot_markets": 610,
+      "perp_markets": 1201,
+      "total_markets": 3645
     },
     "hyperliquid": {
       "perp_symbols": 235
@@ -85,9 +85,9 @@
     "configured_cex_venues": 7,
     "minimum_required_cex_venues": 4,
     "failed_cex_sources": [],
-    "generated_at": "2026-11-05T03:01:02.931625+00:00"
+    "generated_at": "2026-11-06T04:00:59.445530+00:00"
   },
-  "total_unique_spot_base_symbols": 5968,
+  "total_unique_spot_base_symbols": 5958,
   "symbols": [
     "0G",
     "1000BONK",
@@ -133,7 +133,6 @@
     "ACE",
     "ACH",
     "ACHRON",
-    "ACIRE",
     "ACM",
     "ACN",
     "ACN1",
@@ -242,7 +241,6 @@
     "ANIME3L",
     "ANIME3S",
     "ANKR",
-    "ANOME",
     "ANON",
     "ANP",
     "ANSEM",
@@ -660,7 +658,6 @@
     "COMP",
     "COOKIE",
     "COOKPROTOCOL",
-    "COOL",
     "COP",
     "COPON",
     "COPXON",
@@ -741,7 +738,6 @@
     "CYBRO",
     "CYRUS",
     "CYS",
-    "D",
     "D2T",
     "DADDY",
     "DAG",
@@ -849,7 +845,6 @@
     "DYM",
     "DYOR",
     "EAT",
-    "ECHO",
     "EDEL",
     "EDEN",
     "EDGE",
@@ -921,7 +916,6 @@
     "EWY3S",
     "EWYG",
     "EWYON",
-    "EYWA",
     "EZSWAP",
     "F",
     "FACT",
@@ -1257,7 +1251,6 @@
     "JELLYJELLY",
     "JFI",
     "JGGL",
-    "JIMOTHY",
     "JITOSOL",
     "JMDT",
     "JNJG",
@@ -1685,7 +1678,6 @@
     "NOMA",
     "NOMINA",
     "NOMO",
-    "NOON",
     "NOOT",
     "NOS",
     "NOT",
@@ -2491,7 +2483,6 @@
     "RCBSH",
     "RCBT",
     "RCBU",
-    "RCBZ",
     "RCC",
     "RCCBG",
     "RCCC",
@@ -2860,6 +2851,7 @@
     "REFC",
     "REFOR",
     "REFSC",
+    "REFV",
     "REFX",
     "REFXT",
     "REG",
@@ -3445,6 +3437,7 @@
     "RIRTC",
     "RISRG",
     "RIT",
+    "RITA",
     "RITB",
     "RITE",
     "RITG",
@@ -3593,7 +3586,6 @@
     "RKTOS",
     "RKUBTY",
     "RKURA",
-    "RKVUE",
     "RKVYO",
     "RKWEB",
     "RKWR",
@@ -3702,7 +3694,6 @@
     "RLVS",
     "RLW",
     "RLWLG",
-    "RLXP",
     "RLYB",
     "RLYFT",
     "RLYNX",
@@ -3856,6 +3847,7 @@
     "RMTN",
     "RMTRN",
     "RMTSI",
+    "RMTUM",
     "RMTX",
     "RMTZ",
     "RMU",
@@ -4275,6 +4267,7 @@
     "RQS",
     "RQSR",
     "RQTWO",
+    "RQUAL",
     "RQUBT",
     "RQURE",
     "RQXO",
@@ -4283,7 +4276,6 @@
     "RRACE",
     "RRAL",
     "RRAM",
-    "RRAMP",
     "RRAPP",
     "RRARE",
     "RRBA",
@@ -4558,6 +4550,7 @@
     "RSOXL",
     "RSOXQ",
     "RSOXS",
+    "RSOXX",
     "RSPB",
     "RSPCE",
     "RSPCH",
@@ -5398,7 +5391,6 @@
     "SUKU",
     "SUN",
     "SUNDOG",
-    "SUP",
     "SUPE",
     "SUPER",
     "SUPERFORM",
@@ -5458,7 +5450,6 @@
     "TEVA",
     "TFUEL",
     "THE",
-    "THEO",
     "THETA",
     "THETA3L",
     "THETA3S",
@@ -5619,7 +5610,6 @@
     "VANRY",
     "VARA",
     "VATRENI",
-    "VAYLA",
     "VC",
     "VDR",
     "VELO",
