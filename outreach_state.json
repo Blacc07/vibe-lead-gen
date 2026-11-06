@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-06T13:00:50.222209+00:00",
+  "generated_at": "2026-11-06T16:00:50.271847+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -441,14 +441,21 @@
       "outreach_message": "Hey COGECOINMeme — noticed COGE COIN is showing about $2,057,277 in 24h DEX volume and $165,385 in pool liquidity. Thought it could be a good time to explore a perp market for $COGE with Vibe Trading. Open to a quick chat?",
       "outreach_assigned_at": "2026-11-06T13:00:50.222193+00:00",
       "outreach_status": "assigned"
+    },
+    "antminer": {
+      "outreach_template_id": "VIBE_DM_03",
+      "outreach_angle": "momentum",
+      "outreach_message": "Hey The_ant_miner — noticed AntMiner is showing about $233,086 in 24h DEX volume and $114,197 in pool liquidity. Thought it could be a good time to explore a perp market for $ANT with Vibe Trading. Open to a quick chat?",
+      "outreach_assigned_at": "2026-11-06T16:00:50.271824+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_02",
     "VIBE_DM_06",
     "VIBE_DM_01",
     "VIBE_DM_01",
     "VIBE_DM_07",
+    "VIBE_DM_03",
     "VIBE_DM_03"
   ]
 }
