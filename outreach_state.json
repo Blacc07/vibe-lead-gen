@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-06T00:00:50.994016+00:00",
+  "generated_at": "2026-11-06T02:02:02.241500+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -413,14 +413,28 @@
       "outreach_message": "Hey frenpetonbase — quick one: would a perp market for $FP be relevant to Fren Pet? I'm with Vibe Trading. Happy to share more if it's on your radar.",
       "outreach_assigned_at": "2026-11-06T00:00:50.994000+00:00",
       "outreach_status": "assigned"
+    },
+    "denim": {
+      "outreach_template_id": "VIBE_DM_01",
+      "outreach_angle": "perp_opportunity",
+      "outreach_message": "Hey denimbasecoin — has DENIM considered a perp market for $DENIM? I'm with Vibe Trading, where projects can bring their tokens to perpetual markets. Thought it could be worth exploring for you guys.",
+      "outreach_assigned_at": "2026-11-06T02:01:59.566072+00:00",
+      "outreach_status": "assigned"
+    },
+    "reboot-2": {
+      "outreach_template_id": "VIBE_DM_01",
+      "outreach_angle": "perp_opportunity",
+      "outreach_message": "Hey RebootBaseMeme — has Reboot considered a perp market for $REBOOT? I'm with Vibe Trading, where projects can bring their tokens to perpetual markets. Thought it could be worth exploring for you guys.",
+      "outreach_assigned_at": "2026-11-06T02:02:02.241473+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_07",
-    "VIBE_DM_07",
     "VIBE_DM_06",
     "VIBE_DM_03",
     "VIBE_DM_02",
-    "VIBE_DM_06"
+    "VIBE_DM_06",
+    "VIBE_DM_01",
+    "VIBE_DM_01"
   ]
 }
