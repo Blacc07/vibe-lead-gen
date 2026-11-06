@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-06T02:02:02.241500+00:00",
+  "generated_at": "2026-11-06T06:00:49.099616+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -427,14 +427,21 @@
       "outreach_message": "Hey RebootBaseMeme — has Reboot considered a perp market for $REBOOT? I'm with Vibe Trading, where projects can bring their tokens to perpetual markets. Thought it could be worth exploring for you guys.",
       "outreach_assigned_at": "2026-11-06T02:02:02.241473+00:00",
       "outreach_status": "assigned"
+    },
+    "burn-agent": {
+      "outreach_template_id": "VIBE_DM_07",
+      "outreach_angle": "curiosity",
+      "outreach_message": "Hey Burn_Agent — curious, does Burn Agent have plans for a perp market for $BURN? I'm with Vibe Trading and thought there might be an interesting fit. Open to exploring it?",
+      "outreach_assigned_at": "2026-11-06T06:00:49.099599+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_06",
     "VIBE_DM_03",
     "VIBE_DM_02",
     "VIBE_DM_06",
     "VIBE_DM_01",
-    "VIBE_DM_01"
+    "VIBE_DM_01",
+    "VIBE_DM_07"
   ]
 }
