@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-07T02:01:59.144612+00:00",
+  "generated_at": "2026-11-07T09:00:42.908315+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -469,14 +469,21 @@
       "outreach_message": "Hey donnadollars365 — noticed Donna Dollars is showing about $84,827 in 24h DEX volume and $99,265 in pool liquidity. Thought it could be a good time to explore a perp market for $DONNA with Vibe Trading. Open to a quick chat?",
       "outreach_assigned_at": "2026-11-07T02:01:59.144586+00:00",
       "outreach_status": "assigned"
+    },
+    "network-coin": {
+      "outreach_template_id": "VIBE_DM_01",
+      "outreach_angle": "perp_opportunity",
+      "outreach_message": "Hey NETWORKonSOL — has Network Coin considered a perp market for $NETWORK? I'm with Vibe Trading, where projects can bring their tokens to perpetual markets. Thought it could be worth exploring for you guys.",
+      "outreach_assigned_at": "2026-11-07T09:00:42.908300+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_07",
     "VIBE_DM_03",
     "VIBE_DM_03",
     "VIBE_DM_02",
     "VIBE_DM_06",
-    "VIBE_DM_03"
+    "VIBE_DM_03",
+    "VIBE_DM_01"
   ]
 }
