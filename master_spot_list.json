@@ -1,24 +1,24 @@
 {
-  "generated_at": "2026-11-07T05:00:58.906503+00:00",
+  "generated_at": "2026-11-08T06:00:46.430519+00:00",
   "source": "ccxt_cex_spot",
   "stats": {
     "okx": {
       "status": "success",
       "spot_markets": 1210,
       "perp_markets": 543,
-      "total_markets": 4504
+      "total_markets": 4598
     },
     "mexc": {
       "status": "success",
-      "spot_markets": 1740,
+      "spot_markets": 1734,
       "perp_markets": 1190,
-      "total_markets": 2997
+      "total_markets": 2990
     },
     "gate": {
       "status": "success",
-      "spot_markets": 2186,
+      "spot_markets": 2187,
       "perp_markets": 1081,
-      "total_markets": 6814
+      "total_markets": 6714
     },
     "bitget": {
       "status": "success",
@@ -46,7 +46,7 @@
     },
     "bingx": {
       "status": "success",
-      "spot_markets": 609,
+      "spot_markets": 606,
       "perp_markets": 1200,
       "total_markets": 3646
     },
@@ -85,9 +85,9 @@
     "configured_cex_venues": 7,
     "minimum_required_cex_venues": 4,
     "failed_cex_sources": [],
-    "generated_at": "2026-11-07T05:00:58.206981+00:00"
+    "generated_at": "2026-11-08T06:00:46.120161+00:00"
   },
-  "total_unique_spot_base_symbols": 5958,
+  "total_unique_spot_base_symbols": 5954,
   "symbols": [
     "0G",
     "1000BONK",
@@ -164,7 +164,6 @@
     "AERO",
     "AEVO",
     "AFC",
-    "AGENCY",
     "AGGON",
     "AGI",
     "AGLD",
@@ -242,7 +241,6 @@
     "ANIME3S",
     "ANKR",
     "ANON",
-    "ANP",
     "ANSEM",
     "ANTFUN",
     "ANTHROPIC3L",
@@ -1105,7 +1103,6 @@
     "GTC",
     "GTETH",
     "GTSOL",
-    "GTT",
     "GUA",
     "GUN",
     "GUSD",
@@ -1564,7 +1561,6 @@
     "MSFT3S",
     "MSFTG",
     "MSFTON",
-    "MSHA",
     "MSOL",
     "MSP",
     "MSQ",
@@ -5629,6 +5625,7 @@
     "VIRTUAL3L",
     "VIRTUAL3S",
     "VISTA",
+    "VLX",
     "VMT",
     "VNO",
     "VOID",
@@ -6043,7 +6040,6 @@
     "小股东",
     "币安人生",
     "我踏马来了",
-    "旺柴",
     "牛来",
     "老子",
     "龙虾"
