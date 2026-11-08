@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-08T20:00:51.520403+00:00",
+  "generated_at": "2026-11-08T23:01:59.040139+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -497,14 +497,28 @@
       "outreach_message": "Hey WhaleBscWorld — has WHALE considered a perp market for $WHALE? I'm with Vibe Trading, where projects can bring their tokens to perpetual markets. Thought it could be worth exploring for you guys.",
       "outreach_assigned_at": "2026-11-08T20:00:51.520387+00:00",
       "outreach_status": "assigned"
+    },
+    "uk-financial-moonshot-token": {
+      "outreach_template_id": "VIBE_DM_02",
+      "outreach_angle": "market_gap",
+      "outreach_message": "Hey ukfinancial_ltd — $UKFLMS doesn't appear to have a perp market on the venues we checked. Vibe Trading helps projects explore launching one. Is this something your team has looked into?",
+      "outreach_assigned_at": "2026-11-08T23:01:56.474148+00:00",
+      "outreach_status": "assigned"
+    },
+    "chill": {
+      "outreach_template_id": "VIBE_DM_06",
+      "outreach_angle": "ultra_short",
+      "outreach_message": "Hey chill_gta_6 — quick one: would a perp market for $CHILL be relevant to CHILL? I'm with Vibe Trading. Happy to share more if it's on your radar.",
+      "outreach_assigned_at": "2026-11-08T23:01:59.040118+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_06",
-    "VIBE_DM_03",
     "VIBE_DM_01",
     "VIBE_DM_07",
     "VIBE_DM_07",
-    "VIBE_DM_01"
+    "VIBE_DM_01",
+    "VIBE_DM_02",
+    "VIBE_DM_06"
   ]
 }
