@@ -1,36 +1,36 @@
 {
-  "generated_at": "2026-11-08T06:00:46.430519+00:00",
+  "generated_at": "2026-11-09T07:00:46.687002+00:00",
   "source": "ccxt_cex_spot",
   "stats": {
     "okx": {
       "status": "success",
       "spot_markets": 1210,
       "perp_markets": 543,
-      "total_markets": 4598
+      "total_markets": 4629
     },
     "mexc": {
       "status": "success",
-      "spot_markets": 1734,
+      "spot_markets": 1731,
       "perp_markets": 1190,
-      "total_markets": 2990
+      "total_markets": 2987
     },
     "gate": {
       "status": "success",
       "spot_markets": 2187,
-      "perp_markets": 1081,
-      "total_markets": 6714
+      "perp_markets": 1082,
+      "total_markets": 6703
     },
     "bitget": {
       "status": "success",
-      "spot_markets": 3661,
+      "spot_markets": 3662,
       "perp_markets": 940,
-      "total_markets": 4608
+      "total_markets": 4609
     },
     "kucoin": {
       "status": "success",
       "spot_markets": 955,
       "perp_markets": 716,
-      "total_markets": 1672
+      "total_markets": 1674
     },
     "kucoinfutures": {
       "status": "success",
@@ -46,7 +46,7 @@
     },
     "bingx": {
       "status": "success",
-      "spot_markets": 606,
+      "spot_markets": 608,
       "perp_markets": 1200,
       "total_markets": 3646
     },
@@ -85,9 +85,9 @@
     "configured_cex_venues": 7,
     "minimum_required_cex_venues": 4,
     "failed_cex_sources": [],
-    "generated_at": "2026-11-08T06:00:46.120161+00:00"
+    "generated_at": "2026-11-09T07:00:46.193578+00:00"
   },
-  "total_unique_spot_base_symbols": 5954,
+  "total_unique_spot_base_symbols": 5955,
   "symbols": [
     "0G",
     "1000BONK",
@@ -493,7 +493,6 @@
     "BONK3S",
     "BOOP",
     "BORA",
-    "BORDR",
     "BOS",
     "BOSON",
     "BOUNTY",
@@ -1561,6 +1560,7 @@
     "MSFT3S",
     "MSFTG",
     "MSFTON",
+    "MSHA",
     "MSOL",
     "MSP",
     "MSQ",
@@ -2400,6 +2400,7 @@
     "RBRAI",
     "RBRC",
     "RBRDCY",
+    "RBRKB",
     "RBRKR",
     "RBRO",
     "RBROS",
@@ -5428,7 +5429,6 @@
     "TAO3L",
     "TAO3S",
     "TAP",
-    "TAPEFOUR",
     "TAPPROTOCOL",
     "TARA",
     "TATSU",
@@ -6041,6 +6041,7 @@
     "币安人生",
     "我踏马来了",
     "牛来",
+    "牛逼",
     "老子",
     "龙虾"
   ]
