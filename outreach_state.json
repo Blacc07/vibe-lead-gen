@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-10T16:01:55.240769+00:00",
+  "generated_at": "2026-11-10T21:02:02.873489+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -518,14 +518,28 @@
       "outreach_message": "Hey keetanetwork — noticed Keeta is showing about $94,793 in 24h DEX volume and $2,987,038 in pool liquidity. Thought it could be a good time to explore a perp market for $KTA with Vibe Trading. Open to a quick chat?",
       "outreach_assigned_at": "2026-11-10T16:01:55.240754+00:00",
       "outreach_status": "assigned"
+    },
+    "happycat-2": {
+      "outreach_template_id": "VIBE_DM_02",
+      "outreach_angle": "market_gap",
+      "outreach_message": "Hey HappyCatArcade — $HAPPY doesn't appear to have a perp market on the venues we checked. Vibe Trading helps projects explore launching one. Is this something your team has looked into?",
+      "outreach_assigned_at": "2026-11-10T21:02:00.470197+00:00",
+      "outreach_status": "assigned"
+    },
+    "ronnie-2": {
+      "outreach_template_id": "VIBE_DM_01",
+      "outreach_angle": "perp_opportunity",
+      "outreach_message": "Hey solronniecoin — has RONNIE considered a perp market for $RONNIE? I'm with Vibe Trading, where projects can bring their tokens to perpetual markets. Thought it could be worth exploring for you guys.",
+      "outreach_assigned_at": "2026-11-10T21:02:02.873467+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_07",
-    "VIBE_DM_07",
     "VIBE_DM_01",
     "VIBE_DM_02",
     "VIBE_DM_06",
-    "VIBE_DM_03"
+    "VIBE_DM_03",
+    "VIBE_DM_02",
+    "VIBE_DM_01"
   ]
 }
