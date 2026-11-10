@@ -1,24 +1,24 @@
 {
-  "generated_at": "2026-11-09T07:00:46.687002+00:00",
+  "generated_at": "2026-11-10T08:00:46.971824+00:00",
   "source": "ccxt_cex_spot",
   "stats": {
     "okx": {
       "status": "success",
-      "spot_markets": 1210,
+      "spot_markets": 1216,
       "perp_markets": 543,
-      "total_markets": 4629
+      "total_markets": 4325
     },
     "mexc": {
       "status": "success",
-      "spot_markets": 1731,
-      "perp_markets": 1190,
-      "total_markets": 2987
+      "spot_markets": 1729,
+      "perp_markets": 1195,
+      "total_markets": 2990
     },
     "gate": {
       "status": "success",
       "spot_markets": 2187,
       "perp_markets": 1082,
-      "total_markets": 6703
+      "total_markets": 6673
     },
     "bitget": {
       "status": "success",
@@ -28,7 +28,7 @@
     },
     "kucoin": {
       "status": "success",
-      "spot_markets": 955,
+      "spot_markets": 957,
       "perp_markets": 716,
       "total_markets": 1674
     },
@@ -46,9 +46,9 @@
     },
     "bingx": {
       "status": "success",
-      "spot_markets": 608,
-      "perp_markets": 1200,
-      "total_markets": 3646
+      "spot_markets": 610,
+      "perp_markets": 1213,
+      "total_markets": 3658
     },
     "hyperliquid": {
       "perp_symbols": 235
@@ -85,9 +85,9 @@
     "configured_cex_venues": 7,
     "minimum_required_cex_venues": 4,
     "failed_cex_sources": [],
-    "generated_at": "2026-11-09T07:00:46.193578+00:00"
+    "generated_at": "2026-11-10T08:00:46.446741+00:00"
   },
-  "total_unique_spot_base_symbols": 5955,
+  "total_unique_spot_base_symbols": 5961,
   "symbols": [
     "0G",
     "1000BONK",
@@ -241,6 +241,7 @@
     "ANIME3S",
     "ANKR",
     "ANON",
+    "ANP",
     "ANSEM",
     "ANTFUN",
     "ANTHROPIC3L",
@@ -476,6 +477,7 @@
     "BNB5L",
     "BNB5S",
     "BNC",
+    "BNCOLD",
     "BNKR",
     "BNRENSHENG",
     "BNT",
@@ -810,7 +812,6 @@
     "DOLO",
     "DOME",
     "DOOD",
-    "DOPE",
     "DOS",
     "DOT",
     "DOT3L",
@@ -5212,6 +5213,7 @@
     "SHIB5S",
     "SHIRO",
     "SHM",
+    "SHOPINX",
     "SHOPON",
     "SHPING",
     "SHR",
@@ -5725,6 +5727,7 @@
     "WZRD",
     "XAAOI",
     "XAAPL",
+    "XABBV",
     "XACN",
     "XADBE",
     "XAEHR",
@@ -5863,6 +5866,7 @@
     "XNOW",
     "XNT",
     "XNVDA",
+    "XNVDL",
     "XNY",
     "XOKLO",
     "XOKTA",
@@ -5923,7 +5927,9 @@
     "XSHLD",
     "XSHOP",
     "XSIMO",
+    "XSKDD",
     "XSKHY",
+    "XSKUU",
     "XSMCI",
     "XSMH",
     "XSNDK",
