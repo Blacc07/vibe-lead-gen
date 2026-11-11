@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-11T11:02:13.323154+00:00",
+  "generated_at": "2026-11-11T15:01:57.879575+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -553,14 +553,28 @@
       "outreach_message": "Hey knightcore___ — curious, does Knight Core have plans for a perp market for $KNIGHT? I'm with Vibe Trading and thought there might be an interesting fit. Open to exploring it?",
       "outreach_assigned_at": "2026-11-11T11:02:13.323130+00:00",
       "outreach_status": "assigned"
+    },
+    "return-to-memes": {
+      "outreach_template_id": "VIBE_DM_06",
+      "outreach_angle": "ultra_short",
+      "outreach_message": "Hey return_to_memes — quick one: would a perp market for $RTM be relevant to RETURN TO MEMES? I'm with Vibe Trading. Happy to share more if it's on your radar.",
+      "outreach_assigned_at": "2026-11-11T15:01:55.348471+00:00",
+      "outreach_status": "assigned"
+    },
+    "claude-crab": {
+      "outreach_template_id": "VIBE_DM_03",
+      "outreach_angle": "momentum",
+      "outreach_message": "Hey CRAB_AI — noticed Claude Crab is showing about $111,941 in 24h DEX volume and $3,809,790 in pool liquidity. Thought it could be a good time to explore a perp market for $CRABAI with Vibe Trading. Open to a quick chat?",
+      "outreach_assigned_at": "2026-11-11T15:01:57.879554+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_03",
-    "VIBE_DM_02",
     "VIBE_DM_01",
     "VIBE_DM_07",
     "VIBE_DM_07",
-    "VIBE_DM_07"
+    "VIBE_DM_07",
+    "VIBE_DM_06",
+    "VIBE_DM_03"
   ]
 }
