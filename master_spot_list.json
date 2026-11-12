@@ -1,29 +1,29 @@
 {
-  "generated_at": "2026-11-11T09:00:53.622341+00:00",
+  "generated_at": "2026-11-12T09:55:34.355781+00:00",
   "source": "ccxt_cex_spot",
   "stats": {
     "okx": {
       "status": "success",
-      "spot_markets": 1220,
+      "spot_markets": 1228,
       "perp_markets": 543,
-      "total_markets": 4371
+      "total_markets": 4364
     },
     "mexc": {
       "status": "success",
-      "spot_markets": 1724,
-      "perp_markets": 1200,
-      "total_markets": 2992
+      "spot_markets": 1723,
+      "perp_markets": 1186,
+      "total_markets": 2976
     },
     "gate": {
       "status": "success",
-      "spot_markets": 2153,
-      "perp_markets": 1082,
-      "total_markets": 6480
+      "spot_markets": 2155,
+      "perp_markets": 1087,
+      "total_markets": 6755
     },
     "bitget": {
       "status": "success",
       "spot_markets": 3662,
-      "perp_markets": 940,
+      "perp_markets": 941,
       "total_markets": 4610
     },
     "kucoin": {
@@ -46,9 +46,9 @@
     },
     "bingx": {
       "status": "success",
-      "spot_markets": 611,
-      "perp_markets": 1214,
-      "total_markets": 3661
+      "spot_markets": 609,
+      "perp_markets": 1202,
+      "total_markets": 3658
     },
     "hyperliquid": {
       "perp_symbols": 235
@@ -85,9 +85,9 @@
     "configured_cex_venues": 7,
     "minimum_required_cex_venues": 4,
     "failed_cex_sources": [],
-    "generated_at": "2026-11-11T09:00:53.260267+00:00"
+    "generated_at": "2026-11-12T09:55:34.031969+00:00"
   },
-  "total_unique_spot_base_symbols": 5932,
+  "total_unique_spot_base_symbols": 5935,
   "symbols": [
     "0G",
     "1000BONK",
@@ -1542,7 +1542,6 @@
     "MSFT3S",
     "MSFTG",
     "MSFTON",
-    "MSHA",
     "MSOL",
     "MSP",
     "MSQ",
@@ -1555,6 +1554,7 @@
     "MTO",
     "MTOS",
     "MTV",
+    "MTX",
     "MU3L",
     "MU3S",
     "MU5L",
@@ -1587,7 +1587,6 @@
     "NAP",
     "NAS1003L",
     "NAS1003S",
-    "NATG",
     "NATIX",
     "NAVI",
     "NAVX",
@@ -4450,7 +4449,6 @@
     "RSIRI",
     "RSITE",
     "RSITM",
-    "RSIVEF",
     "RSJM",
     "RSKDD",
     "RSKE",
@@ -5276,6 +5274,8 @@
     "SOUNON",
     "SOXL3L",
     "SOXL3S",
+    "SOXL5L",
+    "SOXL5S",
     "SOXLB",
     "SOXLG",
     "SOXLON",
@@ -5287,7 +5287,6 @@
     "SPA",
     "SPACE",
     "SPACEMVC",
-    "SPACEX(PRE)",
     "SPARKLET",
     "SPCM",
     "SPCX",
@@ -5739,6 +5738,7 @@
     "XBSP",
     "XBX",
     "XCBRS",
+    "XCEG",
     "XCGNX",
     "XCH",
     "XCIEN",
@@ -5755,6 +5755,7 @@
     "XCU3L",
     "XCU3S",
     "XCV",
+    "XCVNA",
     "XCX",
     "XDB",
     "XDC",
@@ -5774,9 +5775,11 @@
     "XEWT",
     "XEWY",
     "XEWZ",
+    "XFLEX",
     "XFLNC",
     "XFLY",
     "XFWDI",
+    "XGE",
     "XGEV",
     "XGLW",
     "XGME",
