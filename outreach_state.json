@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-12T09:02:05.737741+00:00",
+  "generated_at": "2026-11-12T14:01:55.537152+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -581,14 +581,21 @@
       "outreach_message": "Hey beronpump_ — has ber considered a perp market for $BER? I'm with Vibe Trading, where projects can bring their tokens to perpetual markets. Thought it could be worth exploring for you guys.",
       "outreach_assigned_at": "2026-11-12T09:02:05.737726+00:00",
       "outreach_status": "assigned"
+    },
+    "cambria": {
+      "outreach_template_id": "VIBE_DM_06",
+      "outreach_angle": "ultra_short",
+      "outreach_message": "Hey playcambria — quick one: would a perp market for $RSGP be relevant to Cambria? I'm with Vibe Trading. Happy to share more if it's on your radar.",
+      "outreach_assigned_at": "2026-11-12T14:01:55.537138+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
     "VIBE_DM_07",
-    "VIBE_DM_07",
     "VIBE_DM_06",
     "VIBE_DM_03",
     "VIBE_DM_02",
-    "VIBE_DM_01"
+    "VIBE_DM_01",
+    "VIBE_DM_06"
   ]
 }
