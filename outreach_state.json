@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-12T14:01:55.537152+00:00",
+  "generated_at": "2026-11-12T16:02:02.526071+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -588,14 +588,28 @@
       "outreach_message": "Hey playcambria — quick one: would a perp market for $RSGP be relevant to Cambria? I'm with Vibe Trading. Happy to share more if it's on your radar.",
       "outreach_assigned_at": "2026-11-12T14:01:55.537138+00:00",
       "outreach_status": "assigned"
+    },
+    "shiba-nobunaga": {
+      "outreach_template_id": "VIBE_DM_03",
+      "outreach_angle": "momentum",
+      "outreach_message": "Hey thenobushiba — noticed Shiba Nobunaga is showing about $1,617,876 in 24h DEX volume and $76,877 in pool liquidity. Thought it could be a good time to explore a perp market for $NOBUSHIBA with Vibe Trading. Open to a quick chat?",
+      "outreach_assigned_at": "2026-11-12T16:02:00.058174+00:00",
+      "outreach_status": "assigned"
+    },
+    "bellwether": {
+      "outreach_template_id": "VIBE_DM_07",
+      "outreach_angle": "curiosity",
+      "outreach_message": "Hey team — curious, does Bellwether have plans for a perp market for $领头羊? I'm with Vibe Trading and thought there might be an interesting fit. Open to exploring it?",
+      "outreach_assigned_at": "2026-11-12T16:02:02.525557+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_07",
-    "VIBE_DM_06",
     "VIBE_DM_03",
     "VIBE_DM_02",
     "VIBE_DM_01",
-    "VIBE_DM_06"
+    "VIBE_DM_06",
+    "VIBE_DM_03",
+    "VIBE_DM_07"
   ]
 }
