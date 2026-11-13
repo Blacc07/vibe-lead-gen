@@ -1,42 +1,42 @@
 {
-  "generated_at": "2026-11-12T09:55:34.355781+00:00",
+  "generated_at": "2026-11-13T10:00:56.109726+00:00",
   "source": "ccxt_cex_spot",
   "stats": {
     "okx": {
       "status": "success",
-      "spot_markets": 1228,
+      "spot_markets": 1232,
       "perp_markets": 543,
-      "total_markets": 4364
+      "total_markets": 4688
     },
     "mexc": {
       "status": "success",
-      "spot_markets": 1723,
-      "perp_markets": 1186,
-      "total_markets": 2976
+      "spot_markets": 1699,
+      "perp_markets": 1169,
+      "total_markets": 2935
     },
     "gate": {
       "status": "success",
       "spot_markets": 2155,
-      "perp_markets": 1087,
-      "total_markets": 6755
+      "perp_markets": 1072,
+      "total_markets": 6534
     },
     "bitget": {
       "status": "success",
-      "spot_markets": 3662,
+      "spot_markets": 3659,
       "perp_markets": 941,
-      "total_markets": 4610
+      "total_markets": 4608
     },
     "kucoin": {
       "status": "success",
-      "spot_markets": 957,
-      "perp_markets": 721,
-      "total_markets": 1680
+      "spot_markets": 958,
+      "perp_markets": 726,
+      "total_markets": 1685
     },
     "kucoinfutures": {
       "status": "success",
       "spot_markets": 0,
-      "perp_markets": 721,
-      "total_markets": 722
+      "perp_markets": 726,
+      "total_markets": 727
     },
     "phemex": {
       "status": "success",
@@ -46,9 +46,9 @@
     },
     "bingx": {
       "status": "success",
-      "spot_markets": 609,
-      "perp_markets": 1202,
-      "total_markets": 3658
+      "spot_markets": 611,
+      "perp_markets": 1197,
+      "total_markets": 3653
     },
     "hyperliquid": {
       "perp_symbols": 235
@@ -85,9 +85,9 @@
     "configured_cex_venues": 7,
     "minimum_required_cex_venues": 4,
     "failed_cex_sources": [],
-    "generated_at": "2026-11-12T09:55:34.031969+00:00"
+    "generated_at": "2026-11-13T10:00:55.415485+00:00"
   },
-  "total_unique_spot_base_symbols": 5935,
+  "total_unique_spot_base_symbols": 5929,
   "symbols": [
     "0G",
     "1000BONK",
@@ -393,7 +393,6 @@
     "BAT",
     "BATCH",
     "BATON",
-    "BATTERY",
     "BAX",
     "BAY",
     "BB",
@@ -457,7 +456,6 @@
     "BLKON",
     "BLUAI",
     "BLUE",
-    "BLUECHIP",
     "BLUM",
     "BLUR",
     "BLZ",
@@ -634,7 +632,6 @@
     "COAI",
     "COAI3L",
     "COAI3S",
-    "COCA",
     "COCO",
     "CODEX",
     "COHRON",
@@ -838,7 +835,6 @@
     "EGAME",
     "EGL1",
     "EGLD",
-    "EGO",
     "EIGEN",
     "EIGEN3L",
     "EIGEN3S",
@@ -858,7 +854,6 @@
     "ENA3L",
     "ENA3S",
     "ENERGYWEB",
-    "ENF",
     "ENJ",
     "ENPHON",
     "ENS",
@@ -951,7 +946,6 @@
     "FLUX",
     "FLUX1",
     "FLY",
-    "FLYBRAIN",
     "FNON",
     "FOG",
     "FOGO",
@@ -1542,6 +1536,7 @@
     "MSFT3S",
     "MSFTG",
     "MSFTON",
+    "MSHA",
     "MSOL",
     "MSP",
     "MSQ",
@@ -2388,7 +2383,6 @@
     "RBSV",
     "RBSX",
     "RBSY",
-    "RBT",
     "RBTCZ",
     "RBTDR",
     "RBTE",
@@ -4317,7 +4311,6 @@
     "RROG",
     "RROIV",
     "RROK",
-    "RROKU",
     "RROL",
     "RROP",
     "RROST",
@@ -5140,6 +5133,7 @@
     "SAMSUNG3L",
     "SAMSUNG3S",
     "SAMSUNGG",
+    "SANC",
     "SAND",
     "SAND3L",
     "SAND3S",
@@ -5301,7 +5295,6 @@
     "SPELL",
     "SPELLFIRE",
     "SPK",
-    "SPLD",
     "SPO",
     "SPORTFUN",
     "SPOTON",
@@ -5326,7 +5319,6 @@
     "ST",
     "STABLE",
     "STAMP",
-    "STANDARD",
     "STAR",
     "STAY",
     "STBL",
@@ -5338,7 +5330,6 @@
     "STOC",
     "STONK",
     "STONKBROKER",
-    "STONKEX",
     "STONKS",
     "STORJ",
     "STORM",
@@ -5353,7 +5344,6 @@
     "STT",
     "STX",
     "STXON",
-    "SUE",
     "SUI",
     "SUI3L",
     "SUI3S",
@@ -5616,6 +5606,7 @@
     "VSX",
     "VSYS",
     "VT",
+    "VTAI",
     "VTHO",
     "VTIX",
     "VVS",
@@ -5631,7 +5622,6 @@
     "WAM",
     "WAN",
     "WARD",
-    "WATT",
     "WAVES",
     "WAXL",
     "WAXP",
@@ -5781,6 +5771,7 @@
     "XFWDI",
     "XGE",
     "XGEV",
+    "XGILD",
     "XGLW",
     "XGME",
     "XGN",
@@ -5793,6 +5784,7 @@
     "XHOOD",
     "XHPE",
     "XHUT",
+    "XIBKR",
     "XIBM",
     "XINFQ",
     "XINTC",
@@ -5819,6 +5811,8 @@
     "XMCD",
     "XMETA",
     "XMN",
+    "XMP",
+    "XMPWR",
     "XMR",
     "XMRK",
     "XMRNA",
