@@ -1,28 +1,28 @@
 {
-  "generated_at": "2026-11-13T10:00:56.109726+00:00",
+  "generated_at": "2026-11-14T11:00:53.532364+00:00",
   "source": "ccxt_cex_spot",
   "stats": {
     "okx": {
       "status": "success",
       "spot_markets": 1232,
       "perp_markets": 543,
-      "total_markets": 4688
+      "total_markets": 4950
     },
     "mexc": {
       "status": "success",
-      "spot_markets": 1699,
-      "perp_markets": 1169,
-      "total_markets": 2935
+      "spot_markets": 1691,
+      "perp_markets": 1154,
+      "total_markets": 2912
     },
     "gate": {
       "status": "success",
       "spot_markets": 2155,
-      "perp_markets": 1072,
-      "total_markets": 6534
+      "perp_markets": 1052,
+      "total_markets": 6620
     },
     "bitget": {
       "status": "success",
-      "spot_markets": 3659,
+      "spot_markets": 3658,
       "perp_markets": 941,
       "total_markets": 4608
     },
@@ -46,7 +46,7 @@
     },
     "bingx": {
       "status": "success",
-      "spot_markets": 611,
+      "spot_markets": 610,
       "perp_markets": 1197,
       "total_markets": 3653
     },
@@ -85,9 +85,9 @@
     "configured_cex_venues": 7,
     "minimum_required_cex_venues": 4,
     "failed_cex_sources": [],
-    "generated_at": "2026-11-13T10:00:55.415485+00:00"
+    "generated_at": "2026-11-14T11:00:52.768987+00:00"
   },
-  "total_unique_spot_base_symbols": 5929,
+  "total_unique_spot_base_symbols": 5926,
   "symbols": [
     "0G",
     "1000BONK",
@@ -397,7 +397,6 @@
     "BAY",
     "BB",
     "BBT",
-    "BCAT",
     "BCCOIN",
     "BCH",
     "BCH3L",
@@ -727,7 +726,6 @@
     "DAG",
     "DAO",
     "DAR",
-    "DARK",
     "DASH",
     "DASH3L",
     "DASH3S",
@@ -2844,7 +2842,6 @@
     "REMA",
     "REMAT",
     "REMB",
-    "REMBJ",
     "REME",
     "REMN",
     "REMR",
