@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-13T09:40:57.901410+00:00",
+  "generated_at": "2026-11-14T03:02:17.263769+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -630,14 +630,35 @@
       "outreach_message": "Hey UHICrypto — has Universal High Income considered a perp market for $UHI? I'm with Vibe Trading, where projects can bring their tokens to perpetual markets. Thought it could be worth exploring for you guys.",
       "outreach_assigned_at": "2026-11-13T09:40:57.901382+00:00",
       "outreach_status": "assigned"
+    },
+    "ni-hao-inu": {
+      "outreach_template_id": "VIBE_DM_06",
+      "outreach_angle": "ultra_short",
+      "outreach_message": "Hey nihaoinusol — quick one: would a perp market for $INUHAO be relevant to ni hao inu? I'm with Vibe Trading. Happy to share more if it's on your radar.",
+      "outreach_assigned_at": "2026-11-14T03:02:09.358072+00:00",
+      "outreach_status": "assigned"
+    },
+    "macca-the-gator": {
+      "outreach_template_id": "VIBE_DM_03",
+      "outreach_angle": "momentum",
+      "outreach_message": "Hey _MaccaTheGator — noticed Macca The Gator is showing about $787,810 in 24h DEX volume and $164,022 in pool liquidity. Thought it could be a good time to explore a perp market for $MACCA with Vibe Trading. Open to a quick chat?",
+      "outreach_assigned_at": "2026-11-14T03:02:14.912217+00:00",
+      "outreach_status": "assigned"
+    },
+    "big-guy": {
+      "outreach_template_id": "VIBE_DM_03",
+      "outreach_angle": "momentum",
+      "outreach_message": "Hey bigguygta — noticed Big Guy is showing about $95,196 in 24h DEX volume and $107,668 in pool liquidity. Thought it could be a good time to explore a perp market for $BIG with Vibe Trading. Open to a quick chat?",
+      "outreach_assigned_at": "2026-11-14T03:02:17.263743+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_03",
-    "VIBE_DM_07",
-    "VIBE_DM_07",
     "VIBE_DM_07",
     "VIBE_DM_02",
-    "VIBE_DM_01"
+    "VIBE_DM_01",
+    "VIBE_DM_06",
+    "VIBE_DM_03",
+    "VIBE_DM_03"
   ]
 }
