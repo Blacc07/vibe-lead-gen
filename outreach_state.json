@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-15T02:00:45.201242+00:00",
+  "generated_at": "2026-11-15T09:35:03.252310+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -658,14 +658,21 @@
       "outreach_message": "Hey dphnAI — has Dolphin considered a perp market for $POD? I'm with Vibe Trading, where projects can bring their tokens to perpetual markets. Thought it could be worth exploring for you guys.",
       "outreach_assigned_at": "2026-11-15T02:00:45.201225+00:00",
       "outreach_status": "assigned"
+    },
+    "game-by-virtuals": {
+      "outreach_template_id": "VIBE_DM_07",
+      "outreach_angle": "curiosity",
+      "outreach_message": "Hey GAME_Virtuals — curious, does GAME by Virtuals have plans for a perp market for $GAME? I'm with Vibe Trading and thought there might be an interesting fit. Open to exploring it?",
+      "outreach_assigned_at": "2026-11-15T09:35:03.252295+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_02",
     "VIBE_DM_01",
     "VIBE_DM_06",
     "VIBE_DM_03",
     "VIBE_DM_03",
-    "VIBE_DM_01"
+    "VIBE_DM_01",
+    "VIBE_DM_07"
   ]
 }
