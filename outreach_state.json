@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-14T03:02:17.263769+00:00",
+  "generated_at": "2026-11-15T02:00:45.201242+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -651,14 +651,21 @@
       "outreach_message": "Hey bigguygta — noticed Big Guy is showing about $95,196 in 24h DEX volume and $107,668 in pool liquidity. Thought it could be a good time to explore a perp market for $BIG with Vibe Trading. Open to a quick chat?",
       "outreach_assigned_at": "2026-11-14T03:02:17.263743+00:00",
       "outreach_status": "assigned"
+    },
+    "dolphin-2": {
+      "outreach_template_id": "VIBE_DM_01",
+      "outreach_angle": "perp_opportunity",
+      "outreach_message": "Hey dphnAI — has Dolphin considered a perp market for $POD? I'm with Vibe Trading, where projects can bring their tokens to perpetual markets. Thought it could be worth exploring for you guys.",
+      "outreach_assigned_at": "2026-11-15T02:00:45.201225+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_07",
     "VIBE_DM_02",
     "VIBE_DM_01",
     "VIBE_DM_06",
     "VIBE_DM_03",
-    "VIBE_DM_03"
+    "VIBE_DM_03",
+    "VIBE_DM_01"
   ]
 }
