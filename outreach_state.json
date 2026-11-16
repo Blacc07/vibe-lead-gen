@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-15T09:35:03.252310+00:00",
+  "generated_at": "2026-11-16T15:00:46.901442+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -665,14 +665,21 @@
       "outreach_message": "Hey GAME_Virtuals — curious, does GAME by Virtuals have plans for a perp market for $GAME? I'm with Vibe Trading and thought there might be an interesting fit. Open to exploring it?",
       "outreach_assigned_at": "2026-11-15T09:35:03.252295+00:00",
       "outreach_status": "assigned"
+    },
+    "freedom-of-money": {
+      "outreach_template_id": "VIBE_DM_02",
+      "outreach_angle": "market_gap",
+      "outreach_message": "Hey team — $FREEDOM OF MONEY doesn't appear to have a perp market on the venues we checked. Vibe Trading helps projects explore launching one. Is this something your team has looked into?",
+      "outreach_assigned_at": "2026-11-16T15:00:46.901423+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_01",
     "VIBE_DM_06",
     "VIBE_DM_03",
     "VIBE_DM_03",
     "VIBE_DM_01",
-    "VIBE_DM_07"
+    "VIBE_DM_07",
+    "VIBE_DM_02"
   ]
 }
