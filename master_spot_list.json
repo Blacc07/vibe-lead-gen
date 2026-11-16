@@ -1,36 +1,36 @@
 {
-  "generated_at": "2026-11-15T12:00:52.199533+00:00",
+  "generated_at": "2026-11-16T13:01:09.357366+00:00",
   "source": "ccxt_cex_spot",
   "stats": {
     "okx": {
       "status": "success",
-      "spot_markets": 1232,
-      "perp_markets": 543,
-      "total_markets": 5070
+      "spot_markets": 1233,
+      "perp_markets": 544,
+      "total_markets": 4920
     },
     "mexc": {
       "status": "success",
-      "spot_markets": 1689,
-      "perp_markets": 1149,
-      "total_markets": 2905
+      "spot_markets": 1690,
+      "perp_markets": 1152,
+      "total_markets": 2908
     },
     "gate": {
       "status": "success",
       "spot_markets": 2155,
-      "perp_markets": 1052,
-      "total_markets": 6746
+      "perp_markets": 1053,
+      "total_markets": 6577
     },
     "bitget": {
       "status": "success",
       "spot_markets": 3658,
-      "perp_markets": 941,
+      "perp_markets": 942,
       "total_markets": 4608
     },
     "kucoin": {
       "status": "success",
-      "spot_markets": 958,
+      "spot_markets": 957,
       "perp_markets": 726,
-      "total_markets": 1685
+      "total_markets": 1684
     },
     "kucoinfutures": {
       "status": "success",
@@ -46,9 +46,9 @@
     },
     "bingx": {
       "status": "success",
-      "spot_markets": 610,
+      "spot_markets": 594,
       "perp_markets": 1196,
-      "total_markets": 3652
+      "total_markets": 3660
     },
     "hyperliquid": {
       "perp_symbols": 235
@@ -85,9 +85,9 @@
     "configured_cex_venues": 7,
     "minimum_required_cex_venues": 4,
     "failed_cex_sources": [],
-    "generated_at": "2026-11-15T12:00:51.562189+00:00"
+    "generated_at": "2026-11-16T13:01:08.613762+00:00"
   },
-  "total_unique_spot_base_symbols": 5925,
+  "total_unique_spot_base_symbols": 5923,
   "symbols": [
     "0G",
     "1000BONK",
@@ -1041,7 +1041,6 @@
     "GOAT",
     "GOATED",
     "GOATS",
-    "GOBOB",
     "GODE",
     "GODS",
     "GOG",
@@ -5181,7 +5180,6 @@
     "SHR",
     "SHX",
     "SI",
-    "SIGMAETH",
     "SIGN",
     "SIMONSCAT",
     "SIN",
