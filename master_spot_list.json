@@ -1,36 +1,36 @@
 {
-  "generated_at": "2026-11-16T13:01:09.357366+00:00",
+  "generated_at": "2026-11-17T13:34:09.885812+00:00",
   "source": "ccxt_cex_spot",
   "stats": {
     "okx": {
       "status": "success",
-      "spot_markets": 1233,
+      "spot_markets": 1238,
       "perp_markets": 544,
-      "total_markets": 4920
+      "total_markets": 4783
     },
     "mexc": {
       "status": "success",
-      "spot_markets": 1690,
+      "spot_markets": 1680,
       "perp_markets": 1152,
-      "total_markets": 2908
+      "total_markets": 2899
     },
     "gate": {
       "status": "success",
       "spot_markets": 2155,
-      "perp_markets": 1053,
-      "total_markets": 6577
+      "perp_markets": 1035,
+      "total_markets": 6538
     },
     "bitget": {
       "status": "success",
-      "spot_markets": 3658,
-      "perp_markets": 942,
-      "total_markets": 4608
+      "spot_markets": 3656,
+      "perp_markets": 943,
+      "total_markets": 4609
     },
     "kucoin": {
       "status": "success",
       "spot_markets": 957,
       "perp_markets": 726,
-      "total_markets": 1684
+      "total_markets": 1685
     },
     "kucoinfutures": {
       "status": "success",
@@ -41,14 +41,14 @@
     "phemex": {
       "status": "success",
       "spot_markets": 176,
-      "perp_markets": 147,
+      "perp_markets": 146,
       "total_markets": 2069
     },
     "bingx": {
       "status": "success",
-      "spot_markets": 594,
-      "perp_markets": 1196,
-      "total_markets": 3660
+      "spot_markets": 595,
+      "perp_markets": 1211,
+      "total_markets": 3661
     },
     "hyperliquid": {
       "perp_symbols": 235
@@ -85,9 +85,9 @@
     "configured_cex_venues": 7,
     "minimum_required_cex_venues": 4,
     "failed_cex_sources": [],
-    "generated_at": "2026-11-16T13:01:08.613762+00:00"
+    "generated_at": "2026-11-17T13:34:09.478985+00:00"
   },
-  "total_unique_spot_base_symbols": 5923,
+  "total_unique_spot_base_symbols": 5922,
   "symbols": [
     "0G",
     "1000BONK",
@@ -393,7 +393,6 @@
     "BAT",
     "BATCH",
     "BATON",
-    "BAX",
     "BAY",
     "BB",
     "BBT",
@@ -844,7 +843,6 @@
     "ELP",
     "ELSA",
     "ELX",
-    "EMBER",
     "EMC",
     "EMT",
     "EMYA",
@@ -1450,7 +1448,6 @@
     "MELANIA",
     "MELD",
     "MEME",
-    "MEMEROBINHOOD",
     "MENGO",
     "MEPAD",
     "MERL",
@@ -2318,7 +2315,6 @@
     "RBJRI",
     "RBKD",
     "RBKE",
-    "RBKH",
     "RBKLN",
     "RBKNG",
     "RBKR",
@@ -3280,6 +3276,7 @@
     "RHYLN",
     "RHYMC",
     "RHYS",
+    "RHZN",
     "RHZO",
     "RIAG",
     "RIART",
@@ -4389,8 +4386,6 @@
     "RSEDG",
     "RSEI",
     "RSEIC",
-    "RSENEA",
-    "RSENEB",
     "RSEPN",
     "RSEZL",
     "RSF",
@@ -5829,6 +5824,7 @@
     "XNT",
     "XNVDA",
     "XNVDL",
+    "XNVO",
     "XNY",
     "XOKLO",
     "XOKTA",
@@ -5841,11 +5837,14 @@
     "XOUST",
     "XP",
     "XP8",
+    "XPANW",
     "XPB3L",
     "XPB3S",
     "XPD3L",
     "XPD3S",
+    "XPDD",
     "XPENG",
+    "XPEP",
     "XPIN",
     "XPIN3L",
     "XPIN3S",
