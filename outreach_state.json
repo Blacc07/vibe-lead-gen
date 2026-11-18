@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-16T16:59:56.301344+00:00",
+  "generated_at": "2026-11-18T10:00:45.226339+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -679,14 +679,21 @@
       "outreach_message": "Hey MetFi_DAO — has MetFi considered a perp market for $METFI? I'm with Vibe Trading, where projects can bring their tokens to perpetual markets. Thought it could be worth exploring for you guys.",
       "outreach_assigned_at": "2026-11-16T16:59:56.301326+00:00",
       "outreach_status": "assigned"
+    },
+    "aidiglet": {
+      "outreach_template_id": "VIBE_DM_06",
+      "outreach_angle": "ultra_short",
+      "outreach_message": "Hey AiDiglet — quick one: would a perp market for $DIGS be relevant to AiDiglet? I'm with Vibe Trading. Happy to share more if it's on your radar.",
+      "outreach_assigned_at": "2026-11-18T10:00:45.226321+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
     "VIBE_DM_03",
-    "VIBE_DM_03",
     "VIBE_DM_01",
     "VIBE_DM_07",
     "VIBE_DM_02",
-    "VIBE_DM_01"
+    "VIBE_DM_01",
+    "VIBE_DM_06"
   ]
 }
