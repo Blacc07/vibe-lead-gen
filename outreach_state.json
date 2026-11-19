@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-18T21:00:49.465578+00:00",
+  "generated_at": "2026-11-19T08:02:05.889649+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -700,14 +700,28 @@
       "outreach_message": "Hey binkythecow — noticed binky is showing about $88,818 in 24h DEX volume and $50,587 in pool liquidity. Thought it could be a good time to explore a perp market for $BINKY with Vibe Trading. Open to a quick chat?",
       "outreach_assigned_at": "2026-11-18T21:00:49.465567+00:00",
       "outreach_status": "assigned"
+    },
+    "the-state-of-leonida": {
+      "outreach_template_id": "VIBE_DM_07",
+      "outreach_angle": "curiosity",
+      "outreach_message": "Hey TheLeonidaMemeX — curious, does The State of Leonida have plans for a perp market for $LEONIDA? I'm with Vibe Trading and thought there might be an interesting fit. Open to exploring it?",
+      "outreach_assigned_at": "2026-11-19T08:02:01.722716+00:00",
+      "outreach_status": "assigned"
+    },
+    "3-token": {
+      "outreach_template_id": "VIBE_DM_02",
+      "outreach_angle": "market_gap",
+      "outreach_message": "Hey ColonThreePump — $:3 doesn't appear to have a perp market on the venues we checked. Vibe Trading helps projects explore launching one. Is this something your team has looked into?",
+      "outreach_assigned_at": "2026-11-19T08:02:05.889625+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_07",
-    "VIBE_DM_02",
     "VIBE_DM_01",
     "VIBE_DM_06",
     "VIBE_DM_01",
-    "VIBE_DM_03"
+    "VIBE_DM_03",
+    "VIBE_DM_07",
+    "VIBE_DM_02"
   ]
 }
