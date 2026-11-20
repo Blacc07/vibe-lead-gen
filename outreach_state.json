@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-19T16:00:51.916454+00:00",
+  "generated_at": "2026-11-20T02:00:46.078993+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -721,14 +721,21 @@
       "outreach_message": "Hey thorwallet — curious, does THORWallet have plans for a perp market for $TITN? I'm with Vibe Trading and thought there might be an interesting fit. Open to exploring it?",
       "outreach_assigned_at": "2026-11-19T16:00:51.916434+00:00",
       "outreach_status": "assigned"
+    },
+    "tsuki": {
+      "outreach_template_id": "VIBE_DM_06",
+      "outreach_angle": "ultra_short",
+      "outreach_message": "Hey team — quick one: would a perp market for $TSUKI be relevant to Tsuki? I'm with Vibe Trading. Happy to share more if it's on your radar.",
+      "outreach_assigned_at": "2026-11-20T02:00:46.078975+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_06",
     "VIBE_DM_01",
     "VIBE_DM_03",
     "VIBE_DM_07",
     "VIBE_DM_02",
-    "VIBE_DM_07"
+    "VIBE_DM_07",
+    "VIBE_DM_06"
   ]
 }
