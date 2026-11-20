@@ -1,42 +1,42 @@
 {
-  "generated_at": "2026-11-19T15:01:01.423978+00:00",
+  "generated_at": "2026-11-20T16:01:04.141879+00:00",
   "source": "ccxt_cex_spot",
   "stats": {
     "okx": {
       "status": "success",
-      "spot_markets": 1248,
+      "spot_markets": 1250,
       "perp_markets": 546,
-      "total_markets": 4801
+      "total_markets": 4755
     },
     "mexc": {
       "status": "success",
       "spot_markets": 1664,
-      "perp_markets": 1167,
-      "total_markets": 2894
+      "perp_markets": 1170,
+      "total_markets": 2897
     },
     "gate": {
       "status": "success",
-      "spot_markets": 2155,
-      "perp_markets": 1034,
-      "total_markets": 6809
+      "spot_markets": 2158,
+      "perp_markets": 1038,
+      "total_markets": 6499
     },
     "bitget": {
       "status": "success",
-      "spot_markets": 3655,
-      "perp_markets": 947,
-      "total_markets": 4613
+      "spot_markets": 3659,
+      "perp_markets": 949,
+      "total_markets": 4615
     },
     "kucoin": {
       "status": "success",
       "spot_markets": 968,
-      "perp_markets": 727,
-      "total_markets": 1696
+      "perp_markets": 728,
+      "total_markets": 1697
     },
     "kucoinfutures": {
       "status": "success",
       "spot_markets": 0,
-      "perp_markets": 727,
-      "total_markets": 728
+      "perp_markets": 728,
+      "total_markets": 729
     },
     "phemex": {
       "status": "success",
@@ -46,9 +46,9 @@
     },
     "bingx": {
       "status": "success",
-      "spot_markets": 596,
+      "spot_markets": 597,
       "perp_markets": 1215,
-      "total_markets": 3666
+      "total_markets": 3668
     },
     "hyperliquid": {
       "perp_symbols": 235
@@ -85,9 +85,9 @@
     "configured_cex_venues": 7,
     "minimum_required_cex_venues": 4,
     "failed_cex_sources": [],
-    "generated_at": "2026-11-19T15:01:00.696085+00:00"
+    "generated_at": "2026-11-20T16:01:01.661253+00:00"
   },
-  "total_unique_spot_base_symbols": 5927,
+  "total_unique_spot_base_symbols": 5932,
   "symbols": [
     "0G",
     "1000BONK",
@@ -243,7 +243,11 @@
     "ANSEM",
     "ANT3L",
     "ANT3S",
+    "ANTB",
     "ANTFUN",
+    "ANTG",
+    "ANTON",
+    "ANTX",
     "ANVL",
     "ANYONE",
     "AO",
@@ -605,7 +609,6 @@
     "CHIP3S",
     "CHIRP",
     "CHO",
-    "CHOMP",
     "CHOO",
     "CHR",
     "CHZ",
@@ -618,6 +621,7 @@
     "CL3S",
     "CLANKER",
     "CLAUDIA",
+    "CLEAR",
     "CLND",
     "CLO",
     "CLONE",
@@ -919,6 +923,7 @@
     "FIL5L",
     "FIL5S",
     "FIO",
+    "FIONA",
     "FIR",
     "FIRE",
     "FIRO",
@@ -1094,7 +1099,6 @@
     "HBAR3L",
     "HBAR3S",
     "HDG",
-    "HDLR",
     "HDX",
     "HEART",
     "HEI",
@@ -1900,7 +1904,6 @@
     "QCOM3S",
     "QCOMG",
     "QCOMON",
-    "QFI",
     "QI",
     "QIE",
     "QKA",
@@ -2304,6 +2307,8 @@
     "RBIP",
     "RBIPC",
     "RBIRK",
+    "RBITI",
+    "RBITO",
     "RBITX",
     "RBIV",
     "RBJ",
@@ -4209,6 +4214,7 @@
     "RQCRH",
     "RQFIN",
     "RQGEN",
+    "RQID",
     "RQLD",
     "RQLYS",
     "RQNST",
@@ -4321,6 +4327,7 @@
     "RRVLV",
     "RRVMD",
     "RRVTY",
+    "RRWM",
     "RRXO",
     "RRXRX",
     "RRXT",
@@ -5154,7 +5161,6 @@
     "SERV",
     "SFP",
     "SGR",
-    "SHARE",
     "SHELL",
     "SHFT",
     "SHIB",
@@ -5221,7 +5227,6 @@
     "SNDK3S",
     "SNDK5L",
     "SNDK5S",
-    "SNDKB",
     "SNDKG",
     "SNDKON",
     "SNEK",
@@ -5477,7 +5482,6 @@
     "TSTBSC",
     "TT",
     "TTMION",
-    "TTN",
     "TTWOON",
     "TUNE",
     "TURBO",
@@ -5688,6 +5692,7 @@
     "XAMGN",
     "XAMZN",
     "XAN",
+    "XANT",
     "XAPLD",
     "XAPP",
     "XARM",
