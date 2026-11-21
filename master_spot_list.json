@@ -1,28 +1,28 @@
 {
-  "generated_at": "2026-11-20T16:01:04.141879+00:00",
+  "generated_at": "2026-11-21T17:00:55.717138+00:00",
   "source": "ccxt_cex_spot",
   "stats": {
     "okx": {
       "status": "success",
       "spot_markets": 1250,
       "perp_markets": 546,
-      "total_markets": 4755
+      "total_markets": 5167
     },
     "mexc": {
       "status": "success",
-      "spot_markets": 1664,
-      "perp_markets": 1170,
-      "total_markets": 2897
+      "spot_markets": 1661,
+      "perp_markets": 1169,
+      "total_markets": 2893
     },
     "gate": {
       "status": "success",
       "spot_markets": 2158,
       "perp_markets": 1038,
-      "total_markets": 6499
+      "total_markets": 6766
     },
     "bitget": {
       "status": "success",
-      "spot_markets": 3659,
+      "spot_markets": 3658,
       "perp_markets": 949,
       "total_markets": 4615
     },
@@ -46,7 +46,7 @@
     },
     "bingx": {
       "status": "success",
-      "spot_markets": 597,
+      "spot_markets": 596,
       "perp_markets": 1215,
       "total_markets": 3668
     },
@@ -85,9 +85,9 @@
     "configured_cex_venues": 7,
     "minimum_required_cex_venues": 4,
     "failed_cex_sources": [],
-    "generated_at": "2026-11-20T16:01:01.661253+00:00"
+    "generated_at": "2026-11-21T17:00:55.094048+00:00"
   },
-  "total_unique_spot_base_symbols": 5932,
+  "total_unique_spot_base_symbols": 5929,
   "symbols": [
     "0G",
     "1000BONK",
@@ -298,7 +298,6 @@
     "ARTX",
     "ARW",
     "ARX",
-    "ASE",
     "ASK",
     "ASM",
     "ASMLON",
@@ -4051,7 +4050,6 @@
     "RPAM",
     "RPANW",
     "RPAR",
-    "RPARA",
     "RPARR",
     "RPATH",
     "RPATK",
@@ -5633,7 +5631,6 @@
     "WET",
     "WFI",
     "WHITEWHALE",
-    "WHUF",
     "WHYPAD",
     "WIF",
     "WIF3L",
