@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-21T17:01:18.016861+00:00",
+  "generated_at": "2026-11-22T15:00:44.489253+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -777,14 +777,21 @@
       "outreach_message": "Hey cultofgreg — quick one: would a perp market for $GREG be relevant to greg? I'm with Vibe Trading. Happy to share more if it's on your radar.",
       "outreach_assigned_at": "2026-11-21T17:01:18.016844+00:00",
       "outreach_status": "assigned"
+    },
+    "xswap-2": {
+      "outreach_template_id": "VIBE_DM_03",
+      "outreach_angle": "momentum",
+      "outreach_message": "Hey xswap_link — noticed XSwap is showing about $28,865 in 24h DEX volume and $110,379 in pool liquidity. Thought it could be a good time to explore a perp market for $XSWAP with Vibe Trading. Open to a quick chat?",
+      "outreach_assigned_at": "2026-11-22T15:00:44.489237+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_01",
     "VIBE_DM_07",
     "VIBE_DM_01",
     "VIBE_DM_02",
     "VIBE_DM_07",
-    "VIBE_DM_06"
+    "VIBE_DM_06",
+    "VIBE_DM_03"
   ]
 }
