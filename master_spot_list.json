@@ -1,24 +1,24 @@
 {
-  "generated_at": "2026-11-21T17:00:55.717138+00:00",
+  "generated_at": "2026-11-22T18:00:51.753474+00:00",
   "source": "ccxt_cex_spot",
   "stats": {
     "okx": {
       "status": "success",
       "spot_markets": 1250,
       "perp_markets": 546,
-      "total_markets": 5167
+      "total_markets": 5073
     },
     "mexc": {
       "status": "success",
-      "spot_markets": 1661,
+      "spot_markets": 1635,
       "perp_markets": 1169,
-      "total_markets": 2893
+      "total_markets": 2866
     },
     "gate": {
       "status": "success",
       "spot_markets": 2158,
       "perp_markets": 1038,
-      "total_markets": 6766
+      "total_markets": 6702
     },
     "bitget": {
       "status": "success",
@@ -85,9 +85,9 @@
     "configured_cex_venues": 7,
     "minimum_required_cex_venues": 4,
     "failed_cex_sources": [],
-    "generated_at": "2026-11-21T17:00:55.094048+00:00"
+    "generated_at": "2026-11-22T18:00:50.695192+00:00"
   },
-  "total_unique_spot_base_symbols": 5929,
+  "total_unique_spot_base_symbols": 5918,
   "symbols": [
     "0G",
     "1000BONK",
@@ -308,7 +308,6 @@
     "ASTER",
     "ASTER3L",
     "ASTER3S",
-    "ASTEROID1",
     "ASTOCK",
     "ASTR",
     "ASTSON",
@@ -498,7 +497,6 @@
     "BRAINON",
     "BRETT",
     "BREV",
-    "BREW",
     "BRI",
     "BRIC",
     "BRISE",
@@ -936,7 +934,6 @@
     "FLOCK3L",
     "FLOCK3S",
     "FLOKI",
-    "FLORK",
     "FLOW",
     "FLR",
     "FLT",
@@ -1070,7 +1067,6 @@
     "GRT",
     "GRVT",
     "GSG",
-    "GSTOCK",
     "GSTOCKBSC",
     "GT",
     "GTAI",
@@ -1134,7 +1130,6 @@
     "HOODON",
     "HOODX",
     "HOOK",
-    "HOOKED",
     "HOOKR",
     "HOPPY",
     "HORD",
@@ -1236,7 +1231,6 @@
     "JST",
     "JTO",
     "JUC",
-    "JUGGERNAUT",
     "JUP",
     "JUV",
     "KAIA",
@@ -1296,7 +1290,6 @@
     "KTA",
     "KTON",
     "KUB",
-    "KULA",
     "KYO",
     "KYVE",
     "KZEN",
@@ -1742,7 +1735,6 @@
     "PACE",
     "PACK",
     "PACT",
-    "PAID",
     "PAIR",
     "PAL",
     "PANDO",
@@ -3349,6 +3341,7 @@
     "RING",
     "RINGM",
     "RINGR",
+    "RINGS",
     "RINIO",
     "RINMD",
     "RINN",
@@ -5585,7 +5578,6 @@
     "VPEPE",
     "VPR",
     "VR",
-    "VRA",
     "VRAX",
     "VRTON",
     "VSN",
@@ -5659,7 +5651,6 @@
     "WOLFTON",
     "WOO",
     "WPAY",
-    "WQUIL",
     "WRT",
     "WRX",
     "WSB",
@@ -5997,7 +5988,6 @@
     "ZKL",
     "ZKP",
     "ZLW",
-    "ZOOM",
     "ZOON",
     "ZORA",
     "ZPAY",
@@ -6009,7 +5999,6 @@
     "ZULU",
     "ZYLO",
     "ZYRA",
-    "ZZZ",
     "哈基米",
     "小股东",
     "币安人生",

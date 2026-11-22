@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-22T15:00:44.489253+00:00",
+  "generated_at": "2026-11-22T18:02:23.343601+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -784,14 +784,28 @@
       "outreach_message": "Hey xswap_link — noticed XSwap is showing about $28,865 in 24h DEX volume and $110,379 in pool liquidity. Thought it could be a good time to explore a perp market for $XSWAP with Vibe Trading. Open to a quick chat?",
       "outreach_assigned_at": "2026-11-22T15:00:44.489237+00:00",
       "outreach_status": "assigned"
+    },
+    "vcat": {
+      "outreach_template_id": "VIBE_DM_03",
+      "outreach_angle": "momentum",
+      "outreach_message": "Hey VCATBASE — noticed VCAT is showing about $68,076 in 24h DEX volume and $55,650 in pool liquidity. Thought it could be a good time to explore a perp market for $VCAT with Vibe Trading. Open to a quick chat?",
+      "outreach_assigned_at": "2026-11-22T18:02:20.764610+00:00",
+      "outreach_status": "assigned"
+    },
+    "burn-lucky-sheep": {
+      "outreach_template_id": "VIBE_DM_02",
+      "outreach_angle": "market_gap",
+      "outreach_message": "Hey luckysheep2027 — $幸运羊 doesn't appear to have a perp market on the venues we checked. Vibe Trading helps projects explore launching one. Is this something your team has looked into?",
+      "outreach_assigned_at": "2026-11-22T18:02:23.343578+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_07",
-    "VIBE_DM_01",
     "VIBE_DM_02",
     "VIBE_DM_07",
     "VIBE_DM_06",
-    "VIBE_DM_03"
+    "VIBE_DM_03",
+    "VIBE_DM_03",
+    "VIBE_DM_02"
   ]
 }
