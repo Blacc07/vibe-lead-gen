@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-23T11:00:48.824177+00:00",
+  "generated_at": "2026-11-23T18:01:52.392501+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -812,14 +812,21 @@
       "outreach_message": "Hey MineliusPad — curious, does Minelius have plans for a perp market for $MINELIUS? I'm with Vibe Trading and thought there might be an interesting fit. Open to exploring it?",
       "outreach_assigned_at": "2026-11-23T11:00:48.824159+00:00",
       "outreach_status": "assigned"
+    },
+    "shiitake": {
+      "outreach_template_id": "VIBE_DM_02",
+      "outreach_angle": "market_gap",
+      "outreach_message": "Hey liltechnomancer — $SHIIT doesn't appear to have a perp market on the venues we checked. Vibe Trading helps projects explore launching one. Is this something your team has looked into?",
+      "outreach_assigned_at": "2026-11-23T18:01:52.392482+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_06",
     "VIBE_DM_03",
     "VIBE_DM_03",
     "VIBE_DM_02",
     "VIBE_DM_01",
-    "VIBE_DM_07"
+    "VIBE_DM_07",
+    "VIBE_DM_02"
   ]
 }
