@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-23T04:00:45.807977+00:00",
+  "generated_at": "2026-11-23T11:00:48.824177+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -805,14 +805,21 @@
       "outreach_message": "Hey OGRizzmas — has Rizzmas considered a perp market for $RIZZMAS? I'm with Vibe Trading, where projects can bring their tokens to perpetual markets. Thought it could be worth exploring for you guys.",
       "outreach_assigned_at": "2026-11-23T04:00:45.807958+00:00",
       "outreach_status": "assigned"
+    },
+    "minelius": {
+      "outreach_template_id": "VIBE_DM_07",
+      "outreach_angle": "curiosity",
+      "outreach_message": "Hey MineliusPad — curious, does Minelius have plans for a perp market for $MINELIUS? I'm with Vibe Trading and thought there might be an interesting fit. Open to exploring it?",
+      "outreach_assigned_at": "2026-11-23T11:00:48.824159+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_07",
     "VIBE_DM_06",
     "VIBE_DM_03",
     "VIBE_DM_03",
     "VIBE_DM_02",
-    "VIBE_DM_01"
+    "VIBE_DM_01",
+    "VIBE_DM_07"
   ]
 }
