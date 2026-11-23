@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-22T18:02:23.343601+00:00",
+  "generated_at": "2026-11-23T04:00:45.807977+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -798,14 +798,21 @@
       "outreach_message": "Hey luckysheep2027 — $幸运羊 doesn't appear to have a perp market on the venues we checked. Vibe Trading helps projects explore launching one. Is this something your team has looked into?",
       "outreach_assigned_at": "2026-11-22T18:02:23.343578+00:00",
       "outreach_status": "assigned"
+    },
+    "rizzmas": {
+      "outreach_template_id": "VIBE_DM_01",
+      "outreach_angle": "perp_opportunity",
+      "outreach_message": "Hey OGRizzmas — has Rizzmas considered a perp market for $RIZZMAS? I'm with Vibe Trading, where projects can bring their tokens to perpetual markets. Thought it could be worth exploring for you guys.",
+      "outreach_assigned_at": "2026-11-23T04:00:45.807958+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_02",
     "VIBE_DM_07",
     "VIBE_DM_06",
     "VIBE_DM_03",
     "VIBE_DM_03",
-    "VIBE_DM_02"
+    "VIBE_DM_02",
+    "VIBE_DM_01"
   ]
 }
