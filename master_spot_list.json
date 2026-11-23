@@ -1,36 +1,36 @@
 {
-  "generated_at": "2026-11-22T18:00:51.753474+00:00",
+  "generated_at": "2026-11-23T19:00:53.009417+00:00",
   "source": "ccxt_cex_spot",
   "stats": {
     "okx": {
       "status": "success",
       "spot_markets": 1250,
       "perp_markets": 546,
-      "total_markets": 5073
+      "total_markets": 5063
     },
     "mexc": {
       "status": "success",
-      "spot_markets": 1635,
-      "perp_markets": 1169,
-      "total_markets": 2866
+      "spot_markets": 1634,
+      "perp_markets": 1171,
+      "total_markets": 2867
     },
     "gate": {
       "status": "success",
-      "spot_markets": 2158,
-      "perp_markets": 1038,
-      "total_markets": 6702
+      "spot_markets": 2157,
+      "perp_markets": 1037,
+      "total_markets": 6549
     },
     "bitget": {
       "status": "success",
-      "spot_markets": 3658,
+      "spot_markets": 3659,
       "perp_markets": 949,
       "total_markets": 4615
     },
     "kucoin": {
       "status": "success",
-      "spot_markets": 968,
+      "spot_markets": 969,
       "perp_markets": 728,
-      "total_markets": 1697
+      "total_markets": 1698
     },
     "kucoinfutures": {
       "status": "success",
@@ -41,14 +41,14 @@
     "phemex": {
       "status": "success",
       "spot_markets": 176,
-      "perp_markets": 146,
+      "perp_markets": 147,
       "total_markets": 2070
     },
     "bingx": {
       "status": "success",
       "spot_markets": 596,
-      "perp_markets": 1215,
-      "total_markets": 3668
+      "perp_markets": 1228,
+      "total_markets": 3681
     },
     "hyperliquid": {
       "perp_symbols": 235
@@ -85,7 +85,7 @@
     "configured_cex_venues": 7,
     "minimum_required_cex_venues": 4,
     "failed_cex_sources": [],
-    "generated_at": "2026-11-22T18:00:50.695192+00:00"
+    "generated_at": "2026-11-23T19:00:52.604560+00:00"
   },
   "total_unique_spot_base_symbols": 5918,
   "symbols": [
@@ -4043,6 +4043,7 @@
     "RPAM",
     "RPANW",
     "RPAR",
+    "RPARA",
     "RPARR",
     "RPATH",
     "RPATK",
@@ -5740,7 +5741,6 @@
     "XEL",
     "XELS",
     "XEM",
-    "XEN",
     "XEP",
     "XEWJ",
     "XEWT",
