@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-24T02:57:43.396754+00:00",
+  "generated_at": "2026-11-24T10:00:43.685212+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -840,14 +840,21 @@
       "outreach_message": "Hey flaptls — noticed Test Liquid Staking is showing about $66,010 in 24h DEX volume and $203,657 in pool liquidity. Thought it could be a good time to explore a perp market for $TLS with Vibe Trading. Open to a quick chat?",
       "outreach_assigned_at": "2026-11-24T02:57:43.396735+00:00",
       "outreach_status": "assigned"
+    },
+    "stairway-to-gold": {
+      "outreach_template_id": "VIBE_DM_01",
+      "outreach_angle": "perp_opportunity",
+      "outreach_message": "Hey stairwaytogold8 — has Stairway to gold considered a perp market for $GOLD? I'm with Vibe Trading, where projects can bring their tokens to perpetual markets. Thought it could be worth exploring for you guys.",
+      "outreach_assigned_at": "2026-11-24T10:00:43.685197+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_01",
     "VIBE_DM_07",
     "VIBE_DM_02",
     "VIBE_DM_06",
     "VIBE_DM_01",
-    "VIBE_DM_03"
+    "VIBE_DM_03",
+    "VIBE_DM_01"
   ]
 }
