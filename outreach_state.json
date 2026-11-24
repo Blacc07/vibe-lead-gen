@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-23T23:00:44.497884+00:00",
+  "generated_at": "2026-11-24T01:00:50.119603+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -826,14 +826,21 @@
       "outreach_message": "Hey Momocoin0 — quick one: would a perp market for $MOMO be relevant to MomoCoin? I'm with Vibe Trading. Happy to share more if it's on your radar.",
       "outreach_assigned_at": "2026-11-23T23:00:44.497868+00:00",
       "outreach_status": "assigned"
+    },
+    "star-atlas-dao": {
+      "outreach_template_id": "VIBE_DM_01",
+      "outreach_angle": "perp_opportunity",
+      "outreach_message": "Hey staratlas — has Star Atlas DAO considered a perp market for $POLIS? I'm with Vibe Trading, where projects can bring their tokens to perpetual markets. Thought it could be worth exploring for you guys.",
+      "outreach_assigned_at": "2026-11-24T01:00:50.119587+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_03",
     "VIBE_DM_02",
     "VIBE_DM_01",
     "VIBE_DM_07",
     "VIBE_DM_02",
-    "VIBE_DM_06"
+    "VIBE_DM_06",
+    "VIBE_DM_01"
   ]
 }
