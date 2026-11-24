@@ -1,42 +1,42 @@
 {
-  "generated_at": "2026-11-23T19:00:53.009417+00:00",
+  "generated_at": "2026-11-24T20:01:42.910277+00:00",
   "source": "ccxt_cex_spot",
   "stats": {
     "okx": {
       "status": "success",
       "spot_markets": 1250,
-      "perp_markets": 546,
-      "total_markets": 5063
+      "perp_markets": 550,
+      "total_markets": 4945
     },
     "mexc": {
       "status": "success",
       "spot_markets": 1634,
-      "perp_markets": 1171,
-      "total_markets": 2867
+      "perp_markets": 1175,
+      "total_markets": 2872
     },
     "gate": {
       "status": "success",
       "spot_markets": 2157,
       "perp_markets": 1037,
-      "total_markets": 6549
+      "total_markets": 6502
     },
     "bitget": {
       "status": "success",
       "spot_markets": 3659,
-      "perp_markets": 949,
-      "total_markets": 4615
+      "perp_markets": 951,
+      "total_markets": 4617
     },
     "kucoin": {
       "status": "success",
       "spot_markets": 969,
-      "perp_markets": 728,
-      "total_markets": 1698
+      "perp_markets": 724,
+      "total_markets": 1694
     },
     "kucoinfutures": {
       "status": "success",
       "spot_markets": 0,
-      "perp_markets": 728,
-      "total_markets": 729
+      "perp_markets": 724,
+      "total_markets": 725
     },
     "phemex": {
       "status": "success",
@@ -47,8 +47,8 @@
     "bingx": {
       "status": "success",
       "spot_markets": 596,
-      "perp_markets": 1228,
-      "total_markets": 3681
+      "perp_markets": 1227,
+      "total_markets": 3682
     },
     "hyperliquid": {
       "perp_symbols": 235
@@ -85,9 +85,9 @@
     "configured_cex_venues": 7,
     "minimum_required_cex_venues": 4,
     "failed_cex_sources": [],
-    "generated_at": "2026-11-23T19:00:52.604560+00:00"
+    "generated_at": "2026-11-24T20:01:42.703256+00:00"
   },
-  "total_unique_spot_base_symbols": 5918,
+  "total_unique_spot_base_symbols": 5917,
   "symbols": [
     "0G",
     "1000BONK",
@@ -1218,7 +1218,6 @@
     "JFI",
     "JGGL",
     "JITOSOL",
-    "JMDT",
     "JNJG",
     "JOC",
     "JOE",
