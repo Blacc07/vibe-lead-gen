@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-24T10:00:43.685212+00:00",
+  "generated_at": "2026-11-24T22:01:59.806950+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -847,14 +847,21 @@
       "outreach_message": "Hey stairwaytogold8 — has Stairway to gold considered a perp market for $GOLD? I'm with Vibe Trading, where projects can bring their tokens to perpetual markets. Thought it could be worth exploring for you guys.",
       "outreach_assigned_at": "2026-11-24T10:00:43.685197+00:00",
       "outreach_status": "assigned"
+    },
+    "would": {
+      "outreach_template_id": "VIBE_DM_03",
+      "outreach_angle": "momentum",
+      "outreach_message": "Hey wouldmemecoin — noticed would is showing about $83,422 in 24h DEX volume and $234,444 in pool liquidity. Thought it could be a good time to explore a perp market for $WOULD with Vibe Trading. Open to a quick chat?",
+      "outreach_assigned_at": "2026-11-24T22:01:59.806933+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_07",
     "VIBE_DM_02",
     "VIBE_DM_06",
     "VIBE_DM_01",
     "VIBE_DM_03",
-    "VIBE_DM_01"
+    "VIBE_DM_01",
+    "VIBE_DM_03"
   ]
 }
