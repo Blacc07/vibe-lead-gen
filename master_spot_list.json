@@ -1,54 +1,54 @@
 {
-  "generated_at": "2026-11-24T20:01:42.910277+00:00",
+  "generated_at": "2026-11-25T21:00:57.368814+00:00",
   "source": "ccxt_cex_spot",
   "stats": {
     "okx": {
       "status": "success",
       "spot_markets": 1250,
-      "perp_markets": 550,
-      "total_markets": 4945
+      "perp_markets": 554,
+      "total_markets": 4931
     },
     "mexc": {
       "status": "success",
-      "spot_markets": 1634,
-      "perp_markets": 1175,
-      "total_markets": 2872
+      "spot_markets": 1635,
+      "perp_markets": 1180,
+      "total_markets": 2879
     },
     "gate": {
       "status": "success",
-      "spot_markets": 2157,
-      "perp_markets": 1037,
-      "total_markets": 6502
+      "spot_markets": 2133,
+      "perp_markets": 1043,
+      "total_markets": 6271
     },
     "bitget": {
       "status": "success",
       "spot_markets": 3659,
-      "perp_markets": 951,
-      "total_markets": 4617
+      "perp_markets": 954,
+      "total_markets": 4620
     },
     "kucoin": {
       "status": "success",
       "spot_markets": 969,
-      "perp_markets": 724,
-      "total_markets": 1694
+      "perp_markets": 729,
+      "total_markets": 1700
     },
     "kucoinfutures": {
       "status": "success",
       "spot_markets": 0,
-      "perp_markets": 724,
-      "total_markets": 725
+      "perp_markets": 729,
+      "total_markets": 730
     },
     "phemex": {
       "status": "success",
-      "spot_markets": 176,
+      "spot_markets": 175,
       "perp_markets": 147,
-      "total_markets": 2070
+      "total_markets": 2069
     },
     "bingx": {
       "status": "success",
-      "spot_markets": 596,
-      "perp_markets": 1227,
-      "total_markets": 3682
+      "spot_markets": 595,
+      "perp_markets": 1231,
+      "total_markets": 3686
     },
     "hyperliquid": {
       "perp_symbols": 235
@@ -85,9 +85,9 @@
     "configured_cex_venues": 7,
     "minimum_required_cex_venues": 4,
     "failed_cex_sources": [],
-    "generated_at": "2026-11-24T20:01:42.703256+00:00"
+    "generated_at": "2026-11-25T21:00:56.535247+00:00"
   },
-  "total_unique_spot_base_symbols": 5917,
+  "total_unique_spot_base_symbols": 5894,
   "symbols": [
     "0G",
     "1000BONK",
@@ -187,7 +187,6 @@
     "AIRDROP",
     "AIV",
     "AIX",
-    "AIX9",
     "AIXBT",
     "AIXDROP",
     "AKE",
@@ -530,7 +529,6 @@
     "BTW",
     "BTX",
     "BTY",
-    "BUBBLE",
     "BUBI",
     "BUCK",
     "BULL",
@@ -683,7 +681,6 @@
     "CRV3S",
     "CRVUSD",
     "CRWDX",
-    "CRWN",
     "CRWV3L",
     "CRWV3S",
     "CRWVG",
@@ -702,7 +699,6 @@
     "CTSI",
     "CTX",
     "CUDIS",
-    "CUMMIES",
     "CVAULTCORE",
     "CVC",
     "CVX",
@@ -744,7 +740,6 @@
     "DEFIBOX",
     "DEFISSI",
     "DEGEN",
-    "DEGO",
     "DELABS",
     "DELL3L",
     "DELL3S",
@@ -974,7 +969,6 @@
     "FYN",
     "G",
     "G3",
-    "GAFI",
     "GAG",
     "GAIA",
     "GAIB",
@@ -986,7 +980,6 @@
     "GALA5S",
     "GALFAN",
     "GALFT",
-    "GALO",
     "GAME",
     "GAME2",
     "GAMES",
@@ -1198,7 +1191,6 @@
     "IQ",
     "IR",
     "IRENON",
-    "IRON",
     "IRYS",
     "ISK",
     "ISLAND",
@@ -1217,6 +1209,7 @@
     "JELLYJELLY",
     "JFI",
     "JGGL",
+    "JIMMY",
     "JITOSOL",
     "JNJG",
     "JOC",
@@ -1285,9 +1278,7 @@
     "KRL",
     "KSKD",
     "KSM",
-    "KT",
     "KTA",
-    "KTON",
     "KUB",
     "KYO",
     "KYVE",
@@ -1327,7 +1318,6 @@
     "LINK3S",
     "LINK5L",
     "LINK5S",
-    "LION",
     "LIQUIDIUM",
     "LISTA",
     "LIT",
@@ -1441,7 +1431,6 @@
     "MELD",
     "MEME",
     "MENGO",
-    "MEPAD",
     "MERL",
     "MET",
     "META3L",
@@ -1460,7 +1449,6 @@
     "MEY",
     "MEZO",
     "MF",
-    "MGKL",
     "MGO",
     "MHA",
     "MILADYCULT",
@@ -1576,7 +1564,6 @@
     "NBISON",
     "NBLU",
     "NBOT",
-    "NBT",
     "NC",
     "NCN",
     "NCT",
@@ -1804,7 +1791,6 @@
     "PLEARN",
     "PLIAN",
     "PLN",
-    "PLSPAD",
     "PLTR3L",
     "PLTR3S",
     "PLTRG",
@@ -1862,7 +1848,6 @@
     "PRSM",
     "PSG",
     "PSI",
-    "PSRMM",
     "PT",
     "PTB",
     "PUBLIC",
@@ -2929,7 +2914,6 @@
     "RFBP",
     "RFBTC",
     "RFBYD",
-    "RFC",
     "RFCBC",
     "RFCEL",
     "RFCF",
@@ -5280,7 +5264,6 @@
     "SPO",
     "SPORTFUN",
     "SPOTON",
-    "SPS",
     "SPURS",
     "SPX",
     "SPX3L",
@@ -5317,7 +5300,6 @@
     "STRAX",
     "STRCON",
     "STREAM",
-    "STRIKE",
     "STRK",
     "STRK3L",
     "STRK3S",
@@ -5383,7 +5365,6 @@
     "TCU29",
     "TDROP",
     "TEA",
-    "TED",
     "TEL",
     "TENCENTG",
     "TERON",
@@ -5411,7 +5392,6 @@
     "TNSR",
     "TOKEN",
     "TOLLY",
-    "TONC",
     "TONNY",
     "TOP",
     "TORCH",
@@ -5421,7 +5401,6 @@
     "TOSHI3S",
     "TOTT",
     "TOWER",
-    "TOWN",
     "TOWNS",
     "TPTU",
     "TQQQG",
@@ -5568,7 +5547,6 @@
     "VISTA",
     "VLX",
     "VMT",
-    "VOID",
     "VOL",
     "VON",
     "VOOG",
@@ -5588,7 +5566,6 @@
     "VTAI",
     "VTHO",
     "VTIX",
-    "VVS",
     "VVV",
     "VVV3L",
     "VVV3S",
