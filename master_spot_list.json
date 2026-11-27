@@ -1,36 +1,36 @@
 {
-  "generated_at": "2026-11-26T22:00:52.802959+00:00",
+  "generated_at": "2026-11-27T23:00:45.350556+00:00",
   "source": "ccxt_cex_spot",
   "stats": {
     "okx": {
       "status": "success",
       "spot_markets": 1250,
       "perp_markets": 554,
-      "total_markets": 4903
+      "total_markets": 4781
     },
     "mexc": {
       "status": "success",
-      "spot_markets": 1606,
-      "perp_markets": 1180,
-      "total_markets": 2847
+      "spot_markets": 1586,
+      "perp_markets": 1184,
+      "total_markets": 2830
     },
     "gate": {
       "status": "success",
       "spot_markets": 2134,
       "perp_markets": 1043,
-      "total_markets": 6779
+      "total_markets": 6563
     },
     "bitget": {
       "status": "success",
-      "spot_markets": 3649,
-      "perp_markets": 954,
-      "total_markets": 4610
+      "spot_markets": 3647,
+      "perp_markets": 959,
+      "total_markets": 4613
     },
     "kucoin": {
       "status": "success",
-      "spot_markets": 971,
+      "spot_markets": 973,
       "perp_markets": 729,
-      "total_markets": 1701
+      "total_markets": 1703
     },
     "kucoinfutures": {
       "status": "success",
@@ -41,14 +41,14 @@
     "phemex": {
       "status": "success",
       "spot_markets": 175,
-      "perp_markets": 148,
+      "perp_markets": 149,
       "total_markets": 2070
     },
     "bingx": {
       "status": "success",
-      "spot_markets": 598,
-      "perp_markets": 1231,
-      "total_markets": 3686
+      "spot_markets": 599,
+      "perp_markets": 1216,
+      "total_markets": 3670
     },
     "hyperliquid": {
       "perp_symbols": 235
@@ -85,9 +85,9 @@
     "configured_cex_venues": 7,
     "minimum_required_cex_venues": 4,
     "failed_cex_sources": [],
-    "generated_at": "2026-11-26T22:00:52.373795+00:00"
+    "generated_at": "2026-11-27T23:00:44.684853+00:00"
   },
-  "total_unique_spot_base_symbols": 5875,
+  "total_unique_spot_base_symbols": 5866,
   "symbols": [
     "0G",
     "1000BONK",
@@ -228,7 +228,6 @@
     "AMZNG",
     "AMZNON",
     "AMZNX",
-    "ANAKIN",
     "ANAVI",
     "ANDYETH",
     "ANETON",
@@ -314,7 +313,6 @@
     "ATEAM",
     "ATH",
     "ATLA",
-    "ATLAS",
     "ATM",
     "ATOM",
     "ATOM3L",
@@ -798,7 +796,6 @@
     "DRAMB",
     "DRAMG",
     "DRAMON",
-    "DRB",
     "DRESS",
     "DRG",
     "DRIFT",
@@ -1107,7 +1104,6 @@
     "HMND",
     "HMSTR",
     "HNB",
-    "HNS",
     "HNT",
     "HOD",
     "HOLD",
@@ -1396,7 +1392,6 @@
     "MARAON",
     "MARSCOIN",
     "MART",
-    "MAS",
     "MASK",
     "MASKSOL",
     "MASS",
@@ -1480,6 +1475,7 @@
     "MON3L",
     "MON3S",
     "MONAD",
+    "MONTRA",
     "MOODENG",
     "MOODENG3L",
     "MOODENG3S",
@@ -3914,7 +3910,6 @@
     "ROABI",
     "ROAM",
     "ROBDC",
-    "ROBIN",
     "ROBK",
     "ROBO",
     "ROBX",
@@ -3930,7 +3925,6 @@
     "ROEF",
     "ROFG",
     "ROFRM",
-    "ROG",
     "ROGC",
     "ROGE",
     "ROGN",
@@ -5267,7 +5261,6 @@
     "SSV",
     "ST",
     "STABLE",
-    "STAMP",
     "STAR",
     "STAY",
     "STBL",
@@ -5377,7 +5370,6 @@
     "TOLLY",
     "TONNY",
     "TOP",
-    "TORCH",
     "TORN",
     "TOSHI",
     "TOSHI3L",
@@ -5566,7 +5558,6 @@
     "WAXL",
     "WAXP",
     "WBAI",
-    "WBT",
     "WBTC",
     "WCT",
     "WDC3L",

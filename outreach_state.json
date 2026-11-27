@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-27T08:45:48.200125+00:00",
+  "generated_at": "2026-11-27T23:01:03.226633+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -889,14 +889,21 @@
       "outreach_message": "Hey duhscat — has duh considered a perp market for $DUH? I'm with Vibe Trading, where projects can bring their tokens to perpetual markets. Thought it could be worth exploring for you guys.",
       "outreach_assigned_at": "2026-11-27T08:45:48.200107+00:00",
       "outreach_status": "assigned"
+    },
+    "skill-stacker": {
+      "outreach_template_id": "VIBE_DM_01",
+      "outreach_angle": "perp_opportunity",
+      "outreach_message": "Hey skillstkr — has Skill Stacker considered a perp market for $STKR? I'm with Vibe Trading, where projects can bring their tokens to perpetual markets. Thought it could be worth exploring for you guys.",
+      "outreach_assigned_at": "2026-11-27T23:01:03.226617+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_03",
     "VIBE_DM_07",
     "VIBE_DM_02",
     "VIBE_DM_06",
     "VIBE_DM_03",
+    "VIBE_DM_01",
     "VIBE_DM_01"
   ]
 }
