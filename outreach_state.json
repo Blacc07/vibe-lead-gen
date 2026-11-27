@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-27T05:01:56.107368+00:00",
+  "generated_at": "2026-11-27T08:00:49.668101+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -875,14 +875,21 @@
       "outreach_message": "Hey sai_superai — quick one: would a perp market for $NSAI be relevant to SAI? I'm with Vibe Trading. Happy to share more if it's on your radar.",
       "outreach_assigned_at": "2026-11-27T05:01:56.107352+00:00",
       "outreach_status": "assigned"
+    },
+    "basket-4": {
+      "outreach_template_id": "VIBE_DM_03",
+      "outreach_angle": "momentum",
+      "outreach_message": "Hey Basketdotxyz — noticed Basket is showing about $532,617 in 24h DEX volume and $94,834 in pool liquidity. Thought it could be a good time to explore a perp market for $BASKET with Vibe Trading. Open to a quick chat?",
+      "outreach_assigned_at": "2026-11-27T08:00:49.668087+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_03",
     "VIBE_DM_01",
     "VIBE_DM_03",
     "VIBE_DM_07",
     "VIBE_DM_02",
-    "VIBE_DM_06"
+    "VIBE_DM_06",
+    "VIBE_DM_03"
   ]
 }
