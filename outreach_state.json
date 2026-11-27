@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-27T08:00:49.668101+00:00",
+  "generated_at": "2026-11-27T08:45:48.200125+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -882,14 +882,21 @@
       "outreach_message": "Hey Basketdotxyz — noticed Basket is showing about $532,617 in 24h DEX volume and $94,834 in pool liquidity. Thought it could be a good time to explore a perp market for $BASKET with Vibe Trading. Open to a quick chat?",
       "outreach_assigned_at": "2026-11-27T08:00:49.668087+00:00",
       "outreach_status": "assigned"
+    },
+    "duh-2": {
+      "outreach_template_id": "VIBE_DM_01",
+      "outreach_angle": "perp_opportunity",
+      "outreach_message": "Hey duhscat — has duh considered a perp market for $DUH? I'm with Vibe Trading, where projects can bring their tokens to perpetual markets. Thought it could be worth exploring for you guys.",
+      "outreach_assigned_at": "2026-11-27T08:45:48.200107+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_01",
     "VIBE_DM_03",
     "VIBE_DM_07",
     "VIBE_DM_02",
     "VIBE_DM_06",
-    "VIBE_DM_03"
+    "VIBE_DM_03",
+    "VIBE_DM_01"
   ]
 }
