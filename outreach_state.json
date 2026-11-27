@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-27T02:02:59.529788+00:00",
+  "generated_at": "2026-11-27T05:01:56.107368+00:00",
   "assignments": {
     "launch": {
       "outreach_template_id": "VIBE_DM_06",
@@ -868,14 +868,21 @@
       "outreach_message": "Hey infiniFi — $INFI doesn't appear to have a perp market on the venues we checked. Vibe Trading helps projects explore launching one. Is this something your team has looked into?",
       "outreach_assigned_at": "2026-11-27T02:02:59.529770+00:00",
       "outreach_status": "assigned"
+    },
+    "sai-2": {
+      "outreach_template_id": "VIBE_DM_06",
+      "outreach_angle": "ultra_short",
+      "outreach_message": "Hey sai_superai — quick one: would a perp market for $NSAI be relevant to SAI? I'm with Vibe Trading. Happy to share more if it's on your radar.",
+      "outreach_assigned_at": "2026-11-27T05:01:56.107352+00:00",
+      "outreach_status": "assigned"
     }
   },
   "recent_template_ids": [
-    "VIBE_DM_01",
     "VIBE_DM_03",
     "VIBE_DM_01",
     "VIBE_DM_03",
     "VIBE_DM_07",
-    "VIBE_DM_02"
+    "VIBE_DM_02",
+    "VIBE_DM_06"
   ]
 }
